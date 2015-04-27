@@ -1,0 +1,384 @@
+# Graph for the second step of the Cisco demo (cisco-demo2)
+{
+	"profile": {
+		"VNFs": [
+			{
+				"vnf_descriptor": "switch.json",
+				"ports": [
+					{
+						"id": "L2Port:0",
+						"outgoing_label": {
+							"flowrules": [
+								{
+									"action": {
+										"VNF": {
+											"id": "dhcp",
+											"port": "inout:0"
+										},
+										"type": "output"
+									},
+									"flowspec": {
+										"matches": [
+											{
+												"priority": "2",
+												"id": "1"
+											}
+										]
+									}
+								}
+							]
+						}
+					},
+					{
+						"ingoing_label": {
+							"flowrules": [
+								{
+									"action": {
+										"VNF": {
+											"id": "Switch",
+											"port": "L2Port:1"
+										},
+										"type": "output"
+									},
+									"flowspec": {
+										"matches": [
+											{
+												"priority": "1000",
+												"id": "2"
+											}
+										],
+										"ingress_endpoint": "ingress"
+									}
+								}
+							]
+						},
+						"id": "L2Port:1",
+						"outgoing_label": {
+							"flowrules": [
+								{
+									"action": {
+										"endpoint": {
+											"port": "ingress"
+										},
+										"type": "output"
+									},
+									"flowspec": {
+										"matches": [
+											{
+												"priority": "2",
+												"id": "3"
+											}
+										]
+									}
+								}
+							]
+						}
+					},
+					{
+						"id": "L2Port:2",
+						"outgoing_label": {
+							"flowrules": [
+								{
+									"action": {
+										"VNF": {
+											"id": "Firewall",
+											"port": "User:0"
+										},
+										"type": "output"
+									},
+									"flowspec": {
+										"matches": [
+											{
+												"priority": "2",
+												"id": "4"
+											}
+										]
+									}
+								}
+							]
+						}
+					},
+					{
+						"id": "L2Port:3",
+						"outgoing_label": {
+							"flowrules": [
+								{
+									"action": {
+										"VNF": {
+											"id": "Monitor",
+											"port": "control_port:0"
+										},
+										"type": "output"
+									},
+									"flowspec": {
+										"matches": [
+											{
+												"priority": "2",
+												"id": "5"
+											}
+										]
+									}
+								}
+							]
+						}
+					}
+				],
+				"id": "Switch",
+				"name": "Switch"
+			},
+			{
+				"vnf_descriptor": "cisco_dhcp.json",
+				"ports": [
+					{
+						"id": "inout:0",
+						"outgoing_label": {
+							"flowrules": [
+								{
+									"action": {
+										"VNF": {
+											"id": "Switch",
+											"port": "L2Port:0"
+										},
+										"type": "output"
+									},
+									"flowspec": {
+										"matches": [
+											{
+												"priority": "2",
+												"id": "6"
+											}
+										]
+									}
+								}
+							]
+						}
+					}
+				],
+				"id": "dhcp",
+				"name": "dhcp"
+			},
+			{
+				"vnf_descriptor": "cisco_firewall.json",
+				"ports": [
+					{
+						"id": "WAN:0",
+						"outgoing_label": {
+							"flowrules": [
+								{
+									"action": {
+										"VNF": {
+											"id": "Monitor",
+											"port": "inout:0"
+										},
+										"type": "output"
+									},
+									"flowspec": {
+										"matches": [
+											{
+												"priority": "2",
+												"id": "7"
+											}
+										]
+									}
+								}
+							]
+						}
+					},
+					{
+						"id": "User:0",
+						"outgoing_label": {
+							"flowrules": [
+								{
+									"action": {
+										"VNF": {
+											"id": "Switch",
+											"port": "L2Port:2"
+										},
+										"type": "output"
+									},
+									"flowspec": {
+										"matches": [
+											{
+												"priority": "2",
+												"id": "8"
+											}
+										]
+									}
+								}
+							]
+						}
+					}
+				],
+				"id": "Firewall",
+				"name": "Firewall"
+			},
+			{
+				"vnf_descriptor": "cisco_monitor.json",
+				"ports": [
+					{
+						"id": "inout:0",
+						"outgoing_label": {
+							"flowrules": [
+								{
+									"action": {
+										"VNF": {
+											"id": "Firewall",
+											"port": "WAN:0"
+										},
+										"type": "output"
+									},
+									"flowspec": {
+										"matches": [
+											{
+												"priority": "2",
+												"id": "9"
+											}
+										]
+									}
+								}
+							]
+						}
+					},
+					{
+						"id": "inout:1",
+						"outgoing_label": {
+							"flowrules": [
+								{
+									"action": {
+										"VNF": {
+											"id": "Router-Nat",
+											"port": "User:0"
+										},
+										"type": "output"
+									},
+									"flowspec": {
+										"matches": [
+											{
+												"priority": "2",
+												"id": "10"
+											}
+										]
+									}
+								}
+							]
+						}
+					},
+					{
+						"id": "control_port:0",
+						"outgoing_label": {
+							"flowrules": [
+								{
+									"action": {
+										"VNF": {
+											"id": "Switch",
+											"port": "L2Port:3"
+										},
+										"type": "output"
+									},
+									"flowspec": {
+										"matches": [
+											{
+												"priority": "2",
+												"id": "11"
+											}
+										]
+									}
+								}
+							]
+						}
+					}
+				],
+				"id": "Monitor",
+				"name": "Monitor"
+			},
+			{
+				"vnf_descriptor": "cisco_nat.json",
+				"ports": [
+					{
+						"ingoing_label": {
+							"flowrules": [
+								{
+									"action": {
+										"VNF": {
+											"id": "Router-Nat",
+											"port": "WAN:0"
+										},
+										"type": "output"
+									},
+									"flowspec": {
+										"matches": [
+											{
+												"priority": "100",
+												"id": "12"
+											}
+										],
+										"ingress_endpoint": "egress"
+									}
+								}
+							]
+						},
+						"id": "WAN:0",
+						"outgoing_label": {
+							"flowrules": [
+								{
+									"action": {
+										"endpoint": {
+											"port": "egress"
+										},
+										"type": "output"
+									},
+									"flowspec": {
+										"matches": [
+											{
+												"priority": "2",
+												"id": "13"
+											}
+										]
+									}
+								}
+							]
+						}
+					},
+					{
+						"id": "User:0",
+						"outgoing_label": {
+							"flowrules": [
+								{
+									"action": {
+										"VNF": {
+											"id": "Monitor",
+											"port": "inout:1"
+										},
+										"type": "output"
+									},
+									"flowspec": {
+										"matches": [
+											{
+												"priority": "2",
+												"id": "14"
+											}
+										]
+									}
+								}
+							]
+						}
+					}
+				],
+				"id": "Router-Nat",
+				"name": "Router-Nat"
+			}
+		],
+		"endpoints": [
+			{
+				"id": "ingress",
+				"name": "INGRESS"
+			},
+			{
+				"id": "egress",
+				"name": "EGRESS"
+			}
+		],
+		"id": "6",
+		"name": "Firewall_Graph"
+	}
+}

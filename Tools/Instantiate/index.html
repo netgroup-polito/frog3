@@ -1,0 +1,103 @@
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=2.0"/>  
+	<title>FROG Orchestrator Dashboard</title>
+	<link rel="stylesheet" href="resources/login_css/style.css">
+	<script src="resources/login_js/script.js"></script>  
+</head>
+<body>
+
+	<div id="page">	
+
+		<!-- TOP BAR -->
+		<div id="top-bar">	
+		</div> <!-- end TOP BAR -->
+
+		<!-- HEADER -->
+		<div id="header">
+
+			<div class="page-full-width cf">
+				<div id="login-intro" class="fl">
+					<h1 class="black_background">Instantiate network profile</h1>
+					<h5 class="black_background">Customize your network</h5>
+				</div>
+			</div>
+			<div class="page-full-width cf">
+				<div id="afterlogin-intro" class="fl" style="display:none;">
+					<h1 class="black_background">Login to the <strong>Unify</strong> network</h1>
+					<h5 class="black_background">Success!</h5>
+				</div>					
+			</div>
+		</div>  <!-- end HEADER -->
+			
+		
+		<!-- MAIN CONTENT -->
+		<div id="content">	
+			<form action="#" method="" id="login-form">	
+				<fieldset>
+					<h1>
+						<label for="login-username">Plain access to the Internet</label>
+						<input type="button" onClick="instantiateProfile('cisco-demo1','stack');" class="round " autofocus maxlength="32" name="submit" class="full-width-input button round blue image-right ic-right-arrow fr" value="Instantiate profile">
+						<input type="button" onClick="disinstantiateProfile('cisco-demo1','stack');" class="round " autofocus maxlength="32" name="submit" class="full-width-input button round blue image-right ic-right-arrow fr" value="Delete profile">
+					</h1>
+					<br>
+					<h1>
+						<label for="login-password">Protected access to the Internet</label>
+						<input type="button" onClick="instantiateProfile('cisco-demo2','stack');" class="round " type="password"  name="submit" class="full-width-input button round blue image-right ic-right-arrow fr" maxlength="32" value="Instantiate profile">
+						<input type="button" onClick="disinstantiateProfile('cisco-demo2','stack');" class="round " type="password"  name="submit" class="full-width-input button round blue image-right ic-right-arrow fr" maxlength="32" value="Delete profile">
+
+					</h1>
+					<br>
+					<h1>
+						<label for="login-password">Authenticated access to the Internet</label>
+						<input type="button" onClick="instantiateProfile('nobody','stack');" class="round " type="password"  name="submit" class="full-width-input button round blue image-right ic-right-arrow fr" maxlength="32" value="Instantiate profile">
+						<input type="button" onClick="disinstantiateProfile('nobody','stack');" class="round " type="password"  name="submit" class="full-width-input button round blue image-right ic-right-arrow fr" maxlength="32" value="Delete profile">
+
+					</h1>
+					
+				</fieldset>
+								
+				<br/><div id="error-msg" class="error-box round"> </div>
+				
+			</form>		
+			
+			<div id="message" style="display:none;" align="center"> Loading...</div>
+			
+			<div id="login_ok" style="display:none;" align="center">			
+				<br>
+				<h1 align= "center"><b>Congratulations!</b></h1>
+				<br>
+				<h1 align= "center">Your profile is being instantiated.</h1>
+				<br>
+				
+				<!-- <div id="logout_button" align="center">
+					<input type="button" onClick="sendLogoutRequest();" name="logout" id="logout" class="button round blue image-right ic-right-arrow" value="LOGOUT">
+				</div> -->
+				
+			</div>
+			
+			<div id="disinstantiated" style="display:none;" align="center">			
+				<br>
+				<h1 align= "center"><b>Congratulations!</b></h1>
+				<br>
+				<h1 align= "center">Your profile is being deleted.</h1>
+				<br>
+				
+				<!-- <div id="logout_button" align="center">
+					<input type="button" onClick="sendLogoutRequest();" name="logout" id="logout" class="button round blue image-right ic-right-arrow" value="LOGOUT">
+				</div> -->
+				
+			</div>
+			
+		</div> <!-- end content -->
+		
+
+		<!-- FOOTER -->
+		<div id="footer">	
+		</div> <!-- end footer -->
+
+	</div> <!-- end PAGE -->
+
+</body>
+</html>

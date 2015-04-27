@@ -1,0 +1,296 @@
+Frog 3.0 installation guide tested with Ubuntu 14.04, Openstack icehouse and Opendaylight hydrogen
+
+#####################################################################################
+
+Prototype installation:
+	
+	Base Installation:
+	
+	OPENSTACK stable/icehouse version:
+
+		During the development phase we leveraged the official guide 
+		(http://docs.openstack.org/icehouse/install-guide/install/apt/content/)
+		for the installation and the configuration of components of interest.
+		Design your OpenStack network and configure it according to your needs
+
+		Component of interest:
+			* Basic environment
+			* Identy service (keystone)
+			* Command line clients (keystone, glance, nova, neutron, heat)
+			* Image service (glance)
+			* Compute service (nova, both controller and compute node)
+			* Networking service (neutron, both controller and network node)
+			* Orchestration service (heat)
+			* Dashboard GUI (horizon)
+		
+		NOTE: if you run into some problems when installing nova-api service and the log shows you
+		      a problem like "No module named rootwrap.cmd" or something similar, you can try to
+		      copy /usr/lib/python2.7/dist-packages/oslo/rootwrap/ in /usr/local/lib/python2.7/dist-packages/oslo
+		      and then restart the service
+
+		NOTE: when following the guide pay attention to use file hosts shortcuts only when the guide does it.
+		      Some addresses must be written explicitly in the configuration files.
+		
+		Extras: we suggest also to install phpmyadmin on controller node, to get database operations easier
+
+Extensions:
+	
+	Note: all these modifications must be done on the controller node
+	
+	NEUTRON:
+	* Install our extension for manage user NF graphs:
+		
+		cd Neutron-extension/
+		sudo ./install_extension.sh
+
+	NEUTRON CLIENT:
+	* Install our extension for manage user NF graphs:
+		
+		cd Neutron-client-extension/
+		sudo ./install_extension.sh
+	
+	HEAT:
+	* Go to the Heat configuration file (/etc/heat/heat.conf) and set the value "plugin_dirs" to the
+	  directory /usr/lib/heat-extensions
+	
+	* Install our plugin:
+		
+		cd Heat-extension/
+		sudo ./install_extension.sh
+	
+	KEYSTONE:			
+	* Install our extension for manage user profiles:
+			
+		cd Keystone-extension/
+		sudo ./install_extension.sh
+	
+	GLANCE:		
+	* Load images you found in the repository (you can do it with CLI or Horizon web GUI)
+	
+	* Create the flavor "m1.little" with 1 VCPU, 2048MB RAM, 40GB disk, 0 ephemeral and 0 swap
+
+	GUI (Optional):	
+	* Install horizon requirements
+
+		Our GUI is strictly integrated with OpenStack dashboard, so it needs an Horizon installation.
+
+	* Install forwarding graph extension:
+		
+		cd Horizon-extension/Forwarding_graph/
+		sudo ./install_extension.sh
+				
+	* Install service graph extension:
+		cd Horizon-extension/Service_Graph/
+		sudo ./install_extension.sh
+
+	CreateProfile web GUI (Optional):
+	* Install all needed software:
+		
+		sudo apt-get install curl libcurl3 libcurl3-dev php5-curl
+	
+	* Insert everything into Apache2 html directories
+
+		sudo cp -r CreateProfile /var/www/html/
+		sudo service apache2 restart
+
+OPENDAYLIGHT:
+
+	* We recommend to install OpenDayLight on a separate VM with at least 2 core and 2GB of memory and to place it
+          on the controller node. Of course you can also install it as a separate server, in case you don't care about saving space..
+	
+	* Follow the installation guide of Opendaylight (https://wiki.opendaylight.org/view/OVSDB:OVSDB_OpenStack_Guide) and install
+	  the ODL controller (we tested it on Ubuntu, not in Fedora). The only fundamental thing is that the vesion of ODL that you
+	  choose to install MUST USE OpenFlow 1.0 (NOT OpenFlow 1.3!) with a "MaxPermSize" value of 2048m
+	  
+	* In addiction you should stop the service SimpleForwarding using Opendaylight OSGI interface or, even better, remove the
+	  "simple_forwarding.jar" from "plugins" directory (that will prevent it from automatically run at startup)
+	  
+	* Give it a public internet address, bridging it on the "br-ex" virtual switch that brings to the outside.
+	  This step is important to give a full reachability both to Openstack and ODL virtual machine.
+	  To achieve this you must have an OVS external virtual bridge (br-ex) and an external network (ext-net) with its subnet; 
+	  if you have installed the network node somewhere else, you should install its services also on the controller and stop
+	  them and delete the ext-net after finishing the installation of all virtual machines (ODL and custom orchestrator).
+	  It can be done through virt-manager (requires GUI), setting br-ex as the default NIC from View->Details->NIC:
+		
+		Specify shared device name -> Bridge name: br-ex -> Device model: virtio
+	
+	  But you should also modify it from the xml description file of the virtual machine (virsh edit "vm name"):
+	
+	        In the <interface type ='bridge'> tag add these lines (immediately after <suorce ..> tag):
+		
+		<virtualport type = 'openvswitch'>
+		<parameters interfaceid = 'ext-net id'>
+		</virtualport>
+		
+		where ext-net id is the id of the Openstack external network (you can find it on Horizon or by CLI) 
+
+	* On controller and compute nodes insert the public address in hosts file
+
+	* IMPORTANT: before giving ODL the control of your infrastructure you must prevent it from controlling the exit point towards
+	  the outside world of your compute node; otherwise you won't even be able to reach it if it's remote!! 
+	  On the controller node, create a cron script like the one below (for the ROOT USER!):
+		
+		* * * * * ovs-vsctl del-controller br-ex
+
+	* Now we can set Opendaylight as the preferred ml2 plugin for Openstack:
+
+		go to the file /etc/neutron/plugins/ml2/ml2_conf.ini and change the field "mechanism_drivers" to "opendaylight"
+		
+		then add a couple of sections at the end of the file
+
+			[odl]
+			network_vlan_ranges = 1:4095
+			tunnel_id_ranges = 1:1000
+			tun_peer_patch_port = patch-int
+			int_peer_patch_port = patch-tun
+
+			tenant_network_type = gre
+			#tenant_network_type = vlan
+			tunnel_bridge = br-tun
+			integration_bridge = br-int
+
+
+			[ml2_odl]
+			# (StrOpt) OpenDaylight REST URL
+			# If this is not set then no HTTP requests will be made.
+			#
+			url = http://opendaylight:8080/controller/nb/v2/neutron
+
+			# (StrOpt) Username for HTTP basic authentication to ODL.
+			#
+			username = admin
+			# Example: username = admin
+
+			# (StrOpt) Password for HTTP basic authentication to ODL.
+			#
+			password = admin
+			# Example: password = admin
+
+			# (IntOpt) Timeout in seconds to wait for ODL HTTP request completion.
+			# This is an optional parameter, default value is 10 seconds.
+			#
+			timeout = 15
+			# Example: timeout = 15
+
+			# (IntOpt) Timeout in minutes to wait for a Tomcat session timeout.
+			# This is an optional parameter, default value is 30 minutes.
+			#
+			session_timeout = 30
+			# Example: session_timeout = 60
+
+		service neutron-server restart
+		
+	* Set Opendaylight as the manager for the Openswitch infrastructure:
+
+		ovs-vsctl set-manager tcp:xxx.xxx.xxx.xxx:6640
+	  
+	 (where xxx.xxx.xxx.xxx indicates the public ip address of Opendaylight VM)
+
+	* On compute node stop (and remove from startup list) the service "neutron-plugin-openvswitch-agent"
+	
+ORCHESTRATOR:
+
+	* We recommend to install the orchestrator on a separate VM, to place it on the controller node and to give it a public 
+	  internet address, exactly like what just did with Opendaylight
+
+	* On controller and compute nodes insert the public address in hosts file 
+
+	* Copy the folder "Orchestrator" into your virtual machine (or server)
+	
+	* Required command to launch to install required python library (Tested on ubuntu 14.04.1)
+		
+		* install python
+			sudo apt-get install python-dev python-setuptools
+
+		* if pip is not installed install pip
+			sudo easy_install pip
+		
+		* install core component
+			sudo apt-get install python-sqlalchemy libmysqlclient-dev
+			sudo pip install --upgrade cython falcon requests gunicorn jsonschema mysql-python json_hyper_schema
+	
+	DATABASE (on OpenStack controller node):
+		
+		* Creation:
+			mysql -u root -p
+		
+			CREATE DATABASE orchestrator;
+			GRANT ALL ON orchestrator.* TO 'orchestrator'@'%' IDENTIFIED BY 'stack';
+			GRANT ALL ON orchestrator.* TO 'orchestrator'@'localhost' IDENTIFIED BY 'stack';
+			USE orchestrator;
+			CREATE TABLE session (id VARCHAR(64) NOT NULL PRIMARY KEY,\
+			 	user_id VARCHAR(64), mac_address Text, session_info Text,\
+			 	profile Text, infrastructure Text, started DATETIME,\
+			 	last_update DATETIME,error  DATETIME, ended DATETIME);
+			CREATE TABLE profile (id VARCHAR(64) NOT NULL PRIMARY KEY, profile Text);
+			CREATE TABLE component_adapter (session_id VARCHAR(64) NOT NULL PRIMARY KEY,\
+				extra mediumtext NOT NULL);
+			CREATE TABLE endpoint (Graph_ID varchar(64) NOT NULL,
+  				Endpoint_ID varchar(64) NOT NULL, Available tinyint(1) NOT NULL,\
+  				Name varchar(64) NOT NULL, ID varchar(64) NOT NULL, Type varchar(64) DEFAULT NULL,\
+ 				Graph_ID_connected varchar(64) DEFAULT NULL, Endpoint_ID_connected varchar(64) DEFAULT NULL,\
+  				PRIMARY KEY (Graph_ID,Endpoint_ID));
+			exit
+	
+		* Change the configuration file with IP address of the Openstack controller, access credentials and the
+		  physical interface for the users. You can find it in Orchestrator/Configuration/orchestrator.conf
+
+		* Change the image id into the "Templates" directory with the IDs assigned from Openstack to the images loaded
+		  and set the address of the controller into file hosts
+		
+		* Create a keystone user for every graph you want to instantiate (NFV graphs are thought to belong users)
+
+		* Load the users profiles into the database. At the moment these profiles are written in json files 
+		  but soon the extension for Horizon, which allows users to create their graph, will be completed.
+	   	  They can be found in the "Orchestrator/Graphs" folder and they have to be loaded in the user-profile
+		  table contained into keystone database.
+		  The Create Profile folder contains a simple php web page thatallows admin to create graphs by copy 
+		  and paste from the json files. As an alternative you can use phpmyadmin to enter that table and manually insert the 			  
+		  user id and profile, pasting the whole content of the corrisponding json file.
+	 
+	AGENT (on OpenStack compute node):
+		
+		* Copy the folder Orchestrator-agent on the network node (if remote)
+	
+		* If the network is separate you must install the same python components as on the controller (gunicorn)
+		
+		* Install and then run it
+	
+			cd Orchestrator-agent/
+			sudo ./install_agent.sh
+
+	OVS compute node configuration:
+	
+		* You need to add an additional OVS virtual bridge on the compute node; it is used to give an access point
+		  that connects users and their graphs. There is a script named "create_bridge_usr" into the folder
+		  "Useful-scripts" that creates the bridge and links it to the internal Openstack bridge (br-int)
+
+			cd Useful-scripts/
+			sudo ./create_bridge_usr
+		
+		* After that, you can find this new bridge in your OVS configuration. Now you have to link it to all the
+		  physical interfaces you want to use for users access. For example:
+		
+			sudo ovs-vsctl add-port br-usr eth1
+
+#####################################################################################
+	
+Start-up:
+
+	* Run orchestrator service layer
+	
+		cd Orchestrator
+		./start_orchestrator.sh
+	
+	* To instantiate an example user:
+	
+		python instantiate_only_nat.py or python instantiate_firewall.py
+	  
+	  these instantiation scripts need to be configured with the credentials of their user
+	  (simply open them and change the parameters user, tenant and password)
+
+	* To remove these stack (DO NOT DELETE STACKS FROM HORIZON):
+
+		python delete_only_nat.py or python delete_firewall.py
+
+

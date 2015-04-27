@@ -1,0 +1,37 @@
+{
+	"name": "cisco_nat_1",
+	"expandable": false,
+	"uri": "http://controller:9292/v2/images/22a8b700-0427-4925-8338-9062b8d0ac9c",
+	"vnf-type": "virtual-machine",
+	"memory-size": 2048,
+	"root-file-system-size": 40,
+	"ephemeral-file-system-size": 0,
+	"swap-disk-size": 0,
+	"CPUrequirements": {
+		"platformType": "x86",
+		"socket": [
+			{
+				"coreNumbers": 1
+			}
+		]
+	},
+	"ports": [
+		{
+            "position": "1-1",
+			"label": "User",
+			"min": "1",
+			"ipv4-config": "static",
+      		"ipv6-config": "none",
+      		"name": "eth"
+		},
+		{
+			"position": "0-0",
+			"label": "WAN",
+			"min": "1",
+			"ipv4-config": "dhcp",
+      		"ipv6-config": "none",
+      		"name": "eth"
+		}
+	]
+}
+

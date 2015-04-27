@@ -1,0 +1,225 @@
+{
+  "profile": {
+    "VNFs": [
+      {
+        "vnf_descriptor": "http://controller:9292/v2/images/483ae2c1-9c8b-49c8-bfdb-b9626a768a18/file",
+        "ports": [
+          {
+            "id": "L2Port:0",
+            "outgoing_label": {
+              "flowrules": [
+                {
+                  "action": {
+                    "VNF": {
+                      "id": "DHCP1",
+                      "port": "in/out:0"
+                    },
+                    "type": "output"
+                  },
+                  "flowspec": {
+                    "matches": [
+                      {
+                        "priority": "2",
+                        "id": "1"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "id": "L2Port:1",
+            "outgoing_label": {
+              "flowrules": [
+                {
+                  "action": {
+                    "VNF": {
+                      "id": "CaptivePortal1",
+                      "port": "in/out:0"
+                    },
+                    "type": "output"
+                  },
+                  "flowspec": {
+                    "matches": [
+                      {
+                        "priority": "2",
+                        "id": "2"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "ingoing_label": {
+              "flowrules": [
+                {
+                  "action": {
+                    "VNF": {
+                      "id": "Switch1",
+                      "port": "L2Port:2"
+                    },
+                    "type": "output"
+                  },
+                  "flowspec": {
+                    "matches": [
+                      {
+                        "priority": "100",
+                        "id": "654"
+                      }
+                    ],
+                    "ingress_endpoint": "12"
+                  }
+                }
+              ]
+            },
+            "id": "L2Port:2",
+            "outgoing_label": {
+              "flowrules": [
+                {
+                  "action": {
+                    "endpoint": {
+                      "port": "12"
+                    },
+                    "type": "output"
+                  },
+                  "flowspec": {
+                    "matches": [
+                      {
+                        "priority": "2",
+                        "id": "4"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "ingoing_label": {
+              "flowrules": [
+                {
+                  "action": {
+                    "VNF": {
+                      "id": "Switch1",
+                      "port": "L2Port:3"
+                    },
+                    "type": "output"
+                  },
+                  "flowspec": {
+                    "matches": [
+                      {
+                        "priority": "100",
+                        "id": "659"
+                      }
+                    ],
+                    "ingress_endpoint": "43"
+                  }
+                }
+              ]
+            },
+            "id": "L2Port:3",
+            "outgoing_label": {
+              "flowrules": [
+                {
+                  "action": {
+                    "endpoint": {
+                      "port": "43"
+                    },
+                    "type": "output"
+                  },
+                  "flowspec": {
+                    "matches": [
+                      {
+                        "priority": "2",
+                        "id": "8"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "id": "Switch1",
+        "name": "Switch"
+      },
+      {
+        "vnf_descriptor": "http://controller:9292/v2/images/075bf391-8dfb-4e6f-94a8-3cfd18cb8bd4/file",
+        "ports": [
+          {
+            "id": "in/out:0",
+            "outgoing_label": {
+              "flowrules": [
+                {
+                  "action": {
+                    "VNF": {
+                      "id": "Switch1",
+                      "port": "L2Port:0"
+                    },
+                    "type": "output"
+                  },
+                  "flowspec": {
+                    "matches": [
+                      {
+                        "priority": "2",
+                        "id": "5"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "id": "DHCP1",
+        "name": "DHCP"
+      },
+      {
+        "vnf_descriptor": "http://controller:9292/v2/images/d931edc5-91b6-41da-8c6a-b29949b7d787/file",
+        "ports": [
+          {
+            "id": "in/out:0",
+            "outgoing_label": {
+              "flowrules": [
+                {
+                  "action": {
+                    "VNF": {
+                      "id": "Switch1",
+                      "port": "L2Port:1"
+                    },
+                    "type": "output"
+                  },
+                  "flowspec": {
+                    "matches": [
+                      {
+                        "priority": "2",
+                        "id": "6"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "id": "CaptivePortal1",
+        "name": "CaptivePortal"
+      }
+    ],
+    "endpoints": [
+      {
+        "id": "12",
+        "name": "USER_INGRESS"
+      },
+      {
+        "id": "43",
+        "name": "INGRESS"
+      }
+    ],
+    "id": "6",
+    "name": "Ingress_nf_fg"
+  }
+}

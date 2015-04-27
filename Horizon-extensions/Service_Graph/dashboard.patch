@@ -1,0 +1,4 @@
+52c52
+<     panels = ('stacks',)
+---
+>     panels = ('stacks','service_graph',)

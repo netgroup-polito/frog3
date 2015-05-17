@@ -467,11 +467,11 @@ class HeatOrchestrator(OrchestratorInterface):
         #self.createPort(EGRESS_PORT, bridge_id_1)
         
         # Create port that will be connected
-        port1 = "port_"+exit_endpoint.name+"_"+nf_fg.name+"_"+self.token.get_userID()+"_to_"+INTEGRATION_BRIDGE
+        port1 = "port_"+exit_endpoint.id+"_"+nf_fg.name+"_"+self.token.get_userID()+"_to_"+INTEGRATION_BRIDGE
         port1 = str(hashlib.md5(port1).hexdigest())[0:14]
         logging.debug("port1: "+port1)
         self.createPort(port1, bridge_id_1)
-        port2 = "port_"+exit_endpoint.name+"_"+nf_fg.name+"_"+self.token.get_userID()+"_to_"+br_name
+        port2 = "port_"+exit_endpoint.id+"_"+nf_fg.name+"_"+self.token.get_userID()+"_to_"+br_name
         port2 = str(hashlib.md5(port2).hexdigest())[0:14]
         logging.debug("port2: "+port2)
         self.createPort(port2, bridge_id_2)
@@ -543,9 +543,9 @@ class HeatOrchestrator(OrchestratorInterface):
             for exit_endpoint in exit_endpoints:
                 logging.debug("Managing single exit endpoint : "+exit_endpoint.id)
                 br_name = EXIT_SWITCH
-                port1 = "port_"+exit_endpoint.name+"_"+nf_fg.name+"_"+self.token.get_userID()+"_to_"+INTEGRATION_BRIDGE
+                port1 = "port_"+exit_endpoint.id+"_"+nf_fg.name+"_"+self.token.get_userID()+"_to_"+INTEGRATION_BRIDGE
                 port1 = str(hashlib.md5(port1).hexdigest())[0:14]
-                port2 = "port_"+exit_endpoint.name+"_"+nf_fg.name+"_"+self.token.get_userID()+"_to_"+br_name
+                port2 = "port_"+exit_endpoint.id+"_"+nf_fg.name+"_"+self.token.get_userID()+"_to_"+br_name
                 port2 = str(hashlib.md5(port2).hexdigest())[0:14]
                 
                 """

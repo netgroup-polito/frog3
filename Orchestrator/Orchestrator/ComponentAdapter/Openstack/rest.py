@@ -31,6 +31,7 @@ class ODL(object):
     odl_createFlowmodPath="/default/node/OF/%s/staticFlow/%s"
     odl_username = "admin"
     odl_password = "SDN@Edge_Polito"
+    timeout = Configuration().TIMEOUT_ODL
     
     def createFlowmod(self, flowmod, name, node_dpid):   
         
@@ -38,7 +39,7 @@ class ODL(object):
         
         headers = {'Content-Type': 'application/json', "cache-control": "no-cache"}
         url = self.endpoint+self.odl_controllerPath+self.odl_flowProgrammerPath+(self.odl_createFlowmodPath % (node_dpid, name))
-        resp = requests.put(url, headers=headers, data=data, auth=(self.odl_username, self.odl_password))
+        resp = requests.put(url, headers=headers, data=data, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
     
@@ -48,7 +49,7 @@ class ODL(object):
         
         headers = {'Content-Type': 'application/json', "cache-control": "no-cache"}
         url = self.endpoint+self.odl_controllerPath+self.odl_flowProgrammerPath+(self.odl_createFlowmodPath % (node_dpid, name))
-        resp = requests.get(url, headers=headers, data=data, auth=(self.odl_username, self.odl_password))
+        resp = requests.get(url, headers=headers, data=data, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
     
@@ -58,13 +59,13 @@ class ODL(object):
         
         headers = {'Content-Type': 'application/json', "cache-control": "no-cache"}
         url = self.endpoint+self.odl_controllerPath+self.odl_flowProgrammerPath+(self.odl_createFlowmodPath % (node_dpid, name))
-        resp = requests.delete(url, headers=headers, data=data, auth=(self.odl_username, self.odl_password))
+        resp = requests.delete(url, headers=headers, data=data, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
     
     def getNodes(self):
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
-        resp = requests.get(self.endpoint+self.odl_controllerPath+self.odl_connectionManagerPath+self.odl_getNodes, headers=headers, auth=(self.odl_username, self.odl_password))
+        resp = requests.get(self.endpoint+self.odl_controllerPath+self.odl_connectionManagerPath+self.odl_getNodes, headers=headers, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
     
@@ -77,7 +78,7 @@ class ODL(object):
                 Port, where the socket in the node, speaking with the controller
         '''
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
-        resp = requests.get(self.endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_getBridgePath, headers=headers, auth=(self.odl_username, self.odl_password))
+        resp = requests.get(self.endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_getBridgePath, headers=headers, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
         
@@ -93,7 +94,7 @@ class ODL(object):
         '''
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
         path = self.endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_getInterfacesPath
-        resp = requests.get(path, headers=headers, auth=(self.odl_username, self.odl_password))
+        resp = requests.get(path, headers=headers, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
     
@@ -106,7 +107,7 @@ class ODL(object):
                 Port, where the socket in the node, speaking with the controller
         '''
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
-        resp = requests.get(self.endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_getPortPath, headers=headers, auth=(self.odl_username, self.odl_password))
+        resp = requests.get(self.endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_getPortPath, headers=headers, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
     
@@ -125,7 +126,7 @@ class ODL(object):
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
         body = {"parent_uuid": bridge_id,
                 "row": {"Port": {"name": name}}}
-        resp = requests.post(self.endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_createPortPath, data=json.dumps(body), headers=headers, auth=(self.odl_username, self.odl_password))
+        resp = requests.post(self.endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_createPortPath, data=json.dumps(body), headers=headers, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
     
@@ -142,7 +143,7 @@ class ODL(object):
                 Port, where the socket in the node, speaking with the controller
         '''
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
-        resp = requests.delete(self.endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+(self.odl_deletePortPath % (port_id)), headers=headers, auth=(self.odl_username, self.odl_password))
+        resp = requests.delete(self.endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+(self.odl_deletePortPath % (port_id)), headers=headers, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
         
@@ -158,7 +159,7 @@ class ODL(object):
         '''
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
         body = {"row": {"Bridge": {"name": name}}}
-        resp = requests.post(self.endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_createBridgPath, data=json.dumps(body), headers=headers, auth=(self.odl_username, self.odl_password))
+        resp = requests.post(self.endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_createBridgPath, data=json.dumps(body), headers=headers, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text 
     
@@ -173,7 +174,7 @@ class ODL(object):
                 Port, where the socket in the node, speaking with the controller
         '''
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
-        resp = requests.delete(self.endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+(self.odl_deleteBridgPath % (bridge_id)), headers=headers, auth=(self.odl_username, self.odl_password))
+        resp = requests.delete(self.endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+(self.odl_deleteBridgPath % (bridge_id)), headers=headers, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
         
@@ -194,11 +195,9 @@ class ODL(object):
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
         body = { "row": { "Interface": { "type": "patch","options": 
                 [ "map", [ [ "peer", remote_port_name ] ] ] } } }
-        resp = requests.put(self.endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_updateInterfacesPath % (interface_id), data=json.dumps(body), headers=headers, auth=(self.odl_username, self.odl_password))
+        resp = requests.put(self.endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_updateInterfacesPath % (interface_id), data=json.dumps(body), headers=headers, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
-
-    
 
 class Heat(object):
     ''' 
@@ -216,6 +215,7 @@ class Heat(object):
     createBridgePath="/create_bridge"
     createFlowPath="/create_flow"
     getPortIDPath="/get_port_id"
+    timeout = Configuration().TIMEOUT_HEAT
     
 
     
@@ -231,7 +231,7 @@ class Heat(object):
             raise the requests.HTTPError exception connected to the REST call in case of HTTP error or the token is expired
         '''
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
-        resp = requests.get(heatEndpoint+self.getStackPath, headers=headers)
+        resp = requests.get(heatEndpoint+self.getStackPath, headers=headers, timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
         
@@ -254,7 +254,7 @@ class Heat(object):
         '''
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
         stack_data = {'stack_name': stackName, 'template': jsonStackTemplate, 'parameters': jsonParameters, 'timeout_mins': 60}
-        resp = requests.post(heatEndpoint+self.createStackPath, data=json.dumps(stack_data), headers=headers)
+        resp = requests.post(heatEndpoint+self.createStackPath, data=json.dumps(stack_data), headers=headers, timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
     
@@ -279,7 +279,7 @@ class Heat(object):
         '''
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
         stack_data = {'template': jsonStackTemplate, 'parameters': jsonParameters, 'timeout_mins': 1}
-        resp = requests.put(heatEndpoint+(self.updateStackPath % (stackName, stackID)), data=json.dumps(stack_data), headers=headers)
+        resp = requests.put(heatEndpoint+(self.updateStackPath % (stackName, stackID)), data=json.dumps(stack_data), headers=headers, timeout=self.timeout)
         resp.raise_for_status()
         return resp
     
@@ -299,7 +299,7 @@ class Heat(object):
             raise the requests.HTTPError exception connected to the REST call in case of HTTP error or the token is expired
         '''
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
-        resp = requests.delete(heatEndpoint+(self.deleteStackPath % (stackName, stackID)), headers=headers)
+        resp = requests.delete(heatEndpoint+(self.deleteStackPath % (stackName, stackID)), headers=headers, timeout=self.timeout)
         resp.raise_for_status()
         return resp
     
@@ -317,7 +317,7 @@ class Heat(object):
             raise the requests.HTTPError exception connected to the REST call in case of HTTP error or the token is expired
         '''
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
-        resp = requests.get(heatEndpoint+(self.getStackIDPath % stackName), headers=headers)
+        resp = requests.get(heatEndpoint+(self.getStackIDPath % stackName), headers=headers, timeout=self.timeout)
         resp.raise_for_status()
         data = json.loads(resp.text)
         return data['stack']['id']
@@ -336,7 +336,7 @@ class Heat(object):
             raise the requests.HTTPError exception connected to the REST call in case of HTTP error or the token is expired
         '''
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
-        resp = requests.get(heatEndpoint+(self.getStackIDPath % stackName), headers=headers)
+        resp = requests.get(heatEndpoint+(self.getStackIDPath % stackName), headers=headers, timeout=self.timeout)
         resp.raise_for_status()
         data = json.loads(resp.text)
         return data['stack']['stack_status']
@@ -357,7 +357,7 @@ class Heat(object):
             raise the requests.HTTPError exception connected to the REST call in case of HTTP error or the token is expired
         '''
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
-        resp = requests.get(heatEndpoint+(self.stackResourcesPath % (stackName, stackID)), headers=headers)
+        resp = requests.get(heatEndpoint+(self.stackResourcesPath % (stackName, stackID)), headers=headers, timeout=self.timeout)
         resp.raise_for_status()
         data = json.loads(resp.text)
         return data
@@ -373,6 +373,7 @@ class Nova(object):
     getAvailabilityZonesPath="/os-availability-zone/detail"
     getHostAggregateListPath="/os-aggregates"
     addComputeNodeToHostAggregatePath = "/os-aggregates/%s/action"
+    timeout = Configuration().TIMEOUT_NOVA
     
     
     def addComputeNodeToHostAggregate(self, novaEndpoint, token, host_aggregate_id, hostname):
@@ -387,7 +388,7 @@ class Nova(object):
         print "\n\n\n"+data+"\n"+path+"\n\n" 
         resp = requests.post(path, 
                              data = data,
-                             headers=headers)
+                             headers=headers, timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
         
@@ -412,7 +413,7 @@ class Nova(object):
             }
         '''
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
-        resp = requests.get(novaEndpoint+self.getHostAggregateListPath, headers=headers)
+        resp = requests.get(novaEndpoint+self.getHostAggregateListPath, headers=headers, timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
     
@@ -452,7 +453,7 @@ class Nova(object):
             }
         """
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
-        resp = requests.get(novaEndpoint+self.getAvailabilityZonesPath, headers=headers)
+        resp = requests.get(novaEndpoint+self.getAvailabilityZonesPath, headers=headers, timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
         
@@ -489,7 +490,7 @@ class Nova(object):
         }
         """
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
-        resp = requests.get(novaEndpoint+self.getHypervisorsInfoPath, headers=headers)
+        resp = requests.get(novaEndpoint+self.getHypervisorsInfoPath, headers=headers, timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
     
@@ -505,7 +506,7 @@ class Nova(object):
         }
         """
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
-        resp = requests.get(novaEndpoint+self.getHypervisorsPath, headers=headers)
+        resp = requests.get(novaEndpoint+self.getHypervisorsPath, headers=headers, timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
     
@@ -528,7 +529,7 @@ class Nova(object):
         data['minRam'] = int(minRam or 0)
         data['minDisk'] = int(minDisk or 0)
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
-        resp = requests.get(novaEndpoint+self.getFlavorsDetail, params=data, headers=headers)
+        resp = requests.get(novaEndpoint+self.getFlavorsDetail, params=data, headers=headers, timeout=self.timeout)
         resp.raise_for_status()
         flavor = json.loads(resp.text)
         return flavor
@@ -537,13 +538,14 @@ class Glance(object):
     '''
     Class used for Glance API
     '''
+    timeout = Configuration().TIMEOUT_GLANCE
     
     def get_image_name(self, imageURI, token):
         '''
         Return the name of an image from the URI
         '''         
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
-        resp = requests.get(imageURI, headers=headers)
+        resp = requests.get(imageURI, headers=headers, timeout=self.timeout)
         resp.raise_for_status()
         data = json.loads(resp.text)
         return data['name']

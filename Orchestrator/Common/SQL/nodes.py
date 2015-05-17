@@ -10,7 +10,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 
 from Common.config import Configuration
-
+from Common.exception import NoUserNodeDefined
 
 
 Base = declarative_base()
@@ -97,7 +97,8 @@ def getNodeID(user_id):
     try:
         node_id = node_id[0]
     except:
-        node_id = None
+        raise NoUserNodeDefined('No one node is defined for user_id '+str(user_id))
+        #node_id = None
     return node_id
 
 class NodesEgressInterface(Base):

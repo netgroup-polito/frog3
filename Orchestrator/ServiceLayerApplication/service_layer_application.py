@@ -93,8 +93,11 @@ class Orchestrator(object):
         except falcon.HTTPError as err:
             logging.exception("Falcon "+err.title)
             raise
-        except:
-            logging.exception("Unexpected exception")
+        except Exception as err:
+            try:
+                logging.exception(err.message)
+            except:
+                logging.exception("Unexpected exception")
             raise
    
     def on_put(self, request, response):
@@ -192,9 +195,16 @@ class Orchestrator(object):
         except NoMacAddress as err:
             logging.exception("Falcon "+err.get_mess())
             raise falcon.HTTPBadRequest("Bad Request", "You can't add specific ingress rule if an instance of the same graph is already up and runnig and accept all ingress traffic.")
+        except Exception as err:
+            try:
+                logging.exception(err.message)
+            except:
+                logging.exception("Unexpected exception")
+            raise
         except:
             logging.exception("Unexpected exception")
             raise
+            
 
     def on_get(self, request, response):
         try:
@@ -233,8 +243,11 @@ class Orchestrator(object):
         except falcon.HTTPError as err:
             logging.exception("Falcon "+err.title)
             raise
-        except:
-            logging.exception("Unexpected exception")
+        except Exception as err:
+            try:
+                logging.exception(err.message)
+            except:
+                logging.exception("Unexpected exception")
             raise
 
    

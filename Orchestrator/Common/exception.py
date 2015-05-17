@@ -1,4 +1,17 @@
+class NoUserNodeDefined(Exception):
+    def __init__(self, message):
+        self.message = message
+        
+    def get_mess(self):
+        return self.message
 
+class EndpointConnectionError(Exception):
+    def __init__(self, message):
+        self.message = message
+        
+    def get_mess(self):
+        return self.message
+    
 class NodeNotFound(Exception):
     def __init__(self, message):
         self.message = message

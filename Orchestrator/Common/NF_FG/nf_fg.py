@@ -17,6 +17,7 @@ SWITCH_NAME = Configuration().SWITCH_NAME
 ISP_EGRESS = Configuration().ISP_EGRESS
 ISP_INGRESS = Configuration().ISP_INGRESS
 CONTROL_EGRESS = Configuration().CONTROL_EGRESS
+ISP = Configuration().ISP
 
 class Singleton(type):
     _instances = {}
@@ -161,7 +162,10 @@ class NF_FG(object):
             
             # create link towards  ENDPOINT CONTROL_EGRESS or USER_CONTROL_EGRESS
             if endpoint_name is None:
-                user_control_egress  = self.createEndpoint("USER_CONTROL_EGRESS")
+                if ISP is True:
+                    user_control_egress  = self.createEndpoint("USER_CONTROL_EGRESS")
+                else:
+                    user_control_egress  = self.createEndpoint("EGRESS")
             else:
                 user_control_egress  = self.createEndpoint(endpoint_name)
             port = self.addPortToSwitch(self.control_switch)

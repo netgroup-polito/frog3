@@ -106,12 +106,51 @@ class Configuration(object):
             self._EXIT_SWITCH = config.get('odl','exit_switch')
         if config.has_option('odl', 'ingress_switch'):
             self._INGRESS_SWITCH = config.get('odl','ingress_switch')
-
+        if config.has_option('odl', 'timeout'):
+            self._TIMEOUT_ODL = config.get('odl','timeout')
+        else:
+            self._TIMEOUT_ODL = 10
+        
+        # HEAT
+        if config.has_option('heat', 'timeout'):
+            self._TIMEOUT_HEAT = config.get('heat','timeout')
+        else:
+            self._TIMEOUT_HEAT = 10
+            
+        # GLANCE
+        if config.has_option('glace', 'timeout'):
+            self._TIMEOUT_GLANCE = config.get('glace','timeout')
+        else:
+            self._TIMEOUT_GLANCE = 10
+            
+        # NOVA
+        if config.has_option('nova', 'timeout'):
+            self._TIMEOUT_NOVA = config.get('nova','timeout')
+        else:
+            self._TIMEOUT_NOVA = 10
+        
+            
+            
         # Orchestrator
         self._ISP = config.getboolean('orchestrator', 'isp')
         self._NOBODY = config.getboolean('orchestrator', 'nobody')
 
+    @property
+    def TIMEOUT_NOVA(self):
+        return self._TIMEOUT_NOVA
+    
+    @property
+    def TIMEOUT_GLANCE(self):
+        return self._TIMEOUT_GLANCE
+    
+    @property
+    def TIMEOUT_HEAT(self):
+        return self._TIMEOUT_HEAT
 
+    
+    @property
+    def TIMEOUT_ODL(self):
+        return self._TIMEOUT_ODL
     
     @property
     def ODL_ENDPOINT(self):

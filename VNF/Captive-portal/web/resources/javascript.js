@@ -18,7 +18,7 @@ var updateTime = 3000;
  * and the presumed moment when users can effectively surf
  */
 var waitingTime = 20000;
-var updatePercentageTime = (waitingTime-2000)/10;
+var updatePercentageTime = (waitingTime - 2000) / 10;
 
 /*
  * Timeout captive portal request
@@ -27,7 +27,7 @@ var timeoutCaptivePortal = 7000;
 
 
 
-function status(){
+function status() {
 	content = document.getElementById("percentage-completed");
 	updateStatus();
 	NProgress.set(0.08);

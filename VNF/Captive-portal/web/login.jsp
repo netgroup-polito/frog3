@@ -2,9 +2,9 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0"/>  
-	<title>Login to the FROG network</title>
-	<link rel="stylesheet" href="resources/login_css/style.css">
-	<script src="resources/login_js/script.js"></script>  
+	<title>Login to your FROG network</title>
+	<link rel="stylesheet" href="resources/style.css">
+	<script src="resources/login_js.js"></script>  
 </head>
 <body>
 
@@ -18,14 +18,14 @@
 		<div id="header">
 			<div class="page-full-width cf">
 				<div id="login-intro" class="fl">
-					<h1>Login to the <strong>FROG</strong> network</h1>
-					<h5>Enter your credentials below</h5>
+					<h1>Login to <strong>your</strong> FROG network</h1>
+					<h4>Enter your credentials below</h4>
 				</div>
 			</div>
 			<div class="page-full-width cf">
 				<div id="afterlogin-intro" class="fl" style="display:none;">
-					<h1>Login to the <strong>FROG</strong> network</h1>
-					<h5>Success!</h5>
+					<h1>Login to <strong>your</strong> FROG network</h1>
+					<h4>Success!</h4>
 				</div>					
 			</div>
 		</div>  <!-- end HEADER -->
@@ -36,23 +36,33 @@
 			<form action="#" method="" id="login-form">	
 				<fieldset>
 					<p>
-						<label for="login-username">username:</label>
+						<label for="login-username">Username:</label>
 						<input type="text" placeholder="Username" name="username" id="input-username" class="round full-width-input" autofocus maxlength="32" onKeyPress="submitonenter('submit',event,this)" />
 					</p>
 
 					<p>
-						<label for="login-password">password:</label>
+						<label for="login-password">Password:</label>
 						<input type="password" placeholder="Password" name="password" id="input-password" class="round full-width-input" maxlength="32" onKeyPress="submitonenter('submit',event,this)"/>
+					</p>
+					
+					<p>
+						&nbsp;
 					</p>
 					
 					<input type="button" onClick="sendLoginRequest();" name="submit" id="submit" class="button round blue image-right ic-right-arrow fr" value="LOGIN">
 				</fieldset>
 				
+
+				<!--
 				<br/><div><a href="register.htm"><h3 style="text-decoration:underline;">Create a new account<h3></a></div>
+				-->
 				
 				<br/><div id="error-msg" class="error-box round"> </div>
 				
-			  <br/><div class="information-box round">Just click on the "LOGIN" button to continue, login as "guest/guest" if you do not have an account.</div>
+				<!--
+				<br/><div class="information-box round">Just click on the "LOGIN" button to continue, login as "guest/guest" if you do not have an account.</div>
+				-->
+				
 			</form>		
 			
 			<div id="message" style="display:none;" align="center"> Loading...</div>
@@ -61,7 +71,7 @@
 				<br>
 				<h1 align= "center"><b>Congratulations!</b></h1>
 				<br>
-				<h1 align= "center">You have been successfully logged in the FROG network.</h1>
+				<h1 align= "center">You have been successfully logged in to you FROG network.</h1>
 				<br>
 				
 				<div id="logout_button" align="center">
@@ -75,7 +85,7 @@
 
 		<!-- FOOTER -->
 		<div id="footer">
-			<p>&copy; Copyright 2013-2014 <a href="http://www.polito.it">Politecnico di Torino</a>. All rights reserved.</p>	
+			<p>&copy; Copyright 2013-2015 <a href="http://www.polito.it">Politecnico di Torino</a>. All rights reserved.</p>	
 		</div> <!-- end footer -->
 
 	</div> <!-- end PAGE -->

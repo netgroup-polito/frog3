@@ -9,16 +9,17 @@
 
 	<!-- define directories -->
 	<property name="src.dir" location="${basedir}/web"/>
-	<property name="conf.dir" location="${basedir}/conf"/>
+	<!-- <property name="conf.dir" location="${basedir}/conf"/> -->
 	<!-- Compile libs are needed only to compile the project -->
 	<!-- Tomcap will provide a local copy of this library to our code at run-time --> 
-<!--
+
 	<property name="compilelib.dir" location="${basedir}/lib"/>
-	<property name="runtimelib.dir" location="${basedir}/WebContent/WEB-INF/lib"/>
 	<property name="build.dir" location="${basedir}/build"/>
-	<property name="webcontent.dir" location="${basedir}/WebContent"/>
+	<property name="metainf.dir" location="${basedir}/web/META-INF"/>
+	<property name="webcontent.dir" location="${basedir}/web"/>
+<!--
+	<property name="runtimelib.dir" location="${basedir}/WebContent/WEB-INF/lib"/>
 	<property name="webinf.dir" location="${basedir}/WebContent/WEB-INF"/>
-	<property name="metainf.dir" location="${basedir}/WebContent/META-INF"/>
 -->
 
 	<!-- define compile property-->

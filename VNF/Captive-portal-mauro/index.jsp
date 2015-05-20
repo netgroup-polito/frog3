@@ -1,15 +1,25 @@
+<%-- 
+    Document   : index
+    Created on : Aug 4, 2008, 10:33:51 PM
+    Author     : nbuser
+--%>
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+    "http://www.w3.org/TR/html4/loose.dtd">
+
 <html>
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width">
+    <META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
     	
-    <title>Welcome to the FROG network</title>
+    <title>FROG Index</title>
     
 	<script src='resources/nprogress.js'></script>
 	<script type="text/javascript" src="resources/javascript.js"></script>
 	
 	<link href='resources/nprogress.css' rel='stylesheet' />
-	<link href='resources/style.css' rel='stylesheet' />
+	<link href='resources/login_css/style.css' rel='stylesheet' />
   </head>
   <body onLoad = "status()">
 	  <div id="page">	
@@ -31,7 +41,7 @@
 					
 				</p>
 			</div>
-			<div id="frog-gif"><img id="frog-img" src="resources/frog-jump-high.gif"></div>
+			<div id="frog-gif"><img id="frog-img" src="resources/images/frog-jump-high.gif"></div>
 		</div>
 		
 		<!-- FOOTER -->

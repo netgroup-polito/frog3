@@ -18,7 +18,7 @@ var updateTime = 3000;
  * and the presumed moment when users can effectively surf
  */
 var waitingTime = 20000;
-var updatePercentageTime = (waitingTime - 2000) / 10;
+var updatePercentageTime = (waitingTime-2000)/10;
 
 /*
  * Timeout captive portal request
@@ -27,7 +27,7 @@ var timeoutCaptivePortal = 7000;
 
 
 
-function status() {
+function status(){
 	content = document.getElementById("percentage-completed");
 	updateStatus();
 	NProgress.set(0.08);
@@ -59,6 +59,11 @@ function callback() {
     		console.log("Request aborted: req.status = 0");
     		return;
     	}
+    	if( req.status == 502 ){
+    		console.log("502 returned by Captive portal, we suppose that the graph is completed and that code was returned by some proxy");
+    		deploy_successful();
+    		return;
+    	}
         if(req.status == 200 || req.status == 201 || req.status == 202) {
         	var jsonResponse = JSON.parse(req.responseText);
         	if (typeof  destinationIP === 'undefined')
@@ -69,35 +74,39 @@ function callback() {
         		console.log("Incorrect response: jsonResponse['status'] = "+jsonResponse['status']);
         		error();
         	}
-
-        	// Updates the percentage completion value
-        	percent = Math.round(jsonResponse['percentage_completed']);
-        	if(jsonResponse['percentage_completed'] < 90)
-        		content.textContent =percent+"%  progress,  ";
-        	else 
-        		content.textContent ="90%  progress,  ";
         	
-        	
-        	//create_resorces_table();
-
-         	// Updates progress bar 
-        	if(percent != 100){
-        		progress = percent/100;
-        	} else if(percent > 90){
-        		progress = 0.9;
-        	} else if(percent < 8){
-        		progress = 0.08;
-        	} else {
-        		deploy_successful();
-        	}
-
-        	NProgress.set(progress);
+        	update_progressbar(jsonResponse);
 
         } else {
         	console.log("Wrong response status: status = "+req.status);
         	error();
         }
     }
+}
+
+function update_progressbar(jsonResponse){
+	// Updates the percentage completion value
+	percent = Math.round(jsonResponse['percentage_completed']);
+	if(jsonResponse['percentage_completed'] < 90)
+		content.textContent =percent+"%  progress,  ";
+	else 
+		content.textContent ="90%  progress,  ";
+	
+	
+	//create_resorces_table();
+
+ 	// Updates progress bar 
+	if(percent != 100){
+		progress = percent/100;
+	} else if(percent > 90){
+		progress = 0.9;
+	} else if(percent < 8){
+		progress = 0.08;
+	} else {
+		deploy_successful();
+	}
+
+	NProgress.set(progress);
 }
 
 function deploy_successful(){
@@ -150,7 +159,7 @@ function error(){
 	message = document.getElementById("message");
 	message.textContent = "Deploy error!";
 	frog_gif = document.getElementById("frog-img");
-	frog_gif.src = "resources/dead_frog.jpg";
+	frog_gif.src = "resources/images/dead_frog.jpg";
 }
 
 function create_resorces_table(){

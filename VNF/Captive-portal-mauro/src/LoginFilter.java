@@ -80,7 +80,7 @@ public class LoginFilter implements Filter {
 			    else
 			    {
 			    	
-			    	if (((String)sc.getAttribute("captive_portal_ip")).equals(((HttpServletRequest) request).getServerName()) || ((String)sc.getAttribute("captive_portal_ip_external")).equals(((HttpServletRequest) request).getServerName()))
+			    	if (((String)sc.getAttribute("captive_portal_ip")).equals(((HttpServletRequest) request).getServerName()))
 			    	{		
 			    		//the user's request is for the captive portal
 			    		token = (String) session.getAttribute("token");
@@ -136,6 +136,13 @@ public class LoginFilter implements Filter {
 				    else 
 				    {	
 				    	//redirect him to the Login page
+				    	String paasdth=((HttpServletRequest) request).getRequestURI().substring(((ServletContext) request).getContextPath().length()+1, ((HttpServletRequest) request).getRequestURI().length()); 
+				    	if(paasdth.endsWith(".jpg") || paasdth.endsWith(".png") || paasdth.endsWith(".css") || paasdth.endsWith(".js") || paasdth.endsWith(".gif")){
+				    		System.out.println("Resource");
+				    		chain.doFilter(request, response);
+				    		return;
+				    	}
+				    	
 				    	RequestDispatcher dispatch = request.getRequestDispatcher("/login.jsp");       	
 						dispatch.forward(request, response);
 			        	return;
@@ -164,7 +171,6 @@ public class LoginFilter implements Filter {
         	
         	// Loads configuration
 			sc.setAttribute("captive_portal_ip", p.getProperty("captive_portal_ip"));
-			sc.setAttribute("captive_portal_ip_external", p.getProperty("captive_portal_ip_external"));
 			sc.setAttribute("keystone_ip", p.getProperty("keystone_ip"));
 			sc.setAttribute("keystone_port", p.getProperty("keystone_port"));
 			sc.setAttribute("controller_ip", p.getProperty("controller_ip"));

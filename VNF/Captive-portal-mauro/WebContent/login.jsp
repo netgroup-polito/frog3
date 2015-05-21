@@ -1,9 +1,3 @@
-<%-- 
-    Document   : index
-    Created on : Aug 4, 2008, 10:33:51 PM
-    Author     : nbuser
---%>
-
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
     "http://www.w3.org/TR/html4/loose.dtd">
 
@@ -43,7 +37,9 @@
 			<br><br><br>
 			<!-- MAIN CONTENT -->
 			<div id="content">	
-				<form action="#" method="" id="login-form">	
+				<div id="form-div">
+				<form action="#" method="" id="login-form">
+				
 					<fieldset>
 						<p>
 							<label for="login-username">username:</label>
@@ -63,8 +59,9 @@
 						</div>
 					</fieldset>
 					<div id="loading">
-							</div>
+					</div>
 					<br/>
+				</div>	
 					
 					<br/><div id="error-msg" class="error-box round"> </div>
 	

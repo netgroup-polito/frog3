@@ -136,7 +136,8 @@ public class LoginFilter implements Filter {
 				    else 
 				    {	
 				    	//redirect him to the Login page
-				    	String paasdth=((HttpServletRequest) request).getRequestURI().substring(((ServletContext) request).getContextPath().length()+1, ((HttpServletRequest) request).getRequestURI().length()); 
+				    	String paasdth=((HttpServletRequest) request).getRequestURI(); 
+				    	System.out.println("Uri: "+paasdth.toString());
 				    	if(paasdth.endsWith(".jpg") || paasdth.endsWith(".png") || paasdth.endsWith(".css") || paasdth.endsWith(".js") || paasdth.endsWith(".gif")){
 				    		System.out.println("Resource");
 				    		chain.doFilter(request, response);

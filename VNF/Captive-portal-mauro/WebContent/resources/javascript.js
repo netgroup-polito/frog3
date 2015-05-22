@@ -87,10 +87,11 @@ function callback() {
 function update_progressbar(jsonResponse){
 	// Updates the percentage completion value
 	if(jsonResponse['percentage_completed'] == 100){
+		console.log("jsonResponse['percentage_completed'] == 100");
 		deploy_successful();
 	}
 	percent = Math.round(jsonResponse['percentage_completed']);
-	console.log(progress);
+	console.log("update_progressbar: "+percent);
 	
 	if(jsonResponse['percentage_completed'] < 90)
 		content.textContent =percent+"%  progress,  ";
@@ -108,6 +109,7 @@ function update_progressbar(jsonResponse){
 	} else if(percent < 8){
 		progress = 0.08;
 	} else {
+		console.log("All resources are really instantiated");
 		deploy_successful();
 	}
 
@@ -117,23 +119,26 @@ function update_progressbar(jsonResponse){
 function deploy_successful(){
 	console.log("deploy_successful");
 	window.clearInterval(timer);
-	percent = 90;
+	fixed_percent = 90;
 	NProgress.set(0.9);
 	content.textContent ="90%  progress,  ";
 	progressTimer = window.setInterval(function(){
-			if(percent == 100) return;
+		    console.log("progressTimer");
+		    console.log("fixed_percent: "+fixed_percent);
+			if(fixed_percent == 100) return;
 			else {
-				percent += 1;
-				content.textContent = percent+"%  progress,  ";			
-
-				if(percent == 100){
+				fixed_percent += 1;
+				content.textContent = fixed_percent+"%  progress,  ";			
+				if(fixed_percent == 100){
+					console.log("progress  100");
 					var header = document.getElementById("header-frog3-loading");
 					var top_bar = document.createElement("div");
 					top_bar.id  = 'top-bar';
 					document.getElementById("page").insertBefore(top_bar, header);
 					header.id = 'header-frog3';
 				}
-				NProgress.set(percent/100);
+				bar_progress = fixed_percent/100;
+				NProgress.set(bar_progress);
 			}
 		}, updatePercentageTime);
 	//display successful page

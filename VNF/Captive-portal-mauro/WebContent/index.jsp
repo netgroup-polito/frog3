@@ -1,8 +1,4 @@
-<%-- 
-    Document   : index
-    Created on : Aug 4, 2008, 10:33:51 PM
-    Author     : nbuser
---%>
+
 
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
     "http://www.w3.org/TR/html4/loose.dtd">
@@ -33,7 +29,7 @@
 				</div>
 	
 		</div>
-		<div id="content">
+		<div id="contentindex">
 			<div id="info">
 				<p>
 					<span id="percentage-completed">0% progress,</span>

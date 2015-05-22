@@ -14,12 +14,12 @@ function sendLoginRequest() {
         var form = document.getElementById("login-form");
         wait2.style.display = "block";
         form.style.display = "none";
-        var xmlhttp = new XMLHttpRequest();
-
         /* 	loading icon */
+        console.log('loading visible');
         var loading = document.getElementById("loading");
-        loading.style.display = 'block';
+        loading.style.display = "block";
         
+        var xmlhttp = new XMLHttpRequest();
         xmlhttp.open("GET", "Login?username=" + document.forms[0].username.value + "&password=" + document.forms[0].password.value, false);
         xmlhttp.send();
         var response = JSON.parse(xmlhttp.responseText);
@@ -28,6 +28,7 @@ function sendLoginRequest() {
         var reason = response['reason'];
         
         /* 	loading icon */
+        console.log('loading hidden');
         var loading = document.getElementById("loading");
         loading.style.display = 'none';
         

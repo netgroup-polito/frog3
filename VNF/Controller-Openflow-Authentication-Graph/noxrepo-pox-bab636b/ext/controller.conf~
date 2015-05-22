@@ -1,0 +1,15 @@
+[log]
+log_file=SDNController.log
+verbose=true
+debug=true
+
+[myinfos]
+ip = 130.192.225.171
+tcp_port = 8888
+my_default_GRE_tunnel = 5
+
+[captive_portal_infos]
+ip = 130.192.225.168
+tcp_port = 8085
+mac_address = 52:54:00:79:95:26
+switch_port = 5

@@ -217,11 +217,13 @@ div#page{
 position: relative;	
 }
 
+/*
 #content{
-	text-align: center;
+	text-align: left;
 	width:300px;
 	margin: auto;	
 }
+*/
 
 #frog-gif{
 	padding-top: 70px;

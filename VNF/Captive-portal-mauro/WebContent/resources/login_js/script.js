@@ -2,6 +2,7 @@
 var normalStyle = null;
 var user = null;
 var localserver_addr = null;
+var xmlhttp;
 
 function sendLoginRequest() {
 
@@ -10,68 +11,78 @@ function sendLoginRequest() {
 
     if (success) {
         user = document.forms[0].username.value;
+        /*
         var wait2 = document.getElementById("message");
         var form = document.getElementById("login-form");
         wait2.style.display = "block";
         form.style.display = "none";
+        */
         /* 	loading icon */
         console.log('loading visible');
         var loading = document.getElementById("loading");
         loading.style.display = "block";
-        
-        var xmlhttp = new XMLHttpRequest();
-        xmlhttp.open("GET", "Login?username=" + document.forms[0].username.value + "&password=" + document.forms[0].password.value, false);
+
+        console.log('sleep ended');
+        xmlhttp = new XMLHttpRequest();
+        xmlhttp.open("GET", "Login?username=" + document.forms[0].username.value + "&password=" + document.forms[0].password.value, true);
+        xmlhttp.onreadystatechange = loginStatusManager;
         xmlhttp.send();
-        var response = JSON.parse(xmlhttp.responseText);
-        var status = response['status'];
-        var accountable = response['accountable'];
-        var reason = response['reason'];
-        
-        /* 	loading icon */
-        console.log('loading hidden');
-        var loading = document.getElementById("loading");
-        loading.style.display = 'none';
-        
-       
-        if (status == 'success') {
-        	console.log('success');
-            wait2.style.display = "none";
-            var ok = document.getElementById("login_ok");
-            ok.style.display = "block";
-            var header = document.getElementById("login-intro");
-            header.style.display = "none";
-            var uri = response['uri'];
-            console.log(uri);
-            window.location.replace(uri); 
+
+    }
+}
+
+function loginStatusManager() {
+    var response = JSON.parse(xmlhttp.responseText);
+    var status = response['status'];
+    var accountable = response['accountable'];
+    var reason = response['reason'];
+    
+    /* 	loading icon */
+    console.log('loading hidden');
+    var loading = document.getElementById("loading");
+    loading.style.display = 'none';
+    
+   
+    if (status == 'success') {
+    	console.log('success');
+        /*
+         * wait2.style.display = "none";
+         * 
+         * var ok = document.getElementById("login_ok");
+         * ok.style.display = "block";
+         * var header = document.getElementById("login-intro");
+         * header.style.display = "none";
+        */
+        var uri = response['uri'];
+        console.log(uri);
+        window.location.replace(uri); 
+    } else {
+        if (accountable == 'keystone' && reason == 'authentication') {
+            var errorBox = document.getElementById("error-msg");
+            errorBox.style.display = 'block';
+            errorBox.innerHTML = "Login failed: username and/or password wrong.";
+        } else if(accountable == 'keystone'){
+        	var errorBox = document.getElementById("error-msg");
+            errorBox.style.display = 'block';
+            errorBox.innerHTML = "Error: some problems occurr with the authentication server";
+        } else if(accountable == 'controller openflow'){
+        	var errorBox = document.getElementById("error-msg");
+            errorBox.style.display = 'block';
+            console.log("[01] Error: some problems occurr with the SDN controller");
+            errorBox.innerHTML = "Error: internal error [code: 01].";
+        } else if(accountable == 'orchestrator'){
+        	var errorBox = document.getElementById("error-msg");
+            errorBox.style.display = 'block';
+            console.log("[02] Error: some problems occurr with the orchestrator");
+            errorBox.innerHTML = "Error: internal error [code: 02].";
         } else {
-            wait2.style.display = "none";
-            form.style.display = "block";
-            if (accountable == 'keystone' && reason == 'authentication') {
-                var errorBox = document.getElementById("error-msg");
-                errorBox.style.display = 'block';
-                errorBox.innerHTML = "Login failed: username and/or password wrong.";
-            } else if(accountable == 'keystone'){
-            	var errorBox = document.getElementById("error-msg");
-                errorBox.style.display = 'block';
-                errorBox.innerHTML = "Error: some problems occurr with the authentication server";
-            } else if(accountable == 'controller openflow'){
-            	var errorBox = document.getElementById("error-msg");
-                errorBox.style.display = 'block';
-                console.log("[01] Error: some problems occurr with the SDN controller");
-                errorBox.innerHTML = "Error: internal error [code: 01].";
-            } else if(accountable == 'orchestrator'){
-            	var errorBox = document.getElementById("error-msg");
-                errorBox.style.display = 'block';
-                console.log("[02] Error: some problems occurr with the orchestrator");
-                errorBox.innerHTML = "Error: internal error [code: 02].";
-            } else {
-                var errorBox = document.getElementById("error-msg");
-                errorBox.style.display = 'block';
-                errorBox.innerHTML = "Error: internal error [code: 03].";
-            }
+            var errorBox = document.getElementById("error-msg");
+            errorBox.style.display = 'block';
+            errorBox.innerHTML = "Error: internal error [code: 03].";
         }
     }
 }
+
 
 function validateLogin() {
     // reset parameters

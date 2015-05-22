@@ -46,7 +46,6 @@ public class LoginFilter implements Filter {
 	public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
 		   boolean authorized = false;
 		   String requested_path = null;
-		   System.out.println("doFilter");
 		   if (request instanceof HttpServletRequest) 
 		   {
 			   
@@ -70,6 +69,10 @@ public class LoginFilter implements Filter {
 				    /********************************************************************
 				    *		   WARNING: Session expires after 5 minutes					*
 				    *********************************************************************/
+				    System.out.println("System.currentTimeMillis(): "+System.currentTimeMillis());
+				    System.out.println("token_creation_timestamp.longValue(): "+token_creation_timestamp.longValue());
+				    System.out.println("token_creation_timestamp: "+token_creation_timestamp.toString());
+				    
 				    if ((token_creation_timestamp!=null)&&((System.currentTimeMillis()-token_creation_timestamp.longValue()) < 60000 * 5))
 				    {
 						//already authenticated
@@ -137,9 +140,7 @@ public class LoginFilter implements Filter {
 				    {	
 				    	//redirect him to the Login page
 				    	String paasdth=((HttpServletRequest) request).getRequestURI(); 
-				    	System.out.println("Uri: "+paasdth.toString());
 				    	if(paasdth.endsWith(".jpg") || paasdth.endsWith(".png") || paasdth.endsWith(".css") || paasdth.endsWith(".js") || paasdth.endsWith(".gif")){
-				    		System.out.println("Resource");
 				    		chain.doFilter(request, response);
 				    		return;
 				    	}
@@ -176,8 +177,9 @@ public class LoginFilter implements Filter {
 			sc.setAttribute("keystone_port", p.getProperty("keystone_port"));
 			sc.setAttribute("controller_ip", p.getProperty("controller_ip"));
 			sc.setAttribute("controller_port", p.getProperty("controller_port"));
-			sc.setAttribute("orchestrator_ip", p.getProperty("orchestrator_ip"));//"http://130.192.225.245:8000/orchestrator"
+			sc.setAttribute("orchestrator_ip", p.getProperty("orchestrator_ip"));
 			sc.setAttribute("orchestrator_port", p.getProperty("orchestrator_port"));
+			sc.setAttribute("service_layer_path", p.getProperty("service_layer_path"));
 			
 			//TODO: Start a thread that periodically controls the map and purge the expired entries
 			ConcurrentHashMap<String,Long> chm = new ConcurrentHashMap<String,Long>();

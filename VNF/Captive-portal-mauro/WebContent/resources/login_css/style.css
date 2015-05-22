@@ -230,8 +230,7 @@ position: relative;
 
 
 #contentindex{
-	text-align: left;
-	width:300px;
+	text-align: center;
 	margin: auto;	
 }
 
@@ -239,12 +238,12 @@ position: relative;
 #frog-gif{
 	padding-top: 70px;
 	width: 80%;
-	height: 200px;
+	height: 15em;
 	margin:auto;
 }
 
 #frog-gif>img{
-	width: 100%;
+	width: 25em;
 	height: 100%;
 }
 
@@ -317,7 +316,7 @@ a#logo img { height: 70px; width:170; }
 a#logo-small img { height: 30px; }	
 
 /* ---------- CONTENT ---------- */
-div#content {
+div#content, div#contentindex {
 	/* background: #f8f9fa; url('../images/artwork-pattern.png') repeat-x left bottom; */
 	border: 1px solid #eeefef;
 	padding: 1.875em 0; 

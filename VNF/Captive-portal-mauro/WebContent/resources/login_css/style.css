@@ -17,7 +17,16 @@ em, strong {
 }
 
 div#ranocchio { background: #FFFFFF url('../images/frog-background.jpg') no-repeat center;  background-size: cover;}
-div#ranocchio { height: calc(100% - 109.525px);}
+div#ranocchio { margin:0;
+	padding:0;
+	height:100%;
+	min-height: 40em;
+	height: calc(100% + 2.250em);
+	display: block;
+}
+/*height: calc(100% - 2.250em);}*/
+/*div#ranocchio { height: calc(100% - 1.625em);}*/
+/*div#ranocchio { height: calc(100% - 109.525px);}*/
 
 h1, h2, h3, h4, h5, h6 { font-weight: normal; }
 
@@ -204,6 +213,9 @@ form p em {
 	float: left;
 	width: 250px;
 }*/
+div#page{
+position: relative;	
+}
 
 #content{
 	text-align: center;
@@ -307,8 +319,12 @@ div#footer {
 	/* Added by Marco */
 	clear : both;
 	/******************/
-	
+	body > .container;
+	background-color: #FFFFFF;
 	text-align: center;
-	padding: 1.875em 0; 
-}
-
+	padding-top: 1em;
+	padding-bottom: 0;
+	bottom: 0;
+	left:0;
+	width:100%;
+	position:absolute;

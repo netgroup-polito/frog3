@@ -192,17 +192,14 @@ public class LoginFilter implements Filter {
 		 */
 		/********************************************************************
 	    *		   WARNING: Session expires after 5 minutes					*
-	    *********************************************************************/
-	    System.out.println("System.currentTimeMillis(): "+System.currentTimeMillis());
-	    System.out.println("token_creation_timestamp.longValue(): "+token_creation_timestamp.longValue());
-	    System.out.println("token_creation_timestamp: "+token_creation_timestamp.toString());
-	    
+	    *********************************************************************/	    
 	    if ((token_creation_timestamp!=null)&&((System.currentTimeMillis()-token_creation_timestamp.longValue()) < 60000 * 5))
 	    {
 	    	return true;
 	    }
 	    return false;
 	}
+	
 	/**
 	 * @see Filter#init(FilterConfig)
 	 */

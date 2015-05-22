@@ -245,14 +245,13 @@ public class Login extends HttpServlet {
 				"{\"session\": { \"session_param\": {\"node_id\": \"" + mac
 						+ "\", \"SW_endpoint\": \"" + ip_address
 						+ "\", \"mac\": \"" + user_MAC + "\"}}}");
-		System.out.println(token);
 		input_entity.setContentType("application/json");
 		putRequest.setEntity(input_entity);
 		putRequest.setHeader("Accept", "application/json");
 		putRequest.setHeader("X-Auth-Token", token);
 
 		HttpResponse response = httpClient.execute(putRequest);
-		System.out.println(response.getStatusLine().toString());
+		System.out.println("Orchestrator response to the instantiation requests: "+response.getStatusLine().toString());
 		if (response.getStatusLine().getStatusCode() == 202)
 			return true;
 		else

@@ -57,16 +57,15 @@ public class Update extends HttpServlet {
 		{
 			HttpSession session = request.getSession();
 	    	String req_URI = (String) session.getAttribute("requested_path");
+	    	if(req_URI != null)
+	    		System.out.println("req_URI: "+ req_URI.toString());
 	    	String token = (String) session.getAttribute("Keystone_token");
 
 
 	    	
 	    	String orchestrator_ip = (String) session.getServletContext().getAttribute("orchestrator_ip");
-	    	System.out.println("orchestrator_ip: "+ orchestrator_ip);
 	    	String orchestrator_port = (String) session.getServletContext().getAttribute("orchestrator_port");
-	    	System.out.println("orchestrator_port: "+ orchestrator_port);
 	    	String service_layer_path = (String) session.getServletContext().getAttribute("service_layer_path");
-	    	System.out.println("service_layer_path: "+ service_layer_path);
 			HttpClient httpClient = HttpClientBuilder.create().build(); 
 
 			URL temp = new URL("http", orchestrator_ip, Integer.parseInt(orchestrator_port), service_layer_path);
@@ -79,8 +78,7 @@ public class Update extends HttpServlet {
 			
 			HttpResponse orchestrator_response = httpClient.execute(putRequest);
 
-			System.out.println(orchestrator_response.getStatusLine().toString());
-			System.out.println("CIAO"+token);
+			System.out.println("Orchestrator response:  "+orchestrator_response.getStatusLine().toString());
 			int orch_response_status_code = orchestrator_response.getStatusLine().getStatusCode();
 			if ((orch_response_status_code == 201) || (orch_response_status_code == 202))
 			{

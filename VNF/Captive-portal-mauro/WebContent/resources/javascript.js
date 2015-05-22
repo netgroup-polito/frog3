@@ -153,7 +153,7 @@ function successPage(){
 	
 	window.clearInterval(progressTimer);
 	content.textContent = "Thanks for the wait...now you're able to access to your network!";
-	if(typeof destinationIP !== 'undefined'){
+	if(typeof destinationURI !== 'undefined'){
 		var link_div = document.createElement("div");
 		link_div.id = "link";
 		var link = document.createElement("a");

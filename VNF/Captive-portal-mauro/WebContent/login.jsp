@@ -6,7 +6,7 @@
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0"/>  
 	<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
-	<title>Login to the FROG network</title>
+	<title>Login to your FROG network</title>
 	<link href='resources/login_css/style.css' rel='stylesheet' />
 	<script src="resources/login_js/script.js"></script>  
 </head>
@@ -22,13 +22,13 @@
 			<div id="header">
 				<div class="page-full-width cf">
 					<div id="login-intro" class="fl">
-						<h1>Login to the <strong>FROG</strong> network</h1>
+						<h1>Login to <strong>your</strong> FROG network</h1>
 						<h5>Enter your credentials below</h5>
 					</div>
 				</div>
 				<div class="page-full-width cf">
 					<div id="afterlogin-intro" class="fl" style="display:none;">
-						<h1>Login to the <strong>FROG</strong> network</h1>
+						<h1>Login to <strong>your</strong> FROG network</h1>
 						<h5>Success!</h5>
 					</div>					
 				</div>
@@ -73,7 +73,7 @@
 					<br>
 					<h1 align= "center"><b>Congratulations!</b></h1>
 					<br>
-					<h1 align= "center">You have been successfully logged in the FROG network.</h1>
+					<h1 align= "center">You have been successfully logged in your FROG network.</h1>
 					<br>
 				</div>
 				

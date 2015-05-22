@@ -1,0 +1,64 @@
+import ConfigParser
+
+class Configuration(object):
+    
+    _instance = None
+    #(fmignini) Not too meaningful use this var, I should change his name with something else like inizialized = False 
+    _AUTH_SERVER = None
+    
+    def __new__(cls, *args, **kwargs):
+        
+        if not cls._instance:
+            cls._instance = super(Configuration, cls).__new__(
+                                cls, *args, **kwargs)
+        return cls._instance 
+    
+    def __init__(self):
+        if self._AUTH_SERVER is None:
+            self.inizialize()
+    
+    def inizialize(self): 
+        config = ConfigParser.RawConfigParser()
+        config.read('orchestrator.conf')
+        self._AUTH_SERVER = config.get('authentication', 'server')
+        self._ORCH_USERNAME = config.get('authentication', 'orch_username')
+        self._ORCH_PASSWORD = config.get('authentication', 'orch_password')
+        self._ORCH_TENANT = config.get('authentication', 'orch_tenant')        
+        self._LOG_FILE = config.get('log', 'log_file')
+        self._VERBOSE = config.get('log', 'verbose')
+        self._DEBUG = config.get('log', 'debug')
+        self._CONNECTION = config.get('db','connection')
+
+        
+    @property
+    def CONNECTION(self):
+        return self._CONNECTION
+        
+    @property
+    def AUTH_SERVER(self):
+        return self._AUTH_SERVER
+
+    @property
+    def ORCH_USERNAME(self):
+        return self._ORCH_USERNAME
+    
+    @property
+    def ORCH_PASSWORD(self):
+        return self._ORCH_PASSWORD
+    
+    @property
+    def ORCH_TENANT(self):
+        return self._ORCH_TENANT
+
+    @property
+    def LOG_FILE(self):
+        return self._LOG_FILE
+
+    @property
+    def VERBOSE(self):
+        return self._VERBOSE
+
+    @property
+    def DEBUG(self):
+        return self._DEBUG
+

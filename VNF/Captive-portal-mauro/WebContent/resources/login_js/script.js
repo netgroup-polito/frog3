@@ -16,19 +16,22 @@ function sendLoginRequest() {
         form.style.display = "none";
         var xmlhttp = new XMLHttpRequest();
 
+        /* 	loading icon */
+        var loading = document.getElementById("loading");
+        loading.style.display = 'block';
+        
         xmlhttp.open("GET", "Login?username=" + document.forms[0].username.value + "&password=" + document.forms[0].password.value, false);
         xmlhttp.send();
-        console.log('minchia succede');
-        //"{\"status\":\"error\", \"accountable\": \"orchestrator\"}"
         var response = JSON.parse(xmlhttp.responseText);
-        console.log('minchia succede 2');
         var status = response['status'];
         var accountable = response['accountable'];
-        //\"reason\": \"authentication\"
         var reason = response['reason'];
         
-        //out.print("{\"status\":\"success\"}");
-
+        /* 	loading icon */
+        var loading = document.getElementById("loading");
+        loading.style.display = 'none';
+        
+       
         if (status == 'success') {
         	console.log('success');
             wait2.style.display = "none";

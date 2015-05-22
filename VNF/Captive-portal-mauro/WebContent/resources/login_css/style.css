@@ -20,9 +20,15 @@ div#ranocchio { background: #FFFFFF url('../images/frog-background.jpg') no-repe
 div#ranocchio { margin:0;
 	padding:0;
 	height:100%;
+	
 	min-height: 40em;
-	height: calc(100% + 2.250em);
+	/*height: calc(100% + 2.250em);*/
 	display: block;
+	position:absolute;
+    top:1.250em;
+    bottom:1.2em;
+    left:0;
+    right:0;
 }
 /*height: calc(100% - 2.250em);}*/
 /*div#ranocchio { height: calc(100% - 1.625em);}*/
@@ -38,7 +44,12 @@ a img {	border: none; }
 
 a { text-decoration: none; }
 
-body { font-size: 1em; }
+html{
+    min-height:100%;/* make sure it is at least as tall as the viewport */
+    position:relative
+}
+
+body { font-size: 1em; height:100%;   min-height: 100%; position: relative;}
 
 .cf:before,
 .cf:after {
@@ -63,7 +74,7 @@ p {
 }
 
 .fl { float: left; }
-.fr { float: right; margin-right: 10px; clear: left;}
+.fr { float: right; margin-right: 1.8em; clear: left;}
 .cb { clear: both; }
 
 h1, h2, h3, h4, h5, h6 { margin-bottom: 0.625em; }
@@ -212,10 +223,10 @@ form p em {
 /*.inline{
 	float: left;
 	width: 250px;
-}*/
+}
 div#page{
 position: relative;	
-}
+}*/
 
 /*
 #content{
@@ -244,6 +255,7 @@ div#link{
 div#header-frog3-loading {
 	padding-top: 2.5em;
 	padding-bottom: 1.25em;
+	
 }
 
 div#header-frog3 { padding: 1.25em 0;  }
@@ -256,6 +268,7 @@ div#loading {
 	float: right;
 	clear: right;
 	margin-top: 5%;
+	display: none;
 }
 
 dif#form-div{
@@ -329,4 +342,4 @@ div#footer {
 	bottom: 0;
 	left:0;
 	width:100%;
-	position:absolute;
+	position:fixed;

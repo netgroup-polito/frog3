@@ -436,6 +436,9 @@ class IPForger (object):
                     msg.match.dl_type = 0x800
                     msg.match.dl_src = client.MAC
                     msg.match.nw_proto = 6
+                    #Adding the match on the TCP source port of the user, in order to genererate a PACKET_IN for every
+                    #new TCP connection
+                    msg.match.tp_src = tcp_hdr.srcport
                     msg.match.tp_dst = 80
                     msg.match.nw_dst = ipv4_hdr.dstip
                     msg.match.in_port = event.port

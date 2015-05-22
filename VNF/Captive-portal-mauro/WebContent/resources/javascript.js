@@ -90,7 +90,7 @@ function update_progressbar(jsonResponse){
 		deploy_successful();
 	}
 	percent = Math.round(jsonResponse['percentage_completed']);
-	console.log(progress)
+	console.log(progress);
 	
 	if(jsonResponse['percentage_completed'] < 90)
 		content.textContent =percent+"%  progress,  ";
@@ -141,6 +141,14 @@ function deploy_successful(){
 }
 
 function successPage(){
+	/*
+	var header = document.getElementById("header-frog3-loading");
+	var top_bar = document.createElement("div");
+	top_bar.id  = 'top-bar';
+	document.getElementById("page").insertBefore(top_bar, header);
+	header.id = 'header-frog3';
+	*/
+	
 	document.getElementById("message").style.display = "none";
 	document.getElementById("subtitle").innerHTML = "Resources deployed";
 	document.getElementById("frog-gif").style.display = "none";

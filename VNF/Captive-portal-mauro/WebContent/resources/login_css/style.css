@@ -74,7 +74,7 @@ p {
 }
 
 .fl { float: left; }
-.fr { float: right; margin-right: 10px; clear: left;}
+.fr { float: right; margin-right: 1.8em; clear: left;}
 .cb { clear: both; }
 
 h1, h2, h3, h4, h5, h6 { margin-bottom: 0.625em; }
@@ -268,6 +268,7 @@ div#loading {
 	float: right;
 	clear: right;
 	margin-top: 5%;
+	display: none;
 }
 
 dif#form-div{

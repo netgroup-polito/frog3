@@ -224,7 +224,12 @@ def waitInstantiation(token=None):
             headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
             resp = requests.get(SERVICE_LAYER, headers=headers, timeout=(TIMEOUT*20))
             if resp.status_code == 201:
-                print "instantiation completed"       
+                break
+            elif resp.status_code in 202:
+                continue
+            elif resp.status_code in 401:
+                break
+            else:
                 break
     except Timeout as err:
         print "Orchestrator request timeout"

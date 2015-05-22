@@ -415,8 +415,7 @@ class IPForger (object):
             log.info("tcp_hdr.dstport: "+ str(tcp_hdr.dstport) +" || DestPort: || 80")
             if tcp_hdr.dstport == 80:
                 log.debug("packet.src: "+ str(packet.src))
-                #t1 = TCP_connection(ipv4_hdr.srcip,ipv4_hdr.dstip,tcp_hdr.srcport,tcp_hdr.dstport)
-                #self.TCP_connections.append(t1)
+                
                 if packet.src not in client_list:
                     log.info("packet.src is not in client_list")
                     lock.acquire()
@@ -425,7 +424,15 @@ class IPForger (object):
                         client_list[packet.src] = host_infos(ipv4_hdr.srcip,packet.src,0)
                     finally:
                         lock.release() # release lock, no matter what                    
-                       
+                else:
+                    log.debug("PACKET_IN INFOs: user MAC: "+ str(packet.src)+", user IP: "+ str(ipv4_hdr.srcip))
+                    user_infos = client_list[packet.src]
+                    user_ip = user_infos.IP
+                    log.debug("Local informations: user MAC: "+ str(packet.src)+", user IP: "+ str(user_ip))
+                    if user_ip != ipv4_hdr.srcip:
+                        log.debug("Updating client IP informations")
+                        user_infos.IP = ipv4_hdr.srcip
+                           
                 client = client_list[packet.src]
                 if (client.flag_auth == 0):
 

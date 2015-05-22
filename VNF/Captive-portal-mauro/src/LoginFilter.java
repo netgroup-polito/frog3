@@ -49,7 +49,10 @@ public class LoginFilter implements Filter {
 		   if (request instanceof HttpServletRequest) 
 		   {
 			   
-			   if (((HttpServletRequest) request).getRequestURI().matches("(.*?)\\.(js|css)$"))
+			   /* 
+			    * If the requests target is a web resources, this filter is skipped
+			    */
+			   if (((HttpServletRequest) request).getRequestURI().matches("(.*?)\\.(js|css|jpg|png|css|js|gif)$"))
 			    {		    	
 			        chain.doFilter(request, response); // Just continue chain.
 			        return;
@@ -60,76 +63,102 @@ public class LoginFilter implements Filter {
 		    	HttpSession session = ((HttpServletRequest)request).getSession();
 		    	ServletContext sc = session.getServletContext();
 		    	
+		    	
+		    	/*
+		    	 * Get the token set in the Login.java Servlet when a user complete successful the authentication form
+		    	 */
 			    String token = ((HttpServletRequest) request).getHeader("X-Auth-Token");
 			    if (token != null)
-			    {
+			    {	
+			    	/*
+			    	 * If the user is already logged we check the life of the token, if it is out of date we continue in the code flow, 
+			    	 * otherwise we set the token in the session variable and set authorized to true
+			    	 */
+			    	
 				    ConcurrentHashMap<String,Long> chm = (ConcurrentHashMap<String,Long>)sc.getAttribute("logged_users");
 				    Long token_creation_timestamp = chm.get(token); 
-				    
-				    /********************************************************************
-				    *		   WARNING: Session expires after 5 minutes					*
-				    *********************************************************************/
-				    System.out.println("System.currentTimeMillis(): "+System.currentTimeMillis());
-				    System.out.println("token_creation_timestamp.longValue(): "+token_creation_timestamp.longValue());
-				    System.out.println("token_creation_timestamp: "+token_creation_timestamp.toString());
-				    
-				    if ((token_creation_timestamp!=null)&&((System.currentTimeMillis()-token_creation_timestamp.longValue()) < 60000 * 5))
-				    {
-						//already authenticated
-					    authorized = true;
+				    if (checkSessionStatus(token_creation_timestamp, token)){
+				    	authorized = true;
 					    session.setAttribute("token", token);
 				    }
 			    }
 			    else
 			    {
-			    	
+			    	/*
+			    	 *  If the user doesn't pass the token in the request
+			    	 */
 			    	if (((String)sc.getAttribute("captive_portal_ip")).equals(((HttpServletRequest) request).getServerName()))
 			    	{		
-			    		//the user's request is for the captive portal
+			    		/*
+			    		 *  The user's request is for the captive portal
+			    		 */
+			    		
+			    		
+			    		/*
+			    		 *  Check if a token is available in the session
+			    		 */
 			    		token = (String) session.getAttribute("token");
 			    		
 	
-						if (token != null)
-							//already authenticated
-						    authorized = true;
+						if (token != null){
+							/*
+							 * The token is already available in the session
+							 */
+							ConcurrentHashMap<String,Long> chm = (ConcurrentHashMap<String,Long>)sc.getAttribute("logged_users");
+						    Long token_creation_timestamp = chm.get(token); 
+						    if (checkSessionStatus(token_creation_timestamp, token)){
+						    	//already authenticated
+						    	authorized = true;
+						    }							
+						}
 						
+						
+						/*
+						 *  Check if the path requested by the user is already in the session
+						 */
 						if (session.getAttribute("requested_path") == null)
 						{
+							/*
+							 * 	If not, we get it in the parameter target passed in the Temporary Redirect sent by this filter
+							 * to the captive portal
+							 */
+							
 							String target = ((HttpServletRequest) request).getParameter("target");
 							if (target != null)
 							{
 								//save the requested path inside the session
 								session.setAttribute("requested_path", URLDecoder.decode(target,"UTF-8"));
-								System.out.println("Set 1 " + URLDecoder.decode(((HttpServletRequest) request).getParameter("target"),"UTF-8"));
+								System.out.println("This path is stored as target URL: " + URLDecoder.decode(((HttpServletRequest) request).getParameter("target"),"UTF-8"));
 							}
 						}
 					}
 			    	else
 			    	{
-			    		//the user's request is for another host, then I send a redirect on the CapPortal host
+			    		/*
+			    		 *  The user's request is for another host, then a Temporary Redirect is sent by the Captive Portal
+			    		 */
 			    		
 			    		requested_path = "http://"+((HttpServletRequest) request).getServerName()+((HttpServletRequest) request).getRequestURI();
-						//requested_path = ((HttpServletRequest) request).getRequestURI();
-						System.out.println("Set 2.2 " + requested_path);
+						System.out.println("Requested path: " + requested_path+", a Temporary Redirect to the captive portal is sent");
 						((HttpServletResponse) response).setStatus(HttpServletResponse.SC_TEMPORARY_REDIRECT);
 						URL temp = new URL("http",(String)sc.getAttribute("captive_portal_ip"),80,"/Index");
 						((HttpServletResponse) response).setHeader("Location", temp.toString()+"?target="+URLEncoder.encode(requested_path,"UTF-8"));
-
 						((HttpServletResponse) response).setHeader("Connection","close");
 			    	}
 			    }
 			    if (authorized) 
 			    {
-		    		requested_path = "http://"+((HttpServletRequest) request).getServerName()+((HttpServletRequest) request).getRequestURI();
-					//requested_path = ((HttpServletRequest) request).getRequestURI();
-					System.out.println("Set 2.3" + requested_path);
-			    	//the user is already authenticated: continue the filter chain
+			    	/*
+			    	 * The user is authenticated, continue the filter chain
+			    	 */
 			        chain.doFilter(request, response);
 			        return;
 			    }
 			    else
 			    {
-			    	//the user is not authenticated
+			    	/*
+			    	 * The user is not authenticated, so it is sent to the login page
+			    	 */
 				    String path = ((HttpServletRequest) request).getRequestURI();
 				    if (path.equals("/Login"))
 				    {		    	
@@ -138,13 +167,15 @@ public class LoginFilter implements Filter {
 				    }
 				    else 
 				    {	
+				    	/*
 				    	//redirect him to the Login page
 				    	String paasdth=((HttpServletRequest) request).getRequestURI(); 
 				    	if(paasdth.endsWith(".jpg") || paasdth.endsWith(".png") || paasdth.endsWith(".css") || paasdth.endsWith(".js") || paasdth.endsWith(".gif")){
 				    		chain.doFilter(request, response);
 				    		return;
 				    	}
-				    	
+				    	*/
+				    	// Maybe a redirect is more appropriate
 				    	RequestDispatcher dispatch = request.getRequestDispatcher("/login.jsp");       	
 						dispatch.forward(request, response);
 			        	return;
@@ -154,7 +185,24 @@ public class LoginFilter implements Filter {
 		   }
 
 	}
-
+	
+	private boolean checkSessionStatus(Long token_creation_timestamp, String token){
+		/*
+		 * Return True if the session is still valid
+		 */
+		/********************************************************************
+	    *		   WARNING: Session expires after 5 minutes					*
+	    *********************************************************************/
+	    System.out.println("System.currentTimeMillis(): "+System.currentTimeMillis());
+	    System.out.println("token_creation_timestamp.longValue(): "+token_creation_timestamp.longValue());
+	    System.out.println("token_creation_timestamp: "+token_creation_timestamp.toString());
+	    
+	    if ((token_creation_timestamp!=null)&&((System.currentTimeMillis()-token_creation_timestamp.longValue()) < 60000 * 5))
+	    {
+	    	return true;
+	    }
+	    return false;
+	}
 	/**
 	 * @see Filter#init(FilterConfig)
 	 */

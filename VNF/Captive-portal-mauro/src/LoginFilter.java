@@ -224,7 +224,7 @@ public class LoginFilter implements Filter {
 			sc.setAttribute("controller_port", p.getProperty("controller_port"));
 			sc.setAttribute("orchestrator_ip", p.getProperty("orchestrator_ip"));
 			sc.setAttribute("orchestrator_port", p.getProperty("orchestrator_port"));
-			sc.setAttribute("service_layer_path", p.getProperty("service_layer_path"));
+			sc.setAttribute("orchestrator_servicepath", p.getProperty("orchestrator_servicepath"));
 			
 			//TODO: Start a thread that periodically controls the map and purge the expired entries
 			ConcurrentHashMap<String,Long> chm = new ConcurrentHashMap<String,Long>();

@@ -61,14 +61,13 @@ public class Update extends HttpServlet {
 	    		System.out.println("req_URI: "+ req_URI.toString());
 	    	String token = (String) session.getAttribute("Keystone_token");
 
-
 	    	
 	    	String orchestrator_ip = (String) session.getServletContext().getAttribute("orchestrator_ip");
 	    	String orchestrator_port = (String) session.getServletContext().getAttribute("orchestrator_port");
-	    	String service_layer_path = (String) session.getServletContext().getAttribute("service_layer_path");
+	    	String orchestrator_servicepath = (String) session.getServletContext().getAttribute("orchestrator_servicepath");
 			HttpClient httpClient = HttpClientBuilder.create().build(); 
 
-			URL temp = new URL("http", orchestrator_ip, Integer.parseInt(orchestrator_port), service_layer_path);
+			URL temp = new URL("http", orchestrator_ip, Integer.parseInt(orchestrator_port), orchestrator_servicepath);
 
 			HttpGet putRequest = new HttpGet(temp.toString());
 

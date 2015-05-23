@@ -2,7 +2,7 @@ var content;
 var progress;
 var percent;
 var timer;
-var destinationIP;
+var instantiatioComplete = false;
 var destinationURI;
 var xmlHttpTimeout;
 var req; //the current request
@@ -66,9 +66,11 @@ function callback() {
     	}
         if(req.status == 200 || req.status == 201 || req.status == 202) {
         	var jsonResponse = JSON.parse(req.responseText);
-        	if (typeof  destinationIP === 'undefined')
-        		destinationIP = jsonResponse['captive_portal_ip'];
-        	if (typeof  destinationURI === 'undefined')
+        	console.log("jsonResponse['instantiation_complete']: "+jsonResponse['instantiation_complete']);
+        	if (jsonResponse['instantiation_complete'] == "true"){
+        		instantiatioComplete = true;
+        		console.log("instantiatioComplete: "+instantiatioComplete);
+        	} if (typeof  destinationURI === 'undefined')
         		destinationURI = jsonResponse['requested_URI'];
         	if(typeof(jsonResponse['status']) !== undefined && jsonResponse['status'] != "CREATE_COMPLETE" && jsonResponse['status'] != "CREATE_IN_PROGRESS"){
         		console.log("Incorrect response: jsonResponse['status'] = "+jsonResponse['status']);
@@ -89,6 +91,7 @@ function update_progressbar(jsonResponse){
 	if(jsonResponse['percentage_completed'] == 100){
 		console.log("jsonResponse['percentage_completed'] == 100");
 		deploy_successful();
+		return;
 	}
 	percent = Math.round(jsonResponse['percentage_completed']);
 	console.log("update_progressbar: "+percent);
@@ -119,6 +122,12 @@ function update_progressbar(jsonResponse){
 function deploy_successful(){
 	console.log("deploy_successful");
 	window.clearInterval(timer);
+	if (instantiatioComplete === true){
+		console.log("The instantiation is already complete: redirect directly to successful page");
+		NProgress.set(1);
+		successPage();
+		return;
+	}
 	fixed_percent = 90;
 	NProgress.set(0.9);
 	content.textContent ="90%  progress,  ";
@@ -146,12 +155,14 @@ function deploy_successful(){
 }
 
 function successPage(){
-	
+	console.log("Successful page!");
 	document.getElementById("message").style.display = "none";
 	document.getElementById("subtitle").innerHTML = "Resources deployed";
 	document.getElementById("frog-gif").style.display = "none";
-	
-	window.clearInterval(progressTimer);
+	if(typeof progressTimer !== 'undefined'){
+		window.clearInterval(progressTimer);
+		console.log("timer progress bar ended!");
+	}
 	content.textContent = "Thanks for the wait...now you're able to access to your network!";
 	if(typeof destinationURI !== 'undefined'){
 		var link_div = document.createElement("div");

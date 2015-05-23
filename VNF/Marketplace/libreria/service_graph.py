@@ -4,9 +4,13 @@ Created on May 14, 2015
 @author: fabiomignini
 '''
 from constants import *
-import json, time
+import json
 import requests
 from slapp import instantiate, delete
+import logging
+from requests.exceptions import Timeout
+from exception import Unauthorized
+
 
 
 global_match_id = 0
@@ -209,34 +213,33 @@ def createGraph(vnf_list, user_id, encode=True):
 
 def putServiceGraphInKeystone(token, user_id, graph):
     data = json.dumps(graph)
-    print data
     headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
     resp = requests.post(URL_SERVICE_GRAPH+user_id, headers=headers, data=data, timeout=TIMEOUT)
+    if resp.status_code == 401:
+        logging.error("Keystone returns 401 unauthorized")
+        raise Unauthorized('Keystone returns 401 Unauthorized')
     resp.raise_for_status()
     return resp.text
 
-
-    
-from requests.exceptions import Timeout
 def waitInstantiation(token=None):
     try:
         while True:
             headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
-            resp = requests.get(SERVICE_LAYER, headers=headers, timeout=(TIMEOUT*20))
+            resp = requests.get(SERVICE_LAYER, headers=headers, timeout=(TIMEOUT))
             if resp.status_code == 201:
                 break
-            elif resp.status_code in 202:
+            elif resp.status_code == 202:
                 continue
-            elif resp.status_code in 401:
-                break
+            elif resp.status_code == 401:
+                logging.error("Orchestrator returns 401 unauthorized")
+                raise Unauthorized('Orchestrator returns 401 Unauthorized')
             else:
-                break
+                logging.error('Orchestrator returns '+resp.status_code)
+                raise
     except Timeout as err:
-        print "Orchestrator request timeout"
-        raise Exception("Orchestrator request timeout")
-        
-
-    
+        logging.error("Orchestrator request timeout")
+        raise err
+          
 def saveAndInstantiateServiceGraph(session, vnfs):
     '''
     Crate a Service graph for a user, and trigger the instantiation of it in the SLApp
@@ -263,14 +266,17 @@ def saveAndInstantiateServiceGraph(session, vnfs):
         delete(session['token'])
     else:
         graph = createGraph(active_vnfs, vnfs['user'], False)
-    
+        
         # Put the service graph in keystone
         putServiceGraphInKeystone(session['token'], session['user_id'], graph)  
+        logging.debug("Service graph stored in keystone: "+json.dumps(graph))
         
-        # TODO: Call the service layer application to instantiate the user profile
+        # Call the service layer application to instantiate the user profile
         instantiate(session['token'])
         
         waitInstantiation(session['token'])
+        
+        logging.debug("Service graph instantiated")
         
 
 

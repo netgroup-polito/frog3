@@ -49,8 +49,8 @@ def app(request):
 			json.dump(data, outfile)
 		outfile.close()
 
-		# Crate service graph and instantiate it
-		# saveAndInstantiateServiceGraph(request.session, data)
+		# Create the service graph and instantiate it
+		saveAndInstantiateServiceGraph(request.session, data)
 		
 		return HttpResponse('Success', status=200)
 		

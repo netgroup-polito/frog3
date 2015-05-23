@@ -59,6 +59,9 @@ public class Update extends HttpServlet {
 	    	String req_URI = (String) session.getAttribute("requested_path");
 	    	if(req_URI != null)
 	    		System.out.println("req_URI: "+ req_URI.toString());
+	    	String instantiation_complete = (String) session.getAttribute("instantiation_complete");
+	    	if (instantiation_complete != null)
+	    		instantiation_complete = instantiation_complete.toString();
 	    	String token = (String) session.getAttribute("Keystone_token");
 
 	    	
@@ -89,18 +92,22 @@ public class Update extends HttpServlet {
 			   	{
 			   		JSONObject jsonObject = new JSONObject(json_response);
 			   		jsonObject.append("requested_URI", req_URI);
-	
+			   		if(instantiation_complete != null){
+			   			jsonObject.append("instantiation_complete", instantiation_complete);
+			   			System.out.println("instantiation_complete setted");
+			   		} else {
+			   			jsonObject.append("instantiation_complete", false);
+			   		}
+			   			
 			   		String r = jsonObject.toString();
 					if (orch_response_status_code == 201)
-					{
-
-//			        	if (sendDeployOKMsgToTheController(request.getRemoteAddr(),session) == false)
-//			        	{
-//			    			System.err.println("Problem with the controller comunication");
-//			    			throw new RuntimeException("We encounter an unhandable problem in the request processing. Contact the system administrator.");
-//			        
-//			        	}
-
+					{	
+						/*
+						 * Orchestrator response confirm the successful instantiatio
+						 * of the user profile.
+						 */
+						Boolean status = true;
+						session.setAttribute("instantiation_complete", status.toString());
 						response.setHeader("Connection","close");
 					}
 			   		if (r != null)

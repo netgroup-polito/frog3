@@ -31,7 +31,8 @@
 
 .section {
 	position: relative;
-	background-color: #EAEBE5;
+	background: #EAEBE5 url('/static/images/frog-background.jpg') no-repeat center;
+	/*background-color: #EAEBE5;*/
 	margin-top: 55px;
 	padding-left: 8%;
 	padding-right: 8%;
@@ -80,9 +81,9 @@
 	font-size: 1em;
 }
 
-#sortable1 li span, #sortable2 li span { 
-	position: absolute;
-	margin-left: -1.3em;
+#sortable1 li span.price, #sortable2 li span.price { 
+	float: right;
+	margin-right: 1em;
 }
 
 #sortable2 li.empty-placeholder{
@@ -141,4 +142,15 @@
 
 .label_in {
 	margin-right: 10px;
+}
+
+#startLoader {
+    background: #EAEBE5 url('/static/images/loading_transparent.gif') no-repeat center;
+    text-align: center;
+    position: fixed;
+    top: 55px;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 100000;
 }

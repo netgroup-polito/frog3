@@ -2,7 +2,7 @@
 <html lang="en">
 	<head>
 		<meta charset="utf-8">
-		<title>PSA Select</title>
+		<title>{{ title }}</title>
 		{% load staticfiles %}
 		<link rel="stylesheet" href={% static "jquery-ui.css" %}>
 		<link rel="stylesheet" href={% static "jquery-ui.theme.css" %}>
@@ -17,31 +17,65 @@
 			$( "#sortable1" ).sortable();
 			$( "#sortable1" ).disableSelection();
 			
-			{% if response_message != '' %}
-			{% if response_message == 'fail' %}
-			$("#response_message").html("Application error");
-			$("#response_message").addClass("messageError");
-			{% elif response_message == 'success' %}
-			$("#response_message").html("Applications saved successfully");
-			$("#response_message").addClass("messageSuccess");
-			{% endif %}
-			setTimeout(function() { $('#response_message').hide(800); }, 5000 );
-			{% endif %}
+			$(".navbar-btn").bind("click",function (event) {
+				$('#startLoader').show();
+			});
+			
+			$("#submit_button").bind("click",function (event) {
+				var csrftoken = $.cookie("csrftoken");
+				var checked_app = $(".check_app:checked").serialize(); 
+				
+				console.log(checked_app);
+
+				$('#startLoader').show();
+				
+				$.ajax({
+					type: "POST",
+					url: "/app/",
+					data: {psa_active: checked_app, csrfmiddlewaretoken: csrftoken},
+					success: function(data) {
+						console.log(data);
+						$('#startLoader').hide();
+						$("#response_message").removeClass("messageSuccess messageError");
+						$('#response_message').show();
+						$("#response_message").html("Customization saved");
+						$("#response_message").addClass("messageSuccess");
+						saved = true;
+						setTimeout(function() { $('#response_message').hide(800); }, 5000 );
+					},
+					error: function(data) {
+						console.log(data);
+						$('#startLoader').hide();
+						$("#response_message").removeClass("messageSuccess messageError");
+						$('#response_message').show();
+						$("#response_message").html("Error saving customizations");
+						$("#response_message").addClass("messageError");
+						setTimeout(function() { $('#response_message').hide(800); }, 5000 );
+					},
+				});
+			});
+		});
+		
+		$(window).load(function() {
+		    $('#startLoader').hide();
 		});
 		</script>
 	</head>
 	
 	<body>
-	
+		
+		<div id="startLoader"></div>
+		
 		<!-- Start Header -->
 		<header class="header">
-			<div class="title">Applications</div>
+			<div class="title">MyApps - Set your active applications</div>
 			<div class="nav">
 				<nav>
 					<ul class="nav nav-pills pull-right">
-						<li role="presentation"><a href="/app/"><button type="button" class="btn btn-default navbar-btn">App</button></a></li>
-						<li role="presentation"><a href="/store/"><button type="button" class="btn btn-default navbar-btn">Store</button></a></li>
-						<li role="presentation"><a href="/logout/"><button type="button" class="btn btn-default navbar-btn">Logout</button></a></li>
+						
+						<li role="presentation"><a href="/store/"><button type="button" class="btn btn-default navbar-btn">myStore</button></a></li>
+						<li role="presentation"><a href="/app/"><button type="button" class="btn btn-default navbar-btn">myApps</button></a></li>
+						<li role="presentation"><a href="/logout/"><button type="button" class="btn btn-primary navbar-btn">Logout</button></a></li>
 					</ul>
 				</nav>
 			</div>
@@ -51,20 +85,18 @@
 		<!-- Start Section -->
 		<section class="section" class="list-group">
 			<div id="response_message"> </div>
-				<form action="/app/" method="post">
-					<div class="list">
-						<ul id="sortable1" class="list applist">
-						{% for image in data %}
-							<li id="psa-id_{{ image.psa_id }}" class="ui-state-default">
-								{{ image.psa_name }}
-								<input type="checkbox" class="check_app" name="psa_active" value="{{ image.psa_id }}" {% if image.checked %} {{ 'checked' }} {% endif %} />
-							</li>
-						{% endfor %}
-						</ul>
-					</div>
-					{% csrf_token %}
-					<button type="submit" id="submit_button" class="btn btn-primary save_btn">Apply Changes</button>
-				</form>
+				<div class="list">
+					<ul id="sortable1" class="list applist">
+					{% for image in data %}
+						<li id="psa-id_{{ image.psa_id }}" class="ui-state-default">
+							{{ image.psa_name }}
+							<input type="checkbox" class="check_app" name="psa_active" value="{{ image.psa_id }}" {% if image.checked %} {{ 'checked' }} {% endif %} />
+						</li>
+					{% endfor %}
+					</ul>
+				</div>
+				{% csrf_token %}
+				<button type="button" id="submit_button" class="btn btn-primary save_btn">Apply Changes</button>
 			</div>		
 		</section>
 		<!-- End Section -->

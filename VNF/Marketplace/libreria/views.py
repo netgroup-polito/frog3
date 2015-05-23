@@ -2,14 +2,14 @@ import urllib2
 import json
 import requests
 import os.path
-
+import time
 
 from utils import get_filename, handle_uploaded_file
 from auth import keystone_auth
 from constants import URL_IMAGE, PATH_JSON, TIMEOUT
 from service_graph import saveAndInstantiateServiceGraph
 
-from django.http import HttpResponse, QueryDict
+from django.http import HttpResponse, QueryDict, HttpResponseRedirect
 from django.shortcuts import render, redirect
 from django.utils.datastructures import MultiValueDictKeyError
 
@@ -20,13 +20,15 @@ def app(request):
 		return redirect("/login/")
 	
 	if request.method == 'POST':
+		time.sleep(2)
 		
 		# Get username from session
 		username = request.session['username']
 	
 		# Get data from user
 		try:
-			checked_app = request.POST.getlist('psa_active')
+			checked_app = QueryDict(request.POST['psa_active'])
+			checked_app = checked_app.getlist('psa_active')
 		except MultiValueDictKeyError:
 			checked_app = []
 		
@@ -46,12 +48,11 @@ def app(request):
 		with open(PATH_JSON + username + '.json', 'wb') as outfile:
 			json.dump(data, outfile)
 		outfile.close()
+
+		# Crate service graph and instantiate it
+		# saveAndInstantiateServiceGraph(request.session, data)
 		
-		# Crate service graph and instantiate it 
-		saveAndInstantiateServiceGraph(request.session, data)
-		
-		request.session['save_status'] = 'success'
-		return redirect('/app/')
+		return HttpResponse('Success', status=200)
 		
 	elif request.method == 'GET':
 		
@@ -73,15 +74,8 @@ def app(request):
 		with open(PATH_JSON + username + '.json', 'rb') as infile:
 			data = json.load(infile)
 		infile.close()
-		
-		# Prepare user message
-		if 'save_status' in request.session:
-			response_message = request.session['save_status']
-			del request.session['save_status']
-		else:
-			response_message = ''
 			
-		return render(request, 'app.html', { 'data': data["list"], 'response_message': response_message })
+		return render(request, 'app.html', { 'title': 'MyApps', 'data': data["list"] })
 		
 
 def store(request):
@@ -90,26 +84,42 @@ def store(request):
 		return redirect("/login/")
 	
 	if request.method == 'POST':
+		time.sleep(2)
 		
 		# Get username from session
 		username = request.session['username']
 		
-		# Load data
+		# Load all app from API
 		try:
 			response = urllib2.urlopen(URL_IMAGE, None, TIMEOUT)
+			all_app = json.load(response)
 		except urllib2.URLError:
-			return redirect('/login/?err_message=Connection Timeout')
-			
-		data = json.load(response)
+			return HttpResponse('Server timeout', status=504)
 		
+		# Load app previously bought by user
+		with open(PATH_JSON + username + '.json', 'rb') as infile:
+			prev_app = json.load(infile)
+		infile.close()
+			
+		# Load app currently bought by user
 		q_psa = QueryDict(request.POST['psa_ser'])
-		psa_list = q_psa.getlist('psa-id[]')
+		cur_app = q_psa.getlist('psa-id[]')
+		
+		# Get id of user previous app
+		id_prev_app = []
+		for app in prev_app['list']:
+			id_prev_app.append(app['psa_id'])
 		
 		# Update data
 		saved_list = []
-		for app in data:
-			if app["psa_id"] in psa_list:
-				app["checked"] = 0
+		for app in all_app:
+			if app["psa_id"] in cur_app:
+				if app["psa_id"] not in id_prev_app:
+					app["checked"] = 0
+				else:
+					for app_p in prev_app['list']:
+						if app_p['psa_id'] == app["psa_id"]:
+							app["checked"] = app_p["checked"]
 				saved_list.append(app)
 
 		datajs = {}
@@ -119,8 +129,9 @@ def store(request):
 		# Save on local file
 		with open(PATH_JSON + username + '.json', 'wb') as outfile:
 			json.dump(datajs, outfile)
+		outfile.close()
 			
-		return HttpResponse('Success')
+		return HttpResponse('Success', status=200)
 		
 	elif request.method == 'GET':
 		
@@ -147,6 +158,7 @@ def store(request):
 		# Eliminate app chosen from available list
 		new_all_app = []
 		for app in all_app:
+			app["price"] = 0.99
 			if app["psa_id"] not in id_user_app:
 				new_all_app.append(app)
 		
@@ -157,7 +169,7 @@ def store(request):
 		else:
 			response_message = ''	
 				
-		return render(request, 'list.html', { 'all_app': new_all_app, 'user_app': user_app, 'username': username, 'response_message': response_message })
+		return render(request, 'store.html', { 'title': 'MyStore', 'all_app': new_all_app, 'user_app': user_app, 'response_message': response_message })
 	
 
 def login_view(request):
@@ -165,9 +177,9 @@ def login_view(request):
 	if request.method == 'GET':
 		try:
 			err_msg = request.GET['err_message']
-			return render(request, 'login.html', {'title': 'PSA Login', 'err_message': err_msg}, content_type="text/html")
+			return render(request, 'login.html', {'title': 'Login', 'err_message': err_msg}, content_type="text/html")
 		except KeyError:
-			return render(request, 'login.html', {'title': 'PSA Login'}, content_type="text/html")
+			return render(request, 'login.html', {'title': 'Login'}, content_type="text/html")
 			
 	
 	elif request.method == 'POST':
@@ -194,7 +206,7 @@ def logout_view(request):
 		
 	if "token" in request.session:
 		del request.session['token']
-		
+
 	return redirect('/login/')
 	
 
@@ -219,7 +231,7 @@ def user_image_upload(request):
 	
 	# Send file to API
 	try:
-		r = requests.put(
+		requests.put(
 			url = URL_IMAGE + fname + '/',
 			params = {
 				"id": fname,
@@ -237,7 +249,7 @@ def user_image_upload(request):
 		)
 		request.session['upload_status'] = 'success'
 		
-	except requests.exceptions.RequestException as e:
+	except requests.exceptions.RequestException:
 		request.session['upload_status'] = 'fail'
 		redirect('/store/')
 		

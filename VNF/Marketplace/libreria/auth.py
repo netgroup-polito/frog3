@@ -1,7 +1,7 @@
 from constants import *
 import urllib2
 import json
-import hashlib, six, requests
+import requests
 
 def keystone_auth(username, password, tenant='admin'):
 	tenant = username

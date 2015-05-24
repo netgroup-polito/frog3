@@ -12,10 +12,6 @@
     <servlet-name>Index</servlet-name>
     <jsp-file>/index.jsp</jsp-file>
   </servlet>
-  <servlet>  
-      <servlet-name>CommonServlet</servlet-name>  
-      <servlet-class>CommonServlet</servlet-class>
-  </servlet> 
   <servlet>
     <description>
 		</description>
@@ -31,16 +27,6 @@
     <servlet-name>Update</servlet-name>
     <url-pattern>/Update</url-pattern>
   </servlet-mapping>
-   <!--
-  <servlet-mapping>  
-       <servlet-name>CommonServlet</servlet-name>  
-       <url-pattern>*.jpg</url-pattern> 
-	<url-pattern>*.png</url-pattern>
-	<url-pattern>*.css</url-pattern>
-	<url-pattern>*.js</url-pattern>
-	<url-pattern>*.gif</url-pattern>
-  </servlet-mapping>
-  -->  
   <servlet-mapping>
     <servlet-name>default</servlet-name>
     <url-pattern>*.jpg</url-pattern>

@@ -41,11 +41,19 @@ public class Login extends HttpServlet {
 	}
 
 	/**
-	 * @see HttpServlet#doGet(HttpServletRequest request, HttpServletResponse
+	 * @see HttpServlet#doPost(HttpServletRequest request, HttpServletResponse
 	 *      response)
 	 */
-	protected void doGet(HttpServletRequest request,
+	protected void doPost(HttpServletRequest request,
 			HttpServletResponse response) throws ServletException, IOException {
+		
+		/*
+		 * This function is called by the js that handle the user login.
+		 * It performs the authentication against keystone, contacts the SDN controller 
+		 * to get the mac address of the user device authenticated, and finally 
+		 * sends the request to the orchestrator to deploy the service graph associated
+		 * to the user.
+		 */
 		String user = request.getParameter("username");
 		String pwd = request.getParameter("password");
 		String keystone_token = null;
@@ -61,7 +69,11 @@ public class Login extends HttpServlet {
 			System.out.println("(1) Login is not done. An error is occured");
 			return;
 		}
+		
 		try {
+			/*
+			 * Authontication requests through keystone
+			 */
 			keystone_token = authenticateThroughKeystone(user, pwd, session);
 			System.out.println(keystone_token);
 		} catch (AuthenticationException e) {
@@ -78,7 +90,12 @@ public class Login extends HttpServlet {
 		}
 
 		session.setAttribute("Keystone_token", keystone_token);
-		// setting session to expiry in 30 mins
+		
+		/*
+		 * Setting session to expires in 30 mins, however the session
+		 * could be shorten if in the LoginFilter is performed a different
+		 * check.
+		 */
 		session.setMaxInactiveInterval(30 * 60);
 
 		ServletContext sc = session.getServletContext();
@@ -91,9 +108,12 @@ public class Login extends HttpServlet {
 			my_token = token_generator.nextSessionId();
 		session.setAttribute("token", my_token);
 
-		// send to the OF controller an Auth OK Message
+		
 		AuthResponseMessage r;
 		try {
+			/*
+			 * Sends to the OF controller an Auth OK Message.
+			 */
 			r = sendAuthOKMsgToTheController(request.getRemoteAddr(), session);
 		} catch (IOException e) {
 			out.print("{\"status\":\"error\", \"accountable\": \"controller openflow\"}");
@@ -110,7 +130,9 @@ public class Login extends HttpServlet {
 		}
 
 		try {
-			// send to the Orchestrator a Deploy Request
+			/*
+			 * Sends to the Orchestrator a Deploy Request for the user service graph.
+			 */
 			if (sendDeployRequestToTheOrchestrator(keystone_token,
 					r.getIP_address(), r.getMAC(), r.getUser_MAC(), session) == false) {
 				out.print("{\"status\":\"error\", \"accountable\": \"orchestrator\"}");
@@ -133,106 +155,22 @@ public class Login extends HttpServlet {
 
 		String requested_path = (String) session.getAttribute("requested_path");
 		System.out.println("Login " + requested_path);
-		// ((HttpServletResponse)
-		// response).setStatus(HttpServletResponse.SC_MOVED_PERMANENTLY);
-		// ((HttpServletResponse) response).setHeader("Location",
-		// requested_path);
-		
 		out.print("{\"status\":\"success\",\"uri\":\"http://"+((HttpServletRequest) request).getServerName()+"/Index\"}");
 		out.flush();
 		System.out.println("Login done.");
-	}
-
-	/**
-	 * @see HttpServlet#doPost(HttpServletRequest request, HttpServletResponse
-	 *      response)
-	 */
-	protected void doPost(HttpServletRequest request,
-			HttpServletResponse response) throws ServletException, IOException {
-		// get request parameters for userID and password
-		String user = request.getParameter("user");
-		String pwd = request.getParameter("pwd");
-		String keystone_token = null;
-		HttpSession session = request.getSession();
-		if ((user == null) || (pwd == null) || ("".equals(pwd))
-				|| ("".equals(user))) {
-			// the form is empty: show an error message
-			request.setAttribute("message", "Authentication failed");
-			request.getRequestDispatcher("/login.jsp").forward(request,
-					response);
-			return;
-		}
-		try {
-			keystone_token = authenticateThroughKeystone(user, pwd, session);
-			System.out.println(keystone_token);
-		} catch (AuthenticationException e) {
-			request.setAttribute("message", "Authentication failed");
-			request.getRequestDispatcher("/login.jsp").forward(request,
-					response);
-			return;
-		} catch (Exception e) {
-			System.err.println(e.getMessage());
-			throw new RuntimeException(
-					"We encounter an unhandable problem in the request processing. Contact the system administrator.");
-		}
-
-		session.setAttribute("Keystone_token", keystone_token);
-		// setting session to expiry in 30 mins
-		session.setMaxInactiveInterval(30 * 60);
-
-		ServletContext sc = session.getServletContext();
-		ConcurrentHashMap<String, Long> chm = (ConcurrentHashMap<String, Long>) sc
-				.getAttribute("logged_users");
-		SessionIdentifierGenerator token_generator = (SessionIdentifierGenerator) sc
-				.getAttribute("token_generator");
-		String my_token = token_generator.nextSessionId();
-		while (chm.putIfAbsent(my_token, new Long(System.currentTimeMillis())) != null)
-			my_token = token_generator.nextSessionId();
-		session.setAttribute("token", my_token);
-
-		// send to the OF controller an Auth OK Message
-		AuthResponseMessage r = sendAuthOKMsgToTheController(
-				request.getRemoteAddr(), session);
-
-		// send to the Orchestrator a Deploy Request
-		if (sendDeployRequestToTheOrchestrator(keystone_token,
-				r.getIP_address(), r.getMAC(), r.getUser_MAC(), session) == false)
-		// {
-		// if (sendDeployOKMsgToTheController(request.getRemoteAddr(),session)
-		// == false)
-		// {
-		// System.err.println("Problem with the controller comunication");
-		// throw new
-		// RuntimeException("We encounter an unhandable problem in the request processing. Contact the system administrator.");
-		//
-		// }
-		// }
-		// else
-		{
-			request.setAttribute("message", "Deploy Request Failed");
-			request.getRequestDispatcher("/login.jsp").forward(request,
-					response);
-			return;
-		}
-
-		// String requested_path = (String)
-		// session.getAttribute("requested_path");
-		// System.out.println("Login "+requested_path);
-		// ((HttpServletResponse)
-		// response).setStatus(HttpServletResponse.SC_MOVED_PERMANENTLY);
-		// ((HttpServletResponse) response).setHeader("Location",
-		// requested_path);
-
-		RequestDispatcher dispatch = request.getRequestDispatcher("/Index");
-		dispatch.forward(request, response);
-		return;
 
 	}
 
 	private boolean sendDeployRequestToTheOrchestrator(String token,
 			String ip_address, String mac, String user_MAC, HttpSession session)
 			throws ClientProtocolException, IOException {
-
+		
+		/*
+		 * Send a a request to deploy a service graph of a specific user.
+		 * The user is identificated with the token obtained by keystone
+		 * after the authentication.
+		 */
+		
 		HttpClient httpClient = HttpClientBuilder.create().build();
 
 		URL temp = new URL("http", (String) session.getServletContext()
@@ -261,8 +199,14 @@ public class Login extends HttpServlet {
 
 	private String authenticateThroughKeystone(String usr, String psw,
 			HttpSession session) throws AuthenticationException {
-
+		
+		/*
+		 * Authenticate the user through keystone. The request returns, if the 
+		 * user credentials are corrected, a token.
+		 */
+		
 		try {
+			
 			HttpClient httpClient = HttpClientBuilder.create().build();
 
 			URL temp = new URL("http", (String) session.getServletContext()
@@ -318,6 +262,14 @@ public class Login extends HttpServlet {
 
 	private AuthResponseMessage sendAuthOKMsgToTheController(String IP_address,
 			HttpSession session) throws IOException, RuntimeException {
+		/*
+		 * Sends a message to the controller to tell him that the user is correctly
+		 * authenticated. The controller returns the mac address of the user device.
+		 * This mac address is used by the orchestrator to set a rule that bring the user traffic 
+		 * on its service graph.
+		 * Detail on the message return by the controller is in the class AuthResponseMessage
+		 */
+		
 		MessageWithIP msg = new MessageWithIP(IP_address, null,
 				Message.MsgType.Auth_OK);
 
@@ -329,6 +281,10 @@ public class Login extends HttpServlet {
 
 	private String sendMessageToTheController(MessageWithIP msg,
 			HttpSession session) throws IOException {
+		/*
+		 *  Perform the real requests to the controller.
+		 */
+		
 		String hostName = (String) session.getServletContext().getAttribute(
 				"controller_ip");
 		int portNumber = Integer.parseInt((String) session.getServletContext()

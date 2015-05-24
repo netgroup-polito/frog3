@@ -28,6 +28,10 @@ var timeoutCaptivePortal = 7000;
 
 
 function status(){
+	/*
+	 * This function is called on load of index.jsp.
+	 * It used to show the status of the instantiation process of the service graph.
+	 */
 	content = document.getElementById("percentage-completed");
 	updateStatus();
 	NProgress.set(0.08);
@@ -39,35 +43,59 @@ function updateStatus() {
 		console.log("New request");
 	    req = new XMLHttpRequest();
 	    req.open("GET","/Update", true);
-	    req.onreadystatechange = callback;
+	    req.onreadystatechange = checkUpdateResponse;
 	    req.send(null);
+	    /*
+	     * If the timeout expires, it is supposed that the captive portal graph is no more 
+	     * reachable.
+	     */
 	    xmlHttpTimeout = setTimeout(ajaxTimeout, timeoutCaptivePortal); 
 	}	
 }
 
 function ajaxTimeout(){
+	/*
+     * If the timeout expires, it is supposed that the captive portal graph is no more 
+     * reachable. So, it is called a function that render the successful page.
+     */
 	req.abort();
 	console.log("Request aborted");
 	deploy_successful();
 }
 
-function callback() {
+function checkUpdateResponse() {
     if (req.readyState == 4) {
 		console.log("readyState = 4");
     	window.clearInterval(xmlHttpTimeout);
     	if(req.status == 0) {
+    		/*
+    		 *  Status is 0 when either doing cross-site scripting (where access is denied) or 
+    		 *  requesting a URL that is unreachable (typo, DNS issues, etc). There is an high probability 
+    		 *  that we reach no more the captive portal graph, so the next request goes to timeout.
+    		 */
     		console.log("Request aborted: req.status = 0");
     		return;
     	}
     	if( req.status == 502 ){
+    		/*
+    		 * Some proxy response 502, it is probably that the captive portal is no more reachable.
+    		 * So it is called the function that render the successful page.
+    		 */
     		console.log("502 returned by Captive portal, we suppose that the graph is completed and that code was returned by some proxy");
     		deploy_successful();
     		return;
     	}
         if(req.status == 200 || req.status == 201 || req.status == 202) {
         	var jsonResponse = JSON.parse(req.responseText);
+        	
         	console.log("jsonResponse['instantiation_complete']: "+jsonResponse['instantiation_complete']);
         	if (jsonResponse['instantiation_complete'] == "true"){
+        		/*
+        		 * If instantiation_complete is true, the user reach the CP even after the graph instantiatio.
+        		 * This is possible when the user is logged out and the CP session is not expires.
+        		 * Setting the instantiatioComplete flag to true last 10% of frog jumping is skipped, and
+        		 * is rendered only the final successfull page.
+        		 */
         		instantiatioComplete = true;
         		console.log("instantiatioComplete: "+instantiatioComplete);
         	} if (typeof  destinationURI === 'undefined')
@@ -77,6 +105,9 @@ function callback() {
         		error();
         	}
         	
+        	/*
+        	 * Update the status bar on the top of the page.
+        	 */
         	update_progressbar(jsonResponse);
 
         } else {
@@ -112,6 +143,12 @@ function update_progressbar(jsonResponse){
 	} else if(percent < 8){
 		progress = 0.08;
 	} else {
+		/*
+		 * If all the resurces are deployed the new graph is reachable,
+		 * but if we obtain this information means that we are yet reaching 
+		 * the captive portal graph (unusual situation, this could means that all graphs are in the same broadcast
+		 * or however the ip address of the CP is reachable from the new graph)
+		 */
 		console.log("All resources are really instantiated");
 		deploy_successful();
 	}
@@ -132,6 +169,10 @@ function deploy_successful(){
 	NProgress.set(0.9);
 	content.textContent ="90%  progress,  ";
 	progressTimer = window.setInterval(function(){
+			/*
+			 * Last 10% of progress bar is piloted, with the aim of 
+			 * allow the boot of all virtual machines/containers in the graph.
+			 */
 		    console.log("progressTimer");
 		    console.log("fixed_percent: "+fixed_percent);
 			if(fixed_percent == 100) return;

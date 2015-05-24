@@ -24,9 +24,9 @@ function sendLoginRequest() {
 
         console.log('sleep ended');
         xmlhttp = new XMLHttpRequest();
-        xmlhttp.open("GET", "Login?username=" + document.forms[0].username.value + "&password=" + document.forms[0].password.value, true);
+        xmlhttp.open("POST", "Login", true);
         xmlhttp.onreadystatechange = loginStatusManager;
-        xmlhttp.send();
+        xmlhttp.send("username=" + document.forms[0].username.value + "&password=" + document.forms[0].password.value);
 
     }
 }

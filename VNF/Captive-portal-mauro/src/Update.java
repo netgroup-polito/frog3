@@ -44,6 +44,10 @@ public class Update extends HttpServlet {
 	protected void doGet(HttpServletRequest request,
 			HttpServletResponse response) throws ServletException, IOException
 	{
+		/*
+		 * This function is called by the js that handle the resources progress (jumping frog).
+		 * The function calls the orchestrator asking for the percentage of the deployed resources.
+		 */
 		response.setContentType("text/xml");
 		response.setHeader("Cache-Control", "no-cache");
 		String status = getOrchestratorStatus(response, request);
@@ -53,6 +57,11 @@ public class Update extends HttpServlet {
 
 	private String getOrchestratorStatus(HttpServletResponse response, HttpServletRequest request)
 	{
+		/*
+		 *  Implement the requests to the orchestrator. 
+		 *  This requests needs the keystone token, of the user.
+		 */
+		
 		try 
 		{
 			HttpSession session = request.getSession();
@@ -82,6 +91,11 @@ public class Update extends HttpServlet {
 
 			System.out.println("Orchestrator response:  "+orchestrator_response.getStatusLine().toString());
 			int orch_response_status_code = orchestrator_response.getStatusLine().getStatusCode();
+			
+			/*
+			 * 201 means that, the service graph is complete.
+			 * 202 means that, there are some resources left until the service graph is complete.
+			 */
 			if ((orch_response_status_code == 201) || (orch_response_status_code == 202))
 			{
 				BufferedReader br = new BufferedReader(
@@ -99,19 +113,19 @@ public class Update extends HttpServlet {
 			   			jsonObject.append("instantiation_complete", false);
 			   		}
 			   			
-			   		String r = jsonObject.toString();
+			   		String res = jsonObject.toString();
 					if (orch_response_status_code == 201)
 					{	
 						/*
-						 * Orchestrator response confirm the successful instantiatio
+						 * Orchestrator response confirm the successful instantiation
 						 * of the user profile.
 						 */
 						Boolean status = true;
 						session.setAttribute("instantiation_complete", status.toString());
 						response.setHeader("Connection","close");
 					}
-			   		if (r != null)
-			   			return r;
+			   		if (res != null)
+			   			return res;
 			   	}
 			} else
 			{

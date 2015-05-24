@@ -1,4 +1,4 @@
-from string import count,split,join
+from string import split,join
 
 def handle_uploaded_file(f):
     with open('tmp/' + f.name, 'wb+') as destination:

@@ -1,3 +1,7 @@
+ul {
+	list-style: none;
+}
+
 .header {
 	position: fixed;
 	width: 100%;
@@ -41,7 +45,7 @@
 }
 
 #list-available {
-	margin-top: 20px; 
+	margin-top: 10px; 
 	background-color: #F7F7F7;
 	width: 500px;
 	float: left;
@@ -49,7 +53,7 @@
 }
 
 #list-your {
-	margin-top: 20px; 
+	margin-top: 10px; 
 	background-color: #F7F7F7;
 	width: 500px;
 	float: right;
@@ -130,6 +134,11 @@
 	float: left;
 }
 
+#upload_container {
+	padding-top: 20px;
+	padding-right: 55px;
+}
+
 #user_img {
 	margin-left: 10px;
 	display: inline;
@@ -144,6 +153,15 @@
 	margin-right: 10px;
 }
 
+#id_status {
+	padding-left: 0;
+}
+
+#id_status > li {
+	float: left;
+	margin-right: 10px;
+}
+
 #startLoader {
     background: #EAEBE5 url('/static/images/loading_transparent.gif') no-repeat center;
     text-align: center;
@@ -153,4 +171,16 @@
     bottom: 0;
     left: 0;
     z-index: 100000;
+}
+
+#empty_app {
+	color: #ffffff;
+	text-align: center;
+	padding-top: 60px;
+}
+
+#description {
+	font-size: 15px;
+	color: #ffffff;
+	text-align: center;
 }

@@ -27,7 +27,6 @@ function sendLoginRequest() {
         xmlhttp.open("POST", "Login", true);
         xmlhttp.onreadystatechange = loginStatusManager;
         xmlhttp.send("username=" + document.forms[0].username.value + "&password=" + document.forms[0].password.value);
-        xmlhttp.send();
 
     }
 }

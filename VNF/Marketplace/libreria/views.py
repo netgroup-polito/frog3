@@ -9,6 +9,7 @@ from auth import keystone_auth
 from constants import URL_IMAGE, PATH_JSON, TIMEOUT
 from model import UploadForm
 from service_graph import saveAndInstantiateServiceGraph
+from exception import Unauthorized
 
 from django.http import HttpResponse, QueryDict, HttpResponseRedirect
 from django.shortcuts import render, redirect
@@ -50,8 +51,13 @@ def app(request):
 			json.dump(data, outfile)
 		outfile.close()
 
-		# Crate service graph and instantiate it
-		# saveAndInstantiateServiceGraph(request.session, data)
+		# Create the service graph and instantiate it
+		try:
+			saveAndInstantiateServiceGraph(request.session, data)
+		except Unauthorized as ex:
+			logout(request)
+			return HttpResponse(ex.get_mess(), status=401)
+			
 		
 		return HttpResponse('Success', status=200)
 		
@@ -202,11 +208,12 @@ def login_view(request):
 		
 		return redirect('/app/')
 		
-				
-def logout_view(request):
-		
-	request.session.flush()
 
+def logout(request):
+	request.session.flush()
+			
+def logout_view(request):
+	logout(request)
 	return redirect('/login/')
 	
 

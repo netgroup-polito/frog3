@@ -39,8 +39,9 @@
 						saved = true;
 						setTimeout(function() { $('#response_message').hide(800); }, 5000 );
 					},
-					error: function(data) {
-						console.log(data);
+					error: function(data, status) {
+						if(data.status == 401) 
+							window.location.href = "/login/";
 						$('#startLoader').hide();
 						$("#response_message").removeClass("messageSuccess messageError");
 						$('#response_message').show();

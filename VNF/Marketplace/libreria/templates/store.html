@@ -114,7 +114,7 @@
 	
 	<body>
 		
-		<div id="startLoader"></div>
+		<div id="startLoader"> </div>
 		
 		<!-- Start Header -->
 		<header class="header">
@@ -134,7 +134,8 @@
 		
 		<!-- Start Section -->
 		<section class="section" class="list-group">
-			<div id="response_message"></div>
+			<div id="response_message"> </div>
+			<div id="description">Drag and drop to add or remove applications</div>
 			<div id="list-available" class="list">
 				<div class="description">MyStore Applications</div>
 				<ul id="sortable1" class="sourceList">
@@ -151,19 +152,22 @@
 				<div class="description">MyApps</div>
 				
 				<ul id="sortable2" class="targetList">
+					{% if user_app %}
+					<li class="empty-placeholder" style="display: list-item; display: none;">Drop here the services</li>
+					{% else %}
+					<li class="empty-placeholder" style="display: list-item;">Drop here the services</li>
+					{% endif %}
 				 	{% for image in user_app %}
 					<li id="psa-id_{{ image.psa_id }}" class="ui-state-default">
 						<span>{{ image.psa_name }}</span>
 					</li>
-					{% empty %}
-					<li class="empty-placeholder" style="display: list-item;">Drop here the services</li>
 					{% endfor %}
 				</ul>
 				
 			</div>
 			
 			<div id="upload_img">
-				<button type="button" class="btn btn-primary save_btn">Add your own app</button>
+				<a href="/upload/"><button type="button" class="btn btn-primary save_btn">Add your own app</button></a>
 			</div>
 			
 			<button type="button" id="submit_button" class="btn btn-primary save_btn">Apply Changes</button>			

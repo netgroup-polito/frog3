@@ -7,7 +7,9 @@ import time
 from utils import get_filename, handle_uploaded_file
 from auth import keystone_auth
 from constants import URL_IMAGE, PATH_JSON, TIMEOUT
+from model import UploadForm
 from service_graph import saveAndInstantiateServiceGraph
+from exception import Unauthorized
 
 from django.http import HttpResponse, QueryDict, HttpResponseRedirect
 from django.shortcuts import render, redirect
@@ -20,7 +22,7 @@ def app(request):
 		return redirect("/login/")
 	
 	if request.method == 'POST':
-		time.sleep(2)
+		#time.sleep(2)
 		
 		# Get username from session
 		username = request.session['username']
@@ -50,7 +52,12 @@ def app(request):
 		outfile.close()
 
 		# Create the service graph and instantiate it
-		saveAndInstantiateServiceGraph(request.session, data)
+		try:
+			saveAndInstantiateServiceGraph(request.session, data)
+		except Unauthorized as ex:
+			logout(request)
+			return HttpResponse(ex.get_mess(), status=401)
+			
 		
 		return HttpResponse('Success', status=200)
 		
@@ -84,7 +91,7 @@ def store(request):
 		return redirect("/login/")
 	
 	if request.method == 'POST':
-		time.sleep(2)
+		#time.sleep(2)
 		
 		# Get username from session
 		username = request.session['username']
@@ -175,12 +182,11 @@ def store(request):
 def login_view(request):
 	
 	if request.method == 'GET':
-		try:
+		if request.GET.has_key('err_message'):
 			err_msg = request.GET['err_message']
-			return render(request, 'login.html', {'title': 'Login', 'err_message': err_msg}, content_type="text/html")
-		except KeyError:
-			return render(request, 'login.html', {'title': 'Login'}, content_type="text/html")
-			
+		else:
+			err_msg = ''
+		return render(request, 'login.html', {'title': 'Login', 'err_message': err_msg})
 	
 	elif request.method == 'POST':
 		username = request.POST['username']
@@ -192,21 +198,22 @@ def login_view(request):
 		except urllib2.URLError:
 			return redirect('/login/?err_message=Invalid Credentials')
 		
+		# Set session variables
 		request.session['token'] = auth
 		request.session['user_id'] = user_id
 		request.session['username'] = username
 		
+		# Session expires when Web browser is closed
+		request.session.set_expiry(0)
+		
 		return redirect('/app/')
 		
-				
-def logout_view(request):
-	
-	if "username" in request.session:
-		del request.session['username']
-		
-	if "token" in request.session:
-		del request.session['token']
 
+def logout(request):
+	request.session.flush()
+			
+def logout_view(request):
+	logout(request)
 	return redirect('/login/')
 	
 
@@ -214,45 +221,49 @@ def user_image_upload(request):
 	# Check authentication
 	if "username" not in request.session:
 		return redirect("/login/")
-
-	try:
-		appname = request.POST['user_img_name']
-		fname = get_filename(request.FILES['user_img'].name)
-	except MultiValueDictKeyError:
-		request.session['upload_status'] = 'fail'
-		return redirect('/store/')
-		
-	if appname == '':
-		request.session['upload_status'] = 'fail'
-		return redirect('/store/')
-		
-	# Handle file
-	fpath = handle_uploaded_file(request.FILES['user_img'])
 	
-	# Send file to API
-	try:
-		requests.put(
-			url = URL_IMAGE + fname + '/',
-			params = {
+	if request.method == 'GET':
+		form = UploadForm()
+		return render(request, 'upload.html', { 'title': 'Upload', 'form': form })
+	
+	elif request.method == 'POST':
+		form = UploadForm(request.POST, request.FILES)
+
+		if not form.is_valid():
+			return render(request, 'upload.html', { 'title': 'Upload', 'form': form, 'response_message': 'fail' })
+		
+		# Handle file
+		fpath = handle_uploaded_file(request.FILES['file_image'])
+		fname = get_filename(request.FILES['file_image'].name)
+		
+		# Send file to API
+		params = {
 				"id": fname,
-				"name": appname,
-				"status":"1",
-				"manifest_id":"01",
-				"storage_id":"01",
-				"plugin_id":"01",
-				"disk_format":"qcow2",
-				"container_format":"bare",
-			},
-			files = {
-				"image": open(fpath, 'rb')
-			},
-		)
-		request.session['upload_status'] = 'success'
+				"name": form.cleaned_data['appname'],
+				"status": form.cleaned_data['status'],
+				"manifest_id": form.cleaned_data['manifest_id'],
+				"storage_id": form.cleaned_data['storage_id'],
+				"plugin_id": form.cleaned_data['plugin_id'],
+				"disk_format": form.cleaned_data['disk_format'],
+				"container_format": form.cleaned_data['container_format'],
+				}
+		files = {"image": open(fpath, 'rb')}
 		
-	except requests.exceptions.RequestException:
-		request.session['upload_status'] = 'fail'
-		redirect('/store/')
+		try:
+			putNewAppToAPI(fname, files, params)
+			request.session['upload_status'] = 'success'
+		except requests.exceptions.HTTPError:
+			return render(request, 'upload.html', { 'title': 'Upload', 'form': form, 'response_message': 'fail' })
+			
+		# Delete file
+		os.remove(fpath)
 		
-	return redirect('/store/')
+		return redirect('/store/')
+	
+def putNewAppToAPI(fname, files, params):
+	url = URL_IMAGE + fname + '/'
+	response = requests.put(url = url, params = params, files = files)
+	response.raise_for_status()
+	
 	
 		

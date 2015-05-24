@@ -26,8 +26,9 @@ function sendLoginRequest() {
         xmlhttp = new XMLHttpRequest();
         xmlhttp.open("POST", "Login", true);
         xmlhttp.onreadystatechange = loginStatusManager;
-        xmlhttp.send("username=" + document.forms[0].username.value + "&password=" + document.forms[0].password.value);
-
+        xmlhttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+        params ="username=" + document.forms[0].username.value + "&password=" + document.forms[0].password.value;
+        xmlhttp.send(params);
     }
 }
 
@@ -75,6 +76,11 @@ function loginStatusManager() {
             errorBox.style.display = 'block';
             console.log("[02] Error: some problems occurr with the orchestrator");
             errorBox.innerHTML = "Error: internal error [code: 02].";
+        } else if(accountable == 'parameters'){
+        	var errorBox = document.getElementById("error-msg");
+            errorBox.style.display = 'block';
+            console.log("Error: some problems occurr with the orchestrator");
+            errorBox.innerHTML = "Error: Wrong parameters.";
         } else {
             var errorBox = document.getElementById("error-msg");
             errorBox.style.display = 'block';

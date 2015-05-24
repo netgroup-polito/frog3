@@ -64,7 +64,7 @@ public class Login extends HttpServlet {
 		if ((user == null) || (pwd == null) || ("".equals(pwd))
 				|| ("".equals(user))) {
 			// the form is empty: show an error message
-			out.print("{success,false}");
+			out.print("{\"status\":\"error\", \"accountable\": \"parameters\"");
 			out.flush();
 			System.out.println("(1) Login is not done. An error is occured");
 			return;

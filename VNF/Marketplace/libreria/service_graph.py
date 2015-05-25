@@ -263,7 +263,8 @@ def saveAndInstantiateServiceGraph(session, vnfs):
         # Put the service graph in keystone
         putServiceGraphInKeystone(session['token'], session['user_id'], graph)  
         
-        delete(session['token'])
+        instantiate(session['token'])
+        #delete(session['token'])
     else:
         graph = createGraph(active_vnfs, vnfs['user'], False)
         

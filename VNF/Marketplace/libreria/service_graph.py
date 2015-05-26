@@ -10,6 +10,7 @@ from slapp import instantiate, delete
 import logging
 from requests.exceptions import Timeout
 from exception import Unauthorized
+import time
 
 
 
@@ -264,7 +265,10 @@ def saveAndInstantiateServiceGraph(session, vnfs):
         putServiceGraphInKeystone(session['token'], session['user_id'], graph)  
         
         instantiate(session['token'])
+        waitInstantiation(session['token'])
         #delete(session['token'])
+        logging.debug("Service graph instantiated")
+        time.sleep(10)
     else:
         graph = createGraph(active_vnfs, vnfs['user'], False)
         
@@ -278,6 +282,7 @@ def saveAndInstantiateServiceGraph(session, vnfs):
         waitInstantiation(session['token'])
         
         logging.debug("Service graph instantiated")
+        time.sleep(10)
         
 
 

@@ -5,3 +5,4 @@ Orchestrator/FrogOrchestrator.log
 *.pydevproject
 *.DS_Store
 .DS_Store
+libreria.db

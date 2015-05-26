@@ -46,7 +46,7 @@
 		
 			<!-- MAIN CONTENT -->
 		
-			<div id="content">	
+			<div id="content"  style="overflow: hidden;">	
 				<form action="#" method="" id="login-form">	
 					<fieldset>
 						<h1>
@@ -72,12 +72,12 @@
 						-->
 						
 					</fieldset>
-									
+					<div id="loading">
+					</div>				
 					<br/><div id="error-msg" class="error-box round"> </div>
 					
 				</form>		
-				
-				<div id="message" style="display:none;" align="center"> Loading...</div>
+
 				
 				<div id="login_ok" style="display:none;" align="center">			
 					<br>

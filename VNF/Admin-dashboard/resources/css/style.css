@@ -270,12 +270,11 @@ div#header-frog3 { padding: 1.25em 0;  }
 
 /* --------- LOADING ----------- */
 div#loading {
-	background: url('../images/icons/ajax-loader.gif') no-repeat;
+	background: url('../images/icons/ajax-loader.gif') no-repeat center;
 	width: 5em;
 	height: 5em;
-	float: right;
-	clear: right;
-	margin-top: 5%;
+	margin-left: auto;
+    margin-right: auto;
 	display: none;
 }
 
@@ -330,6 +329,8 @@ div#content, div#contentindex {
 	border: 1px solid #eeefef;
 	padding: 3.875em 0; 
 	background-color: rgba(155,155,155,0.25);
+	height:7em;
+	min-height: 5em;
 }
 
 

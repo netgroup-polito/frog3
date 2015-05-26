@@ -75,7 +75,11 @@ if (strcmp($headers,"true") == 0){
 	echo $body;
 }
 
+//header('HTTP/1.0 '.$info['http_code']);
+header(' ', true, $info['http_code']);
+
 curl_close($session);
+
 
 ?>
 

@@ -13,7 +13,6 @@ fi
 sleep 2
 ./set_controller_out_of_band.sh
 ./create_bridge_usr.sh
-ovs-vsctl del-controller br-usr
 ovs-vsctl del-controller br-ex
 ovs-vsctl add-port br-usr wlan0
 

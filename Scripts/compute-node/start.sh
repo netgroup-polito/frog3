@@ -15,7 +15,7 @@ sleep 2
 ./create_bridge_usr.sh
 ovs-vsctl del-controller br-ex
 ovs-vsctl add-port br-usr wlan0
-
+ovs-vsctl set-controller br-usr tcp:$1:6633
 
 rm -rf /var/log/nova/nova-compute.log.*
 echo ''>/var/log/nova/nova-compute.log

@@ -10,7 +10,14 @@
 		var keystone_port = "<?php echo $conf['keystone_port']; ?>";
 		var orchestrator_ip = "<?php echo $conf['orchestrator_ip']; ?>";
 		var orchestrator_port = "<?php echo $conf['orchestrator_port']; ?>";
-		var proxy_addr = "<?php echo $conf['proxy_addr']; ?>";
+		
+		var proxy_addr;
+		var s = window.location.href;
+		s = s.split("//")[1].split("/"); 
+		console.log(s[0]);
+		proxy_addr = s[0];
+		
+		/*var proxy_addr = "<?php echo $conf['proxy_addr']; ?>";*/
 		var path = "<?php echo $conf['path']; ?>";
 	</script> 
 	<script src="resources/js/script.js">

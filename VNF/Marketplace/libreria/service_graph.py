@@ -13,7 +13,7 @@ from exception import Unauthorized
 import time
 
 
-
+timeout_after_instantiation = 20
 global_match_id = 0
 default_priority = "10"
 ingress_endpoint = 'user_ingress'
@@ -268,7 +268,7 @@ def saveAndInstantiateServiceGraph(session, vnfs):
         waitInstantiation(session['token'])
         #delete(session['token'])
         logging.debug("Service graph instantiated")
-        time.sleep(10)
+        time.sleep(timeout_after_instantiation)
     else:
         graph = createGraph(active_vnfs, vnfs['user'], False)
         
@@ -282,7 +282,7 @@ def saveAndInstantiateServiceGraph(session, vnfs):
         waitInstantiation(session['token'])
         
         logging.debug("Service graph instantiated")
-        time.sleep(10)
+        time.sleep(timeout_after_instantiation)
         
 
 

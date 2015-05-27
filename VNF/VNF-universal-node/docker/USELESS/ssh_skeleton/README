@@ -1,0 +1,55 @@
+This is a container running an ssh server, and which has installed to iptrac 
+tool. The credential to access to it through ssh are:
+* user: root
+* pwd: root
+
+In practice, it is a skeleton that can be used to build more usefull network
+functions that can be configured/controlled through an ssh connection
+
+To change the netork configuration, edit the file "start.sh".
+To change the user/pwd, edit the file "Dockerfile".
+
+###############################################################################
+
+Reqiured libraries:
+
+* Docker and LXC
+     http://docs.docker.com/installation/
+     apt-get install lxc -y
+     echo 'DOCKER_OPTS="-e lxc"' >> /etc/default/docker.io
+     service docker restart
+     
+* Ubuntu docker image
+     sudo docker pull ubuntu:latest
+
+* Private registry (in the following, the document assumes that the registry is
+     running at localhost:5000)
+
+###############################################################################
+
+Create the Docker image which contains this NF, and push it to the repository
+
+* docker build --tag="localhost:5000/ssh" .
+* docker push localhost:5000/ssh
+
+###############################################################################
+
+Run the container:
+
+* in interactive mode
+
+	docker run -i -t --lxc-conf="lxc.network.type=phys" --lxc-conf="lxc.network.link=vEth0" \
+		--lxc-conf="lxc.network.name=eth0" --lxc-conf="lxc.network.flags=up" \
+		--networking="false" --privileged="true" localhost:5000/ssh /bin/bash
+
+	./start.sh
+
+* in background mode
+
+	docker run -d --lxc-conf="lxc.network.type=phys" --lxc-conf="lxc.network.link=vEth0" \
+		--lxc-conf="lxc.network.name=eth0" --lxc-conf="lxc.network.flags=up" \
+		--networking="false" --privileged="true" localhost:5000/ssh
+		
+In both the cases, vEth0 is a vEth interfaces available in the host.
+
+You can connect to the container using ssh, and then run the command "iptrack"

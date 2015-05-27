@@ -1,0 +1,51 @@
+This network function is actually the "mz" packet generator:
+	http://manpages.ubuntu.com/manpages/karmic/man1/mz.1.html
+
+###############################################################################
+
+Reqiured libraries:
+
+* Docker and LXC
+     http://docs.docker.com/installation/
+     apt-get install lxc -y
+     echo 'DOCKER_OPTS="-e lxc"' >> /etc/default/docker.io
+     service docker restart
+     
+* Ubuntu docker image
+
+* Private registry (in the following, the document assumes that the registry is
+     running at localhost:5000)
+     
+###############################################################################
+
+Create the Docker image which contains this NF, and push it to the repository
+
+* docker build --tag="localhost:5000/mz" .
+* docker push localhost:5000/mz
+
+###############################################################################
+
+Run the container:
+
+* in interactive mode
+
+* in interactive mode
+
+	docker run -i -t --lxc-conf="lxc.network.type=phys" --lxc-conf="lxc.network.link=vEth0" \
+		--lxc-conf="lxc.network.name=eth0" --lxc-conf="lxc.network.flags=up" \
+		--networking="false" --privileged="true" localhost:5000/mz /bin/bash 
+		
+	mz -c 0 -d 1s -a aa:aa:aa:aa:aa:aa -b bb:bb:bb:bb:bb:bb -p 100 -v
+
+* in background mode
+
+	docker run -d --lxc-conf="lxc.network.type=phys" --lxc-conf="lxc.network.link=vEth0" \
+		--lxc-conf="lxc.network.name=eth0" --lxc-conf="lxc.network.flags=up" \
+		--networking="false" --privileged="true" localhost:5000/mz
+		
+In both the cases, vEth0 and vEth1 are vEth interfaces available in the host.
+
+This NF will send, on eth0, packets of 100B with src MAC address aa:aa:aa:aa:aa:aa 
+and dst MAC address bb:bb:bb:bb:bb:bb. A new packet is sent each second. Other 
+packets can be sent through mz.
+

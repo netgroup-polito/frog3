@@ -1,0 +1,20 @@
+This folder contains the NFs to implement the graph nobody, i.e., the graph used
+to authenticate a new user connected to the node. It includes the following NFs:
+
+* captive portal
+* openflow controller implementing an IP forger
+* openflow switch (ovs)
+* DHCP server
+
+###############################################################################
+
+Reqiured libraries:
+
+* Docker and LXC
+     http://docs.docker.com/installation/
+     apt-get install lxc -y
+     echo 'DOCKER_OPTS="-e lxc"' >> /etc/default/docker.io
+     service docker restart
+     
+* Ubuntu docker image
+

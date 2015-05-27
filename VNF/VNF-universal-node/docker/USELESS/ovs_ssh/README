@@ -1,0 +1,60 @@
+This is a container implementing a bridge between ports eth0 and eth1, and 
+having an IPv4 configuration on the port ssh. The container also runs an
+ssh an server, and it is also installed the iptrac  tool. The credential to 
+access to the container using ssh are:
+* user: root
+* pwd: root
+
+To change the user/pwd, edit the file "Dockerfile".
+To change the bridge configuration, edit the file "start.sh".
+
+###############################################################################
+
+Reqiured libraries:
+
+* Docker and LXC
+     http://docs.docker.com/installation/
+     apt-get install lxc -y
+     echo 'DOCKER_OPTS="-e lxc"' >> /etc/default/docker.io
+     service docker restart
+     
+* Ubuntu docker image
+     sudo docker pull ubuntu:latest
+
+* Private registry (in the following, the document assumes that the registry is
+     running at localhost:5000)
+
+###############################################################################
+
+Create the Docker image which contains this NF, and push it to the repository
+
+* docker build --tag="localhost:5000/bridge" .
+* docker push localhost:5000/bridge
+
+###############################################################################
+
+* in interactive mode
+
+	docker run -i -t --lxc-conf="lxc.network.type=phys" --lxc-conf="lxc.network.link=vEth0" \
+		--lxc-conf="lxc.network.name=eth0" --lxc-conf="lxc.network.flags=up" \
+		--lxc-conf="lxc.network.type=phys" --lxc-conf="lxc.network.link=vEth1" \
+		--lxc-conf="lxc.network.name=eth1" --lxc-conf="lxc.network.flags=up" \
+		--lxc-conf="lxc.network.type=phys" --lxc-conf="lxc.network.link=vEth2" \
+		--lxc-conf="lxc.network.name=eth2" --lxc-conf="lxc.network.flags=up" \
+		--lxc-conf="lxc.network.ipv4=10.0.0.2/24" --networking="false" \  
+		--privileged="true" localhost:5000/bridge /bin/bash
+
+	./start
+
+* in background mode
+
+	docker run -i -t --lxc-conf="lxc.network.type=phys" --lxc-conf="lxc.network.link=vEth0" \
+		--lxc-conf="lxc.network.name=eth0" --lxc-conf="lxc.network.flags=up" \
+		--lxc-conf="lxc.network.type=phys" --lxc-conf="lxc.network.link=vEth1" \
+		--lxc-conf="lxc.network.name=eth1" --lxc-conf="lxc.network.flags=up" \
+		--lxc-conf="lxc.network.type=phys" --lxc-conf="lxc.network.link=vEth2" \
+		--lxc-conf="lxc.network.name=eth2" --lxc-conf="lxc.network.flags=up" \
+		--lxc-conf="lxc.network.ipv4=10.0.0.2/24" --networking="false" \  
+		--privileged="true" localhost:5000/bridge
+		
+In both the cases, vEth0, vEth1 and vEth2 are vEth interfaces available in the host.

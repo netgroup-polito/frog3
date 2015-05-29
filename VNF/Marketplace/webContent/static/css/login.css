@@ -8,7 +8,8 @@ body, html {
     height: 100%;
     background-repeat: no-repeat;
     background-color: #EAEBE5;
-    /* background-image: linear-gradient(rgb(104, 145, 162), rgb(12, 97, 33)); */
+    background: #EAEBE5 url('/static/images/frog-background.jpg') no-repeat center;
+    background-size: cover;
 }
 
 .card-container.card {
@@ -129,14 +130,4 @@ body, html {
 .btn.btn-signin:active,
 .btn.btn-signin:focus {
     background-color: rgb(12, 97, 33);
-}
-
-.forgot-password {
-    color: rgb(104, 145, 162);
-}
-
-.forgot-password:hover,
-.forgot-password:active,
-.forgot-password:focus{
-    color: rgb(12, 97, 33);
 }

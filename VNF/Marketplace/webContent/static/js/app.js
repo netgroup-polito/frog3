@@ -1,6 +1,6 @@
 $(function(){
-	$( "#sortable1" ).sortable();
-	$( "#sortable1" ).disableSelection();
+	$( ".applist" ).sortable();
+	$( ".applist" ).disableSelection();
 	
 	$(".navbar-btn").bind("click",function (event) {
 		$('#startLoader').show();

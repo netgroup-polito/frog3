@@ -1,36 +1,36 @@
 $(function() {
   	var saved = true;
   	
-  	$( "ul.sourceList" ).sortable({
+  	$( "ul#sourceList" ).sortable({
     	connectWith: "ul",
     });
  
-    $( "ul.targetList" ).sortable({
+    $( "ul#targetList" ).sortable({
     	connectWith: "ul",
     	cancel: ".empty-placeholder",
     	receive: function( event, ui ) {
     		console.log(event);
     		console.log(ui.item);
-    		numItems = $(".targetList").find('li').length;
+    		numItems = $("#targetList").find('li').length;
     		if(numItems==2){
-				$(".targetList").find('li.empty-placeholder').hide();
+				$("#targetList").find('li.empty-placeholder').hide();
 			}
 			saved = false;
     	},
     	remove: function( event, ui ) {
-    		numItems = $(".targetList").find('li').length;
+    		numItems = $("#targetList").find('li').length;
     		if(numItems==1){
-				$(".targetList").find('li.empty-placeholder').show();
+				$("#targetList").find('li.empty-placeholder').show();
 			}
 			saved = false;
     	}
     });
  
-    $( "#sortable1, #sortable2" ).disableSelection();
+    $( "#sourceList, #targetList" ).disableSelection();
     
     $("a#logout").bind("click",function (event) {
 
-		if($(".targetList").find('li').length > 1 && saved == false) {
+		if($("#targetList").find('li').length > 1 && saved == false) {
 			$('#startLoader').hide();
 			var response = confirm("All changes will be lost, do you want to proceed anyway?");
 			if(response == false) {
@@ -46,7 +46,7 @@ $(function() {
 	});
 	
 	$("#submit_button").bind("click",function (event) {
-		var ser = $( "#sortable2" ).sortable("serialize", {expression: /(.+?)_(.+)/});
+		var ser = $( "#targetList" ).sortable("serialize", {expression: /(.+?)_(.+)/});
 		var csrftoken = $.cookie("csrftoken");
 		
 		$('#startLoader').show();

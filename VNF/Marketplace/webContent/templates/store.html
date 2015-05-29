@@ -2,15 +2,13 @@
 <html lang="en">
 	<head>
 		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<title>{{ title }}</title>
-		<link rel="stylesheet" href="/static/css/jquery-ui.css">
-		<link rel="stylesheet" href="/static/css/jquery-ui.theme.css">
-		<link rel="stylesheet" href="/static/css/bootstrap.css">
-		<link rel="stylesheet" href="/static/css/bootstrap-theme.css">
 		<link rel="stylesheet" href="/static/css/style.css">
 		<script type="text/javascript" src="/static/js/jquery.js"></script>
 		<script type="text/javascript" src="/static/js/jquery-ui.js"></script>
 		<script type="text/javascript" src="/static/js/jquery.cookie.js"></script>
+		<script type="text/javascript" src="/static/js/jquery.ui.touch-punch.js"></script>
 		<script type="text/javascript" src="/static/js/store.js"></script>
 	</head>
 	
@@ -26,10 +24,10 @@
 					<h2>Customize your service by dragging and dropping the application in the proper box</h2>
 				</div>
 				<nav>
-					<ul class="nav nav-pills pull-right">
-						<a href="/store/"><button type="button" class="btn btn-default navbar-btn">myStore</button></a>
-						<a href="/app/"><button type="button" class="btn btn-default navbar-btn">myApps</button></a>
-						<a href="/logout/"><button type="button" class="btn btn-primary navbar-btn">Logout</button></a>
+					<ul class="nav nav-header">
+						<a href="/store/"><button type="button" class="btn btn-grey navbar-btn">myStore</button></a>
+						<a href="/app/"><button type="button" class="btn btn-grey navbar-btn">myApps</button></a>
+						<a href="/logout/"><button type="button" class="btn btn-blue navbar-btn">Logout</button></a>
 					</ul>
 				</nav>
 			</div>
@@ -43,40 +41,39 @@
 			<!-- Store -->
 			<div class="list list-container-left">
 				<div class="list-content">
-					<div class="description">MyStore: available applications</div>
-					<ul id="sortable1" class="sourceList">
+					<div class="description-center">MyStore: available applications</div>
+					<ul id="sourceList" class="sortable">
 					{% for image in all_app %}
-						<li id="psa-id_{{ image.psa_id }}" class="ui-state-default">
-							<span>{{ image.psa_name }}</span>
-							<span class="price">Cost: {{ image.price }} €</span>
+						<li id="psa-id_{{ image.psa_id }}" class="draggable">
+							<span class="app-name">{{ image.psa_name }}</span>
+							<span class="app-price">Cost: {{ image.price }} €</span>
 						</li>
 					{% endfor %}
 					</ul>
 				</div>
-				<a href="/upload/"><button type="button" class="btn btn-primary save_btn">Add your own app</button></a>
+				<a href="/upload/"><button type="button" class="btn btn-blue save_btn">Add your own app</button></a>
 			</div>
 			
 			<!-- MyApps -->
 			<div class="list list-container-right">
 				<div class="list-content">
-					<div class="description">MyApps: selected applications</div>
-					<ul id="sortable2" class="targetList">
+					<div class="description-center">MyApps: selected applications</div>
+					<ul id="targetList" class="sortable">
 						{% if user_app %}
 						<li class="empty-placeholder" style="display: list-item; display: none;">Drop here the services</li>
 						{% else %}
 						<li class="empty-placeholder" style="display: list-item;">Drop here the services</li>
 						{% endif %}
 					 	{% for image in user_app %}
-						<li id="psa-id_{{ image.psa_id }}" class="ui-state-default">
-							<span>{{ image.psa_name }}</span>
+						<li id="psa-id_{{ image.psa_id }}" class="draggable">
+							<span class="app-name">{{ image.psa_name }}</span>
 						</li>
 						{% endfor %}
 					</ul>
 				</div>
-				<button type="button" id="submit_button" class="btn btn-primary save_btn">Buy</button>
+				<button type="button" id="submit_button" class="btn btn-blue save_btn">Buy</button>
 			</div>	
 		</section>
-		<!-- End Section -->
 		
 		<!-- Start Footer -->
 		<footer class="footer">
@@ -87,6 +84,16 @@
 		$(window).load(function() {
 		    $('#startLoader').hide();
 		});
+		
+		$(window).resize(function() {
+			var height = $(window).height() - $(".header-fixed").height() - $(".footer").height() - 110;
+			
+			if($(window).height() > 600) {
+				$(".sortable").height(height);
+				$(".section").height(height + 100);
+			}
+		});
+			
 		
 		$(document).ready(function(){
 			var showHeaderAt = 80;

@@ -199,7 +199,7 @@ def login_view(request):
 		except Unauthorized:
 			logging.error("Keystone returns 401 unauthorized")
 			return redirect('/login/?err_message=Invalid Credentials')
-		except requests.exceptions.ConnectionError:
+		except:
 			logging.error("Connection error")
 			return redirect('/login/?err_message=Invalid Credentials')
 		

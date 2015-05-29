@@ -4,10 +4,11 @@
 /*
  * General styles
  */
-body, html {
+html {
 	margin: 0;
 	padding: 0;
     height: 100%;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     background: #EAEBE5 url('/static/images/frog-background.jpg') no-repeat center;
     background-size: cover;
 }
@@ -130,4 +131,13 @@ body, html {
 .btn.btn-signin:active,
 .btn.btn-signin:focus {
     background-color: rgb(12, 97, 33);
+}
+
+/*=================
+ * RESPONSIVE
+ ==================*/
+@media all and (max-width: 910px) {
+	.card-container.card {
+	    width: 70%;
+	}
 }

@@ -465,12 +465,12 @@ body.fixed .header-fixed .header-limiter nav {
 	}
 	
 	.header-fixed .header-limiter #title-container h1 {
-		font: normal 1.3em Arial, Helvetica, sans-serif;
+		font: normal 1.1em Arial, Helvetica, sans-serif;
 		margin: 0;
 	}
 	
 	.header-fixed .header-limiter #title-container h2 {
-		font: normal 11px Arial, Helvetica, sans-serif;
+		font: normal 0.7em Arial, Helvetica, sans-serif;
 		margin: 0;
 	}
 	
@@ -508,9 +508,12 @@ body.fixed .header-fixed .header-limiter nav {
 	}
 	
 	.description {
-		font-size: 1em;
+		font-size: 0.9em;
 	}
-		
+	
+	.description-center {
+		font-size: 15px;
+	}	
 	
 	.app-name {
 		display: block;

@@ -5,9 +5,9 @@
  * General styles
  */
 body, html {
+	margin: 0;
+	padding: 0;
     height: 100%;
-    background-repeat: no-repeat;
-    background-color: #EAEBE5;
     background: #EAEBE5 url('/static/images/frog-background.jpg') no-repeat center;
     background-size: cover;
 }

@@ -10,6 +10,7 @@
 		<script type="text/javascript" src="/static/js/jquery.ui.touch-punch.js"></script>
 		<script type="text/javascript" src="/static/js/jquery.cookie.js"></script>
 		<script type="text/javascript" src="/static/js/app.js"></script>
+		<script type="text/javascript" src="/static/js/graphic.js"></script>
 	</head>
 	
 	<body>
@@ -66,23 +67,6 @@
 		<footer class="footer">
 			<p>&nbsp;</p>
 		</footer>
-		
-		<script type="text/javascript">
-		$(window).load(function() {
-		    $('#startLoader').hide();
-		});
-		
-		$(document).ready(function(){
-			var showHeaderAt = 80;
-			$(window).on('scroll', function(e){
-				if($(window).scrollTop() > showHeaderAt) {
-					$('body').addClass('fixed');
-				} else {
-					$('body').removeClass('fixed');
-				}
-			});
-		});
-		</script>
 		
 	</body>
 </html>

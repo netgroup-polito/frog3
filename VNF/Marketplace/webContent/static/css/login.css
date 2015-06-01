@@ -4,11 +4,13 @@
 /*
  * General styles
  */
-body, html {
+html {
+	margin: 0;
+	padding: 0;
     height: 100%;
-    background-repeat: no-repeat;
-    background-color: #EAEBE5;
-    /* background-image: linear-gradient(rgb(104, 145, 162), rgb(12, 97, 33)); */
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    background: #EAEBE5 url('/static/images/frog-background.jpg') no-repeat center;
+    background-size: cover;
 }
 
 .card-container.card {
@@ -131,12 +133,11 @@ body, html {
     background-color: rgb(12, 97, 33);
 }
 
-.forgot-password {
-    color: rgb(104, 145, 162);
-}
-
-.forgot-password:hover,
-.forgot-password:active,
-.forgot-password:focus{
-    color: rgb(12, 97, 33);
+/*=================
+ * RESPONSIVE
+ ==================*/
+@media all and (max-width: 910px) {
+	.card-container.card {
+	    width: 70%;
+	}
 }

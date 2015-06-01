@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>{{ title }}</title>
+		<link rel="stylesheet" href="/static/css/style.css">
+		<script type="text/javascript" src="/static/js/jquery.js"></script>
+		<script type="text/javascript" src="/static/js/jquery-ui.js"></script>
+		<script type="text/javascript" src="/static/js/jquery.ui.touch-punch.js"></script>
+		<script type="text/javascript" src="/static/js/jquery.cookie.js"></script>
+		<script type="text/javascript" src="/static/js/app.js"></script>
+		<script type="text/javascript" src="/static/js/graphic.js"></script>
+	</head>
+	
+	<body>
+		<!-- Loader -->
+		<div id="startLoader"> </div>
+		
+		<!-- Start Header -->
+		<header class="header-fixed">
+			<div class="header-limiter">
+				<div id="title-container">
+					<h1>MyApps - Set your active applications</h1>
+					<h2>Define which applications are actually active by selecting the proper checkbox</h2>
+				</div>
+				<nav>
+					<ul class="nav nav-header">
+						<a href="/store/"><button type="button" class="btn btn-grey navbar-btn">myStore</button></a>
+						<a href="/app/"><button type="button" class="btn btn-grey navbar-btn">myApps</button></a>
+						<a href="/logout/"><button type="button" class="btn btn-blue navbar-btn">Logout</button></a>
+					</ul>
+				</nav>
+			</div>
+		</header>
+		
+		<div class="header-fixed-placeholder"> </div>
+		
+		<!-- Start Section -->
+		<section class="section" class="list-group">
+			<div id="response_message"> </div>
+			
+			{% if data %}
+			<div class="list-container-center">
+				<div class="list-content list-app">
+					<div class="description">
+						<span class="description-left">Applications</span>
+						<span class="description-right">Select</span>
+					</div>
+					<ul class="list-center applist sortable">
+					{% for image in data %}
+						<li id="psa-id_{{ image.psa_id }}" class="draggable">
+							<span>{{ image.psa_name }}</span>
+							<input type="checkbox" class="check_app" name="psa_active" value="{{ image.psa_id }}" {% if image.checked %} {{ 'checked' }} {% endif %} />
+						</li>
+					{% endfor %}
+					</ul>
+				</div>
+				<button type="button" id="submit_button" class="btn btn-blue save_btn">Apply Changes</button>
+			</div>
+			{% else %}
+			<div id="empty_app">Your application list is empty. You can select new applications in the store.</div>
+			{% endif %}
+		</section>
+		
+		<!-- Start Footer -->
+		<footer class="footer">
+			<p>&nbsp;</p>
+		</footer>
+		
+	</body>
+</html>

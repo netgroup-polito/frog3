@@ -2,11 +2,11 @@
 import os
 import sys
 import logging
-from libreria.constants import LOG_LEVEL
+from webContent.constants import LOG_LEVEL
 
 
 if __name__ == "__main__":
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "secured.settings")
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "settings.settings")
 
     log_format = '[%(asctime)s] %(levelname)s %(message)s - %(filename)s'
 

@@ -215,21 +215,64 @@ ORCHESTRATOR:
 			mysql -u root -p
 		
 			CREATE DATABASE orchestrator;
-			GRANT ALL ON orchestrator.* TO 'orchestrator'@'%' IDENTIFIED BY 'stack';
-			GRANT ALL ON orchestrator.* TO 'orchestrator'@'localhost' IDENTIFIED BY 'stack';
-			USE orchestrator;
-			CREATE TABLE session (id VARCHAR(64) NOT NULL PRIMARY KEY,\
-			 	user_id VARCHAR(64), mac_address Text, session_info Text,\
-			 	profile Text, infrastructure Text, started DATETIME,\
-			 	last_update DATETIME,error  DATETIME, ended DATETIME);
-			CREATE TABLE profile (id VARCHAR(64) NOT NULL PRIMARY KEY, profile Text);
-			CREATE TABLE component_adapter (session_id VARCHAR(64) NOT NULL PRIMARY KEY,\
-				extra mediumtext NOT NULL);
-			CREATE TABLE endpoint (Graph_ID varchar(64) NOT NULL,
-  				Endpoint_ID varchar(64) NOT NULL, Available tinyint(1) NOT NULL,\
-  				Name varchar(64) NOT NULL, ID varchar(64) NOT NULL, Type varchar(64) DEFAULT NULL,\
- 				Graph_ID_connected varchar(64) DEFAULT NULL, Endpoint_ID_connected varchar(64) DEFAULT NULL,\
-  				PRIMARY KEY (Graph_ID,Endpoint_ID));
+			CREATE TABLE IF NOT EXISTS `component_adapter` (
+  			  `session_id` varchar(64) NOT NULL,
+			  `extra` mediumtext NOT NULL,
+			  PRIMARY KEY (`session_id`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+			CREATE TABLE IF NOT EXISTS `endpoint` (
+			  `Graph_ID` varchar(64) NOT NULL,
+			  `Endpoint_ID` varchar(64) NOT NULL,
+			  `Available` tinyint(1) NOT NULL,
+			  `Name` varchar(64) NOT NULL,
+			  `ID` varchar(64) NOT NULL,
+			  `Type` varchar(64) DEFAULT NULL,
+			  `Graph_ID_connected` varchar(64) DEFAULT NULL,
+			  `Endpoint_ID_connected` varchar(64) DEFAULT NULL,
+			  PRIMARY KEY (`Graph_ID`,`Endpoint_ID`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+			CREATE TABLE IF NOT EXISTS `node` (
+			  `node_id` varchar(64) NOT NULL,
+			  `node_name` varchar(64) NOT NULL,
+			  `ip_address` varchar(64) DEFAULT NULL,
+			  `avaibility_zone` varchar(64) DEFAULT NULL,
+			  PRIMARY KEY (`node_id`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+			CREATE TABLE IF NOT EXISTS `nodes_egress_interface` (
+			  `node_id` varchar(64) NOT NULL,
+			  `interface` varchar(64) NOT NULL,
+			  PRIMARY KEY (`node_id`,`interface`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+			CREATE TABLE IF NOT EXISTS `nodes_ingress_interface` (
+			  `node_id` varchar(64) NOT NULL,
+			  `interface` varchar(64) NOT NULL,
+			  PRIMARY KEY (`node_id`,`interface`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+			CREATE TABLE IF NOT EXISTS `profile` (
+			  `id` varchar(64) NOT NULL,
+			  `profile` text,
+			  PRIMARY KEY (`id`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+			CREATE TABLE IF NOT EXISTS `session` (
+			  `id` varchar(64) NOT NULL,
+			  `user_id` varchar(64) DEFAULT NULL,
+			  `mac_address` text,
+			  `session_info` text,
+			  `profile` text,
+			  `infrastructure` text,
+			  `ingress_node` varchar(64) DEFAULT NULL,
+			  `egress_node` varchar(64) DEFAULT NULL,
+			  `started` datetime DEFAULT NULL,
+			  `last_update` datetime DEFAULT NULL,
+			  `error` datetime DEFAULT NULL,
+			  `ended` datetime DEFAULT NULL,
+			  PRIMARY KEY (`id`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+			CREATE TABLE IF NOT EXISTS `user_location` (
+			  `user_id` varchar(64) NOT NULL,
+			  `node_id` varchar(64) NOT NULL,
+			  PRIMARY KEY (`user_id`,`node_id`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 			exit
 	
 		* Change the configuration file with IP address of the Openstack controller, access credentials and the
@@ -247,25 +290,14 @@ ORCHESTRATOR:
 		  The Create Profile folder contains a simple php web page thatallows admin to create graphs by copy 
 		  and paste from the json files. As an alternative you can use phpmyadmin to enter that table and manually insert the 			  
 		  user id and profile, pasting the whole content of the corrisponding json file.
-	 
-	AGENT (on OpenStack compute node):
-		
-		* Copy the folder Orchestrator-agent on the network node (if remote)
-	
-		* If the network is separate you must install the same python components as on the controller (gunicorn)
-		
-		* Install and then run it
-	
-			cd Orchestrator-agent/
-			sudo ./install_agent.sh
 
 	OVS compute node configuration:
 	
 		* You need to add an additional OVS virtual bridge on the compute node; it is used to give an access point
 		  that connects users and their graphs. There is a script named "create_bridge_usr" into the folder
-		  "Useful-scripts" that creates the bridge and links it to the internal Openstack bridge (br-int)
+		  "Scripts" that creates the bridge and links it to the internal Openstack bridge (br-int)
 
-			cd Useful-scripts/
+			cd Scripts/
 			sudo ./create_bridge_usr
 		
 		* After that, you can find this new bridge in your OVS configuration. Now you have to link it to all the
@@ -280,11 +312,12 @@ Start-up:
 	* Run orchestrator service layer
 	
 		cd Orchestrator
-		./start_orchestrator.sh
+		./start_orchestrator_in_screen.sh
 	
 	* To instantiate an example user:
-	
-		python instantiate_only_nat.py or python instantiate_firewall.py
+		
+		cd Scripts
+		python instantiate.py <user> <tenant> <pwd> <mac_address>
 	  
 	  these instantiation scripts need to be configured with the credentials of their user
 	  (simply open them and change the parameters user, tenant and password)

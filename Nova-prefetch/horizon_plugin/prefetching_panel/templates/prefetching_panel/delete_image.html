@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% block title %}{% trans "Unqueue image" %}{% endblock %}
+
+{% block page_header %}
+  {% include "horizon/common/_page_header.html" with title=_("Queue an image to precache") %}
+{% endblock page_header %}
+
+{% block main %}
+    {% include 'admin/prefetching_panel/_deelte_image.html' %}
+{% endblock %}

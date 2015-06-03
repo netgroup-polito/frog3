@@ -204,13 +204,13 @@ function successPage(){
 		window.clearInterval(progressTimer);
 		console.log("timer progress bar ended!");
 	}
-	content.textContent = "Thanks for the wait...now you're able to access to your network!";
+	content.textContent = "Thanks for your patience.<br>You are now are able to access to your network.";
 	if(typeof destinationURI !== 'undefined'){
 		var link_div = document.createElement("div");
 		link_div.id = "link";
 		var link = document.createElement("a");
 		link.href = destinationURI;
-		link.innerHTML = "start surfing";
+		link.innerHTML = "Start surfing!";
 		link_div.appendChild(link);
 		content.appendChild(link_div);
 	}

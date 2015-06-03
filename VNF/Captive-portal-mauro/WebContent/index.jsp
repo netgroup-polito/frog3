@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width">
     <META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
     	
-    <title>FROG Index</title>
+    <title>Logging in your FROG network</title>
     
 	<script src='resources/nprogress.js'></script>
 	<script type="text/javascript" src="resources/javascript.js"></script>
@@ -23,8 +23,8 @@
 	  	<div id="header-frog3-loading">
 				<div class="page-full-width cf">
 					<div id="login-intro" class="fl">
-						<h1 id="title"><strong>FROG</strong> network</h1>
-						<h5 id="subtitle">Deploying resources</h5>
+						<h1 id="title">Logging in <strong>your</strong> FROG network</h1>
+						<h5 id="subtitle">Deploying resources...</h5>
 					</div>
 				</div>
 	

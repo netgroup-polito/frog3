@@ -58,13 +58,14 @@
 							
 						</div>
 					</fieldset>
+
 					<div id="loading">
 					</div>
-					<br/>
+
+					<br/><br/>
+
+					<div id="error-msg" class="error-box round default-width-input"> </div>
 				</div>	
-					
-					<br/><div id="error-msg" class="error-box round"> </div>
-	
 				</form>		
 				
 				<div id="message" style="display:none;" align="center"> Loading...</div>

@@ -28,7 +28,7 @@ $(function() {
  
     $( "#sourceList, #targetList" ).disableSelection();
     
-    $("a#logout").bind("click",function (event) {
+    $("a").bind("click",function (event) {
 
 		if($("#targetList").find('li').length > 1 && saved == false) {
 			$('#startLoader').hide();

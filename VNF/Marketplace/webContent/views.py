@@ -30,7 +30,6 @@ def app(request):
 		# Get data from user
 		try:
 			checked_app = QueryDict(request.POST['psa_active'])
-			checked_app = checked_app.getlist('psa_active')
 		except MultiValueDictKeyError:
 			checked_app = []
 		
@@ -41,7 +40,7 @@ def app(request):
 		
 		# Update data
 		for app in data["list"]:
-			if app["psa_id"] in checked_app:
+			if checked_app[app["psa_id"]] == '1':
 				app["checked"] = 1
 			else:
 				app["checked"] = 0

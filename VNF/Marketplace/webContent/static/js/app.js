@@ -1,14 +1,42 @@
 $(function(){
-	$( ".applist" ).sortable();
-	$( ".applist" ).disableSelection();
+	var saved = true;
+	
+	$(".applist").sortable();
 	
 	$(".navbar-btn").bind("click",function (event) {
 		$('#startLoader').show();
 	});
 	
+	$("a").bind("click", function (event) {
+		if( saved == false ) {
+			$('#startLoader').hide();
+			return confirm("All changes will be lost, do you want to proceed anyway?");
+		}
+	});
+	
+	$(".btn-radio").bind("click", function(event) {
+		if($(this).hasClass("btn-grey")) {
+			$(this).toggleClass("btn-blue btn-grey");
+			$(this).siblings(".btn-radio").toggleClass("btn-blue btn-grey");
+			if( $(this).hasClass("btn-radio-left") ) {
+				$(this).siblings(".app_input").val(1);
+			} else {
+				$(this).siblings(".app_input").val(0);
+			}
+			
+			saved = false;
+		}
+	});
+	
+	$(".o-modal").bind("click", function(event) {
+		$("[name='config']").val("");
+		console.log($(this).find(".btn"));
+		$("[name='psa-id']").val($(this).find(".btn").attr("id"));
+	});
+	
 	$("#submit_button").bind("click",function (event) {
 		var csrftoken = $.cookie("csrftoken");
-		var checked_app = $(".check_app:checked").serialize(); 
+		var checked_app = $(".app_input").serialize();
 		$('#startLoader').show();
 		
 		$.ajax({
@@ -16,6 +44,7 @@ $(function(){
 			url: "/app/",
 			data: {psa_active: checked_app, csrfmiddlewaretoken: csrftoken},
 			success: function(data) {
+				console.log(data);
 				$('#startLoader').hide();
 				$("#response_message").removeClass("messageSuccess messageError");
 				$('#response_message').show();
@@ -36,4 +65,5 @@ $(function(){
 			},
 		});
 	});
+	
 });

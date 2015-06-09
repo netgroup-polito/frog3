@@ -40,6 +40,22 @@
 		<section class="section" class="list-group">
 			<div id="response_message"> </div>
 			
+			<!-- Modal config -->
+			<div id="openModal" class="modalDialog">
+				<div>
+					<a href="#close" title="Close" class="close">X</a>
+					<h2>Configuration</h2>
+					<form action="" method="post">
+					<textarea rows="4" name="config" placeholder="Insert here the configuration.." autofocus ></textarea>
+					<div style="text-align: right">
+						<button type="submit" class="btn btn-blue" >Config</button>
+					</div>
+					<input type="hidden" name="psa-id" value="" />
+					</form>
+				</div>
+			</div>
+			
+			<!-- Application list -->
 			{% if data %}
 			<div class="list-container-center">
 				<div class="list-content list-app">
@@ -50,13 +66,19 @@
 					<ul class="list-center applist sortable">
 					{% for image in data %}
 						<li id="psa-id_{{ image.psa_id }}" class="draggable">
-							<span>{{ image.psa_name }}</span>
-							<input type="checkbox" class="check_app" name="psa_active" value="{{ image.psa_id }}" {% if image.checked %} {{ 'checked' }} {% endif %} />
+							<span class="app-name">{{ image.psa_name }}</span>
+							
+							<div class="radio_button">
+								<a class="o-modal" href="#openModal"><button type="button" id="{{ image.psa_id }}" class="btn btn-blue btn-config">Config</button></a>
+								<button type="button" class="btn {% if image.checked %}btn-blue{% else %}btn-grey{% endif %} btn-radio btn-radio-left">Enable</button>
+								<button type="button" class="btn {% if image.checked %}btn-grey{% else %}btn-blue{% endif %} btn-radio btn-radio-right">Disable</button>
+								<input type="hidden" class="app_input" name="{{ image.psa_id }}" value="{% if image.checked %}1{% else %}0{% endif %}" />
+							</div>
 						</li>
 					{% endfor %}
 					</ul>
 				</div>
-				<button type="button" id="submit_button" class="btn btn-blue save_btn">Apply Changes</button>
+				<button type="button" id="submit_button" class="btn btn-blue save-btn">Apply Changes</button>
 			</div>
 			{% else %}
 			<div id="empty_app">Your application list is empty. You can select new applications in the store.</div>

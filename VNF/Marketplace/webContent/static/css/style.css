@@ -34,6 +34,10 @@ h1, h4 {
 	margin: 0;
 }
 
+h2 {
+	color: #ffffff;
+}
+
 label {
   display: inline-block;
   max-width: 100%;
@@ -56,6 +60,11 @@ input[type="checkbox"]:focus {
   outline: thin dotted;
   outline: 5px auto -webkit-focus-ring-color;
   outline-offset: -2px;
+}
+
+textarea {
+	width: 100%;
+	resize: vertical;
 }
 
 * {
@@ -82,6 +91,7 @@ input[type="checkbox"]:focus {
 .header-fixed-placeholder{
 	height: 80px;
 	display: none;
+	z-index: 1000;
 }
 
 /* Header container */
@@ -175,9 +185,9 @@ body.fixed .header-fixed .header-limiter nav {
 }
 
 .draggable {
-	border: 2px solid #80A926;
+	border: 2px solid #C4C3C3;
 	border-radius: 10px 10px 10px 10px;
-	background-color: #80A926;
+	background-color: #C4C3C3;
 	box-shadow:0 1px 1px #ccc;
 }
 
@@ -192,7 +202,8 @@ body.fixed .header-fixed .header-limiter nav {
 	margin: 3px; 
 	padding: 0.4em; 
 	font-size: 1em;
-	z-index: 100;
+	position: relative;
+	line-height: 2em;
 }
 
 .sortable li span.app-price { 
@@ -224,7 +235,7 @@ body.fixed .header-fixed .header-limiter nav {
 }
 
 .description-right {
-	float: right;+
+	float: right;
 }
 
 .check_app {
@@ -248,6 +259,10 @@ body.fixed .header-fixed .header-limiter nav {
 	text-align: center;
 	padding-top: 60px;
 	font-size: 16px;
+}
+
+.app-name {
+	font-weight: bold;
 }
 
 /* UPLOAD */
@@ -275,6 +290,55 @@ body.fixed .header-fixed .header-limiter nav {
 }
 
 /*=================
+ * MODAL CONFIG
+ ==================*/
+.modalDialog {
+	position: fixed;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	background: rgba(0,0,0,0.8);
+	z-index: 99999;
+	opacity:0;
+	transition: opacity 400ms ease-in;
+	pointer-events: none;
+}
+
+.modalDialog:target {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+.modalDialog > div {
+	width: 50%;
+	position: relative;
+	margin: 15% auto;
+	padding: 5px 20px 13px 20px;
+	border-radius: 5px;
+	background: #80A926;
+}
+
+.close {
+	background: #337ab7;
+	color: #FFFFFF;
+	line-height: 25px;
+	position: absolute;
+	right: -12px;
+	text-align: center;
+	top: -10px;
+	width: 24px;
+	text-decoration: none;
+	font-weight: bold;
+	border-radius: 12px;
+	box-shadow: 1px 1px 3px #000;
+}
+
+.close:hover { 
+	background: #00d9ff; 
+}
+
+/*=================
  * FOOTER
  ==================*/
 .footer {
@@ -290,19 +354,21 @@ body.fixed .header-fixed .header-limiter nav {
  * RESPONSE MESSAGE
  ==================*/
 .messageSuccess {
-	background-color: #D9FFB3;
-	border: 2px solid #69CC00;
 	padding: 10px;
+	margin: 0 30px 20px 30px;
+	border: 2px solid #69CC00;
+	border-radius: 5px;
+	background-color: #D9FFB3;
 	font-weight: bold;
-	margin-bottom: 10px;
 }
 
 .messageError {
-	background-color: #FFE5E5;
-	border: 2px solid #FF4D4D;
 	padding: 10px;
+	margin: 0 30px 20px 30px;
+	border: 2px solid #FF4D4D;
+	border-radius: 5px;
+	background-color: #FFE5E5;
 	font-weight: bold;
-	margin-bottom: 10px;
 }
 
 /*=================
@@ -348,6 +414,44 @@ body.fixed .header-fixed .header-limiter nav {
   color: #fff;
   background-color: #286090;
   border-color: #204d74;
+}
+
+.btn-save {
+	width: 11em;
+}
+
+.btn-config {
+	margin-right: 1.5em;
+	padding: 0.3em;
+}
+
+.btn-radio {
+	padding: 0.3em;
+}
+
+.radio_button {
+	display: inline;
+	border: 0;
+	padding: 0;
+	position: absolute;
+	right: 0;
+	margin-right: 1em;
+}
+
+.btn-radio:focus {
+  outline: none;
+}
+
+.btn-radio-left {
+	margin-right: -2px;
+	border-bottom-right-radius: 0;
+	border-top-right-radius: 0;
+}
+
+.btn-radio-right {
+	margin-left: -2px;
+	border-bottom-left-radius: 0;
+	border-top-left-radius: 0;
 }
 
 /*=================
@@ -516,7 +620,8 @@ body.fixed .header-fixed .header-limiter nav {
 	}	
 	
 	.app-name {
-		display: block;
+		/*display: block;*/
+		font-weight: bold;
 	}
 	
 	.sortable li span.app-price {
@@ -531,6 +636,10 @@ body.fixed .header-fixed .header-limiter nav {
 	
 	#status {
 		margin-bottom: 25px;
+	}
+	
+	.modalDialog > div {
+		width: 80%;
 	}
 }
 

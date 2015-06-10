@@ -30,34 +30,45 @@ def app(request):
 		try:
 			checked_app = QueryDict(request.POST['psa_active'])
 			checked_app = checked_app.getlist('psa_active')
+			ordered_app = QueryDict(request.POST['psa_ordered'])
+			ordered_app = ordered_app.getlist('psa_ordered')
 		except MultiValueDictKeyError:
 			checked_app = []
-			
-		
 		
 		# Load data
 		with open(PATH_JSON + username + '.json', 'rb') as infile:
 			data = json.load(infile)
 		infile.close()
 		
-		# Update data
+		# Update checked app
 		for app in data["list"]:
 			if app["psa_id"] in checked_app:
 				app["checked"] = 1
 			else:
 				app["checked"] = 0
 		
+		# Update ordered app
+		i = 1
+		for id_oapp in ordered_app:
+			for uapp in data["list"]:
+				if uapp["psa_id"] == id_oapp:
+					uapp["order"] = i
+					i += 1
+					break
+					
 		# Save data
 		with open(PATH_JSON + username + '.json', 'wb') as outfile:
 			json.dump(data, outfile)
 		outfile.close()
 
 		# Create the service graph and instantiate it
+		"""
 		try:
 			saveAndInstantiateServiceGraph(request.session, data)
 		except Unauthorized as ex:
 			logout(request)
 			return HttpResponse(ex.get_mess(), status=401)
+		"""
 		
 		return HttpResponse('Success', status=200)
 		
@@ -73,6 +84,7 @@ def app(request):
 			data = {}
 			data['list'] = []
 			data['user'] = username
+			data['max-order'] = 1
 			
 			with open(PATH_JSON + username + '.json', 'wb') as outfile:
 				json.dump(data, outfile)
@@ -82,6 +94,15 @@ def app(request):
 		with open(PATH_JSON + username + '.json', 'rb') as infile:
 			data = json.load(infile)
 		infile.close()
+		
+		app_list = data["list"]
+		
+		# Bubble sort
+		for i in range(1,len(app_list)):
+			for j in range(len(app_list)-i):
+				if app_list[j+1]['order'] < app_list[j]['order']:
+					app_list[j+1],app_list[j]=app_list[j],app_list[j+1]
+
 			
 		return render(request, 'app.html', { 'title': 'MyApps', 'data': data["list"] })
 		
@@ -116,6 +137,9 @@ def store(request):
 		id_prev_app = []
 		for app in prev_app['list']:
 			id_prev_app.append(app['psa_id'])
+			
+		# Get max cod order
+		cod_order = prev_app['max-order']
 		
 		# Update data
 		saved_list = []
@@ -123,14 +147,18 @@ def store(request):
 			if app["psa_id"] in cur_app:
 				if app["psa_id"] not in id_prev_app:
 					app["checked"] = 0
+					app["order"] = cod_order
+					cod_order += 1
 				else:
 					for app_p in prev_app['list']:
 						if app_p['psa_id'] == app["psa_id"]:
 							app["checked"] = app_p["checked"]
+							app["order"] = app_p["order"]
 				saved_list.append(app)
 
 		datajs = {}
 		datajs['list'] = saved_list
+		datajs['max-order'] = cod_order
 		datajs['user'] = request.session['username']
 				
 		# Save on local file

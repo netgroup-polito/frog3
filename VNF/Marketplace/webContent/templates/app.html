@@ -68,8 +68,9 @@
 							<span class="app-name">{{ image.psa_name }}</span>
 							<div class="radio_button">
 								<div class="onoffswitch">
-									<input type="checkbox" name="psa_active" class="onoffswitch-checkbox app_input" id="{{ image.psa_id }}" value="{{ image.psa_id }}"
+									<input type="checkbox" name="psa_active" class="onoffswitch-checkbox app-checked" id="{{ image.psa_id }}" value="{{ image.psa_id }}"
 									{% if image.checked %}checked{% endif %}>
+									
 									<label class="onoffswitch-label" for="{{ image.psa_id }}">
 										<span class="onoffswitch-inner"></span>
 										<span class="onoffswitch-switch"></span>
@@ -78,6 +79,7 @@
 								<div class="config">
 									<a class="o-modal" href="#openModal"><button type="button" id="{{ image.psa_id }}" class="btn btn-blue btn-config">CONFIG</button></a>
 								</div>-->
+								<input type="hidden" class="app-ordered" name="psa_ordered" value="{{ image.psa_id }}">
 							</div>
 						</li>
 					{% endfor %}

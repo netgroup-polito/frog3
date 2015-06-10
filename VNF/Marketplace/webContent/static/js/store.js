@@ -64,7 +64,6 @@ $(function() {
 				setTimeout(function() { $('#response_message').hide(800); }, 5000 );
 			},
 			error: function(data) {
-				console.log(data);
 				$('#startLoader').hide();
 				$("#response_message").removeClass("messageSuccess messageError");
 				$('#response_message').show();

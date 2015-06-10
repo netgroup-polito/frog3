@@ -4,13 +4,13 @@
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<title>{{ title }}</title>
-		<link rel="stylesheet" href="/static/css/style.css">
-		<script type="text/javascript" src="/static/js/jquery.js"></script>
-		<script type="text/javascript" src="/static/js/jquery-ui.js"></script>
-		<script type="text/javascript" src="/static/js/jquery.ui.touch-punch.js"></script>
-		<script type="text/javascript" src="/static/js/jquery.cookie.js"></script>
-		<script type="text/javascript" src="/static/js/app.js"></script>
-		<script type="text/javascript" src="/static/js/graphic.js"></script>
+		<link rel="stylesheet" href="../static/css/style.css">
+		<script type="text/javascript" src="../static/js/jquery.js"></script>
+		<script type="text/javascript" src="../static/js/jquery-ui.js"></script>
+		<script type="text/javascript" src="../static/js/jquery.ui.touch-punch.js"></script>
+		<script type="text/javascript" src="../static/js/jquery.cookie.js"></script>
+		<script type="text/javascript" src="../static/js/app.js"></script>
+		<script type="text/javascript" src="../static/js/graphic.js"></script>
 	</head>
 	
 	<body>
@@ -45,12 +45,13 @@
 				<div>
 					<a href="#close" title="Close" class="close">X</a>
 					<h2>Configuration</h2>
-					<form action="" method="post">
-					<textarea rows="4" name="config" placeholder="Insert here the configuration.." autofocus ></textarea>
+					<form action="/config/" method="post">
+					<textarea rows="4" name="config-data" placeholder="Insert here the configuration.."></textarea>
 					<div style="text-align: right">
 						<button type="submit" class="btn btn-blue" >Config</button>
 					</div>
-					<input type="hidden" name="psa-id" value="" />
+					{% csrf_token %}
+					<input type="hidden" name="psa_id" value="" />
 					</form>
 				</div>
 			</div>

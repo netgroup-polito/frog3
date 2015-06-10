@@ -7,13 +7,14 @@ $(function(){
 		$('#startLoader').show();
 	});
 	
-	$("a").bind("click", function (event) {
+	$("a:not(.o-modal, .close)").bind("click", function (event) {
 		if( saved == false ) {
 			$('#startLoader').hide();
 			return confirm("All changes will be lost, do you want to proceed anyway?");
 		}
 	});
 	
+	/* Manage button enable/disable */
 	$(".btn-radio").bind("click", function(event) {
 		if($(this).hasClass("btn-grey")) {
 			$(this).toggleClass("btn-blue btn-grey");
@@ -28,12 +29,27 @@ $(function(){
 		}
 	});
 	
+	/* CONFIG MODAL WINDOW */
 	$(".o-modal").bind("click", function(event) {
-		$("[name='config']").val("");
-		console.log($(this).find(".btn"));
-		$("[name='psa-id']").val($(this).find(".btn").attr("id"));
+		var psa = $(this).find(".btn").attr("id");
+		
+		$.ajax({
+			type: "GET",
+			url: "/config/",
+			data: {psa_id: psa},
+			async: false,
+			success: function(data) {
+				$("[name='config-data']").val(data);
+			},
+			error: function(data, status) {
+				return false;
+			}
+		});
+		
+		$("[name='psa_id']").val(psa);
 	});
 	
+	/* SUBMIT APP ENABLED */
 	$("#submit_button").bind("click",function (event) {
 		var csrftoken = $.cookie("csrftoken");
 		var checked_app = $(".app_input").serialize();

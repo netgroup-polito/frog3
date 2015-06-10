@@ -5,24 +5,23 @@
 	  <meta charset="utf-8">
 	  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 	  <title>{{ title }}</title>
-	  <link rel="stylesheet" href="/static/css/login.css">
+	  <link rel="stylesheet" href="../static/css/login.css">
 	</head>
 	
 	<body>    
 		<div class="container">
-        	<div class="card card-container">
-            	<form class="form-signin" action="/login/" method="POST">	
+        	<div class="login-container">
+            	<form class="form-signin" action="/login/" method="post">	
 	            	{% if err_message %}
-					<div class="alert alert-danger" role="alert">{{ err_message }}</div>
+					<div class="messageError" role="alert">{{ err_message }}</div>
 					{% endif %}
-	                <span id="reauth-email" class="reauth-email"></span>
-	                <input type="text" id="inputEmail" class="form-control" name="username" placeholder="Username" required autofocus tabindex="1">
-	                <input type="password" id="inputPassword" class="form-control" name="password" placeholder="Password" required tabindex="2">
+	                <input type="text" id="inputEmail" name="username" placeholder="Username" required autofocus tabindex="1">
+	                <input type="password" id="inputPassword" name="password" placeholder="Password" required tabindex="2">
 	                {% csrf_token %}
-	                <button class="btn btn-lg btn-primary btn-block btn-signin" type="submit" tabindex="3">Sign in</button>
-	            </form><!-- /form -->
-	        </div><!-- /card-container -->
-	    </div><!-- /container -->
+	                <button class="btn btn-signin" type="submit" tabindex="3">Sign in</button>
+	            </form>
+	        </div>
+	    </div>
 	</body>
 	
 </html>

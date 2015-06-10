@@ -147,7 +147,9 @@ body.fixed .header-fixed .header-limiter nav {
 	background-size: cover;
 	padding-left: 8%;
 	padding-right: 8%;
-	min-height: 600px;
+	/*min-height: 600px;*/
+	padding-bottom: 3em;
+	height: 100%;
 }
 
 /* STORE */
@@ -170,7 +172,6 @@ body.fixed .header-fixed .header-limiter nav {
 	background-color: #F7F7F7;
 	border-radius: 5px;
 	box-shadow: 0px 2px 2px rgba(0, 0, 0, 0.3);
-	/*opacity: 0.9;*/
 }
 
 .description-center {
@@ -194,7 +195,8 @@ body.fixed .header-fixed .header-limiter nav {
 .sortable { 
 	list-style-type: none;
 	padding: 5px; 
-	height: 470px;
+	/*height: 470px;*/
+	height: 100%;
 	overflow: scroll;
 }
 
@@ -346,7 +348,7 @@ body.fixed .header-fixed .header-limiter nav {
  * FOOTER
  ==================*/
 .footer {
-	/* position: fixed; */
+	position: fixed;
 	clear: both;
 	padding: 1em;
 	bottom: 0;
@@ -434,10 +436,9 @@ body.fixed .header-fixed .header-limiter nav {
 	display: inline;
 	border: 0;
 	padding: 0;
-	/* position: absolute; */
 	right: 0;
 	margin-right: 1em;
-	text-align: right;
+	position: absolute;
 }
 
 .btn-radio:focus {
@@ -499,7 +500,6 @@ body.fixed .header-fixed .header-limiter nav {
 .form-group {
   margin-bottom: 15px;
 }
-
 
 .has-error .help-block,
 .has-error .control-label,
@@ -620,8 +620,8 @@ body.fixed .header-fixed .header-limiter nav {
 		display: block;
 	}
 	
-	.app-store-name {
-		display: block;
+	.radio_button {
+		position: relative;
 	}
 	
 	.sortable li span.app-price {

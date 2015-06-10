@@ -19,13 +19,11 @@ $(document).ready(function(){
 
 function calculateHeight() {
 	console.log($(window).height());
-	console.log($(".header-fixed").height());
-	console.log($(".footer").height());
-
-	var height = $(window).height() - $(".header-fixed").height() - $(".footer").height();
+	console.log($(".header-fixed").outerHeight());
+	console.log($(".footer").outerHeight());
 	
-	if($(window).height() > 600) {
-		$(".sortable").height(height);
-		$(".section").height(height + 120);
-	}
+	var height = $(window).height() - $(".header-fixed").outerHeight() - $(".footer").outerHeight() - 15 - 10 - 20 -75;
+	
+	$(".sortable").height(height);
+	$(".section").height(height + 120);
 }

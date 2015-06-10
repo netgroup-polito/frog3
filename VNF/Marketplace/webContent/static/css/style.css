@@ -143,7 +143,7 @@ body.fixed .header-fixed .header-limiter nav {
  * SECTION
  ============*/
 .section {
-	background: #EAEBE5 url('/static/images/frog-background.jpg') no-repeat center;
+	background: #EAEBE5 url('../images/frog-background.jpg') no-repeat center;
 	background-size: cover;
 	padding-left: 8%;
 	padding-right: 8%;
@@ -374,10 +374,6 @@ body.fixed .header-fixed .header-limiter nav {
 /*=================
  * BUTTONS
  =================*/
-#submit_button {
-	float: right;
-}
-
 .btn {
   display: inline-block;
   padding: 6px 12px;
@@ -439,7 +435,7 @@ body.fixed .header-fixed .header-limiter nav {
 }
 
 .btn-radio:focus {
-  outline: none;
+	outline: none;
 }
 
 .btn-radio-left {
@@ -540,7 +536,7 @@ body.fixed .header-fixed .header-limiter nav {
  * LOADING
  ==================*/
 #startLoader {
-    background: #EAEBE5 url('/static/images/loading_transparent.gif') no-repeat center;
+    background: #EAEBE5 url('../images/loading_transparent.gif') no-repeat center;
     text-align: center;
     position: fixed;
     top: 80px;
@@ -620,8 +616,11 @@ body.fixed .header-fixed .header-limiter nav {
 	}	
 	
 	.app-name {
-		/*display: block;*/
 		font-weight: bold;
+	}
+	
+	.app-store-name {
+		display: block;
 	}
 	
 	.sortable li span.app-price {

@@ -22,7 +22,6 @@ def app(request):
 		return redirect("/login/")
 	
 	if request.method == 'POST':
-		#time.sleep(2)
 		
 		# Get username from session
 		username = request.session['username']
@@ -91,7 +90,6 @@ def store(request):
 		return redirect("/login/")
 	
 	if request.method == 'POST':
-		#time.sleep(2)
 		
 		# Get username from session
 		username = request.session['username']
@@ -162,7 +160,7 @@ def store(request):
 		for app in user_app:
 			id_user_app.append(app["psa_id"])
 		
-		# Eliminate app chosen from available list
+		# Delete app chosen from available list
 		new_all_app = []
 		for app in all_app:
 			app["price"] = 0.99
@@ -269,5 +267,42 @@ def putNewAppToAPI(fname, files, params):
 	response = requests.put(url = url, params = params, files = files)
 	response.raise_for_status()
 	
+def config(request):
 	
+	# Get username from session
+	username = request.session['username']
+	
+	if request.method == 'POST':
+		# Load user data
+		with open(PATH_JSON + username + '.json', 'rb') as infile:
+			data = json.load(infile)
+		infile.close()
+		
+		# Update data with configuration test
+		for app in data["list"]:
+			if app['psa_id'] == request.POST['psa_id']:
+				app['config'] = request.POST['config-data']
+		
+		# Save data
+		with open(PATH_JSON + username + '.json', 'wb') as outfile:
+			json.dump(data, outfile)
+		outfile.close()
+	
+		return redirect('/app/')
+		
+	elif request.method == 'GET':
+		# Load user data
+		with open(PATH_JSON + username + '.json', 'rb') as infile:
+			data = json.load(infile)
+		infile.close()
+		
+		# Return configuration text to ajax GET
+		for app in data["list"]:
+			if app['psa_id'] == request.GET['psa_id']:
+				if 'config' in app:
+					return HttpResponse(app['config'], status=200)
+				else:
+					break
+				
+		return HttpResponse('', status=200)
 		

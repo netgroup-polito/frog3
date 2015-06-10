@@ -9,4 +9,5 @@ urlpatterns = [
 	url(r'^app/$', "webContent.views.app"),
 	url(r'^store/$', "webContent.views.store"),
 	url(r'^upload/$', "webContent.views.user_image_upload"),
+	url(r'^config/$', "webContent.views.config"),
 ]

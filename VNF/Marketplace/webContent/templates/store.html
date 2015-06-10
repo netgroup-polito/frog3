@@ -4,13 +4,13 @@
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<title>{{ title }}</title>
-		<link rel="stylesheet" href="/static/css/style.css">
-		<script type="text/javascript" src="/static/js/jquery.js"></script>
-		<script type="text/javascript" src="/static/js/jquery-ui.js"></script>
-		<script type="text/javascript" src="/static/js/jquery.cookie.js"></script>
-		<script type="text/javascript" src="/static/js/jquery.ui.touch-punch.js"></script>
-		<script type="text/javascript" src="/static/js/store.js"></script>
-		<script type="text/javascript" src="/static/js/graphic.js"></script>
+		<link rel="stylesheet" href="../static/css/style.css">
+		<script type="text/javascript" src="../static/js/jquery.js"></script>
+		<script type="text/javascript" src="../static/js/jquery-ui.js"></script>
+		<script type="text/javascript" src="../static/js/jquery.cookie.js"></script>
+		<script type="text/javascript" src="../static/js/jquery.ui.touch-punch.js"></script>
+		<script type="text/javascript" src="../static/js/store.js"></script>
+		<script type="text/javascript" src="../static/js/graphic.js"></script>
 	</head>
 	
 	<body>
@@ -46,7 +46,7 @@
 					<ul id="sourceList" class="sortable">
 					{% for image in all_app %}
 						<li id="psa-id_{{ image.psa_id }}" class="draggable">
-							<span class="app-name">{{ image.psa_name }}</span>
+							<span class="app-name app-store-name">{{ image.psa_name }}</span>
 							<span class="app-price">Cost: {{ image.price }} €</span>
 						</li>
 					{% endfor %}

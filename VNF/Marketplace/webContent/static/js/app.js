@@ -50,9 +50,10 @@ $(function(){
 	});
 	
 	/* SUBMIT APP ENABLED */
-	$("#submit_button").bind("click",function (event) {
+	$(".btn-submit").bind("click",function (event) {
 		var csrftoken = $.cookie("csrftoken");
-		var checked_app = $(".app_input").serialize();
+		var checked_app = $(".app_input:checked").serialize();
+		var ordered_app = $(".app_input").serialize();
 		$('#startLoader').show();
 		
 		$.ajax({

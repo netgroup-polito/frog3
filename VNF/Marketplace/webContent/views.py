@@ -29,8 +29,11 @@ def app(request):
 		# Get data from user
 		try:
 			checked_app = QueryDict(request.POST['psa_active'])
+			checked_app = checked_app.getlist('psa_active')
 		except MultiValueDictKeyError:
 			checked_app = []
+			
+		
 		
 		# Load data
 		with open(PATH_JSON + username + '.json', 'rb') as infile:
@@ -39,7 +42,7 @@ def app(request):
 		
 		# Update data
 		for app in data["list"]:
-			if checked_app[app["psa_id"]] == '1':
+			if app["psa_id"] in checked_app:
 				app["checked"] = 1
 			else:
 				app["checked"] = 0

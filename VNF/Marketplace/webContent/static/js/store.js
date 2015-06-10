@@ -9,8 +9,6 @@ $(function() {
     	connectWith: "ul",
     	cancel: ".empty-placeholder",
     	receive: function( event, ui ) {
-    		console.log(event);
-    		console.log(ui.item);
     		numItems = $("#targetList").find('li').length;
     		if(numItems==2){
 				$("#targetList").find('li.empty-placeholder').hide();
@@ -45,7 +43,7 @@ $(function() {
 		$('#startLoader').show();
 	});
 	
-	$("#submit_button").bind("click",function (event) {
+	$(".btn-submit").bind("click",function (event) {
 		var ser = $( "#targetList" ).sortable("serialize", {expression: /(.+?)_(.+)/});
 		var csrftoken = $.cookie("csrftoken");
 		
@@ -61,6 +59,7 @@ $(function() {
 				$('#response_message').show();
 				$("#response_message").html("Customization saved");
 				$("#response_message").addClass("messageSuccess");
+				$("#targetList > li > .app-price").hide();
 				saved = true;
 				setTimeout(function() { $('#response_message').hide(800); }, 5000 );
 			},

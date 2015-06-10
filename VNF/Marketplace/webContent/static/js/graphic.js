@@ -1,6 +1,5 @@
 $(window).load(function() {
     $('#startLoader').hide();
-    
     calculateHeight();
 });
 
@@ -18,12 +17,13 @@ $(document).ready(function(){
 });
 
 function calculateHeight() {
-	console.log($(window).height());
-	console.log($(".header-fixed").outerHeight());
-	console.log($(".footer").outerHeight());
+	var height = $(window).height() - $(".header-fixed").outerHeight() - $(".footer").outerHeight() - 120;
 	
-	var height = $(window).height() - $(".header-fixed").outerHeight() - $(".footer").outerHeight() - 15 - 10 - 20 -75;
-	
-	$(".sortable").height(height);
-	$(".section").height(height + 120);
+	if($(window).width() > 910) {
+		$(".sortable").height(height);
+		$(".section").height(height + 120);
+	} else {
+		$(".sortable").height('auto');
+		$(".section").height('auto');
+	}
 }

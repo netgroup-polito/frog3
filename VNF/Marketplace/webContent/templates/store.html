@@ -37,10 +37,11 @@
 		<div class="header-fixed-placeholder"> </div>
 		
 		<!-- Start Section -->
-		<section class="section" class="list-group">
+		<section class="section list-group">
 			<div id="response_message"> </div>
 			<!-- Store -->
 			<div class="list list-container-left">
+				<a href="/upload/"><button type="button" class="btn btn-blue btn-save btn-upper">Add your own app</button></a>
 				<div class="list-content">
 					<div class="description-center">MyStore: available applications</div>
 					<ul id="sourceList" class="sortable">
@@ -57,6 +58,7 @@
 			
 			<!-- MyApps -->
 			<div class="list list-container-right">
+				<button type="button" class="btn btn-blue btn-save btn-upper btn-submit">Buy</button>
 				<div class="list-content">
 					<div class="description-center">MyApps: selected applications</div>
 					<ul id="targetList" class="sortable">
@@ -72,13 +74,14 @@
 						{% endfor %}
 					</ul>
 				</div>
-				<button type="button" id="submit_button" class="btn btn-blue btn-save">Buy</button>
-			</div>	
+				<button type="button" class="btn btn-blue btn-save btn-submit">Buy</button>
+			</div>
+			
 		</section>
 		
 		<!-- Start Footer -->
 		<footer class="footer">
-			<p>&nbsp;</p>
+			<p>&copy; Copyright 2013-2015 <a href="http://www.polito.it">Politecnico di Torino</a>. All rights reserved.</p>
 		</footer>
 
 	</body>	

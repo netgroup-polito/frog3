@@ -59,27 +59,31 @@
 			<!-- Application list -->
 			{% if data %}
 			<div class="list-container-center">
+				<button type="button" class="btn btn-blue save-btn btn-upper btn-submit">Apply Changes</button>
 				<div class="list-content list-app">
-					<div class="description">
-						<span class="description-left">Applications</span>
-						<span class="description-right">Select</span>
-					</div>
+	
 					<ul class="list-center applist sortable">
 					{% for image in data %}
 						<li id="psa-id_{{ image.psa_id }}" class="draggable">
 							<span class="app-name">{{ image.psa_name }}</span>
-							
 							<div class="radio_button">
-								<a class="o-modal" href="#openModal"><button type="button" id="{{ image.psa_id }}" class="btn btn-blue btn-config">Config</button></a>
-								<button type="button" class="btn {% if image.checked %}btn-blue{% else %}btn-grey{% endif %} btn-radio btn-radio-left">Enable</button>
-								<button type="button" class="btn {% if image.checked %}btn-grey{% else %}btn-blue{% endif %} btn-radio btn-radio-right">Disable</button>
-								<input type="hidden" class="app_input" name="{{ image.psa_id }}" value="{% if image.checked %}1{% else %}0{% endif %}" />
+								<div class="onoffswitch">
+									<input type="checkbox" name="psa_active" class="onoffswitch-checkbox app_input" id="{{ image.psa_id }}" value="{{ image.psa_id }}"
+									{% if image.checked %}checked{% endif %}>
+									<label class="onoffswitch-label" for="{{ image.psa_id }}">
+										<span class="onoffswitch-inner"></span>
+										<span class="onoffswitch-switch"></span>
+									</label>
+								</div><!--
+								<div class="config">
+									<a class="o-modal" href="#openModal"><button type="button" id="{{ image.psa_id }}" class="btn btn-blue btn-config">CONFIG</button></a>
+								</div>-->
 							</div>
 						</li>
 					{% endfor %}
 					</ul>
 				</div>
-				<button type="button" id="submit_button" class="btn btn-blue save-btn">Apply Changes</button>
+				<button type="button" class="btn btn-blue save-btn btn-submit">Apply Changes</button>
 			</div>
 			{% else %}
 			<div id="empty_app">Your application list is empty. You can select new applications in the store.</div>
@@ -88,7 +92,7 @@
 		
 		<!-- Start Footer -->
 		<footer class="footer">
-			<p>&nbsp;</p>
+			<p>&copy; Copyright 2013-2015 <a href="http://www.polito.it">Politecnico di Torino</a>. All rights reserved.</p>
 		</footer>
 		
 	</body>

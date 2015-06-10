@@ -204,7 +204,7 @@ function successPage(){
 		window.clearInterval(progressTimer);
 		console.log("timer progress bar ended!");
 	}
-	content.textContent = "Thanks for your patience.<br>You are now are able to access to your network.";
+	content.innerHTML = "Thanks for your patience.<br>You are now are able to access to your network.";
 	if(typeof destinationURI !== 'undefined'){
 		var link_div = document.createElement("div");
 		link_div.id = "link";

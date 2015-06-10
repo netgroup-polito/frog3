@@ -221,6 +221,10 @@ body.fixed .header-fixed .header-limiter nav {
 	line-height: 300px;
 }
 
+#buy-button {
+	float: right;
+}
+
 /* APP */
 .list-container-center {
 	padding: 1em;

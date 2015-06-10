@@ -221,7 +221,7 @@ body.fixed .header-fixed .header-limiter nav {
 	line-height: 300px;
 }
 
-#buy-button {
+#submit_button {
 	float: right;
 }
 
@@ -346,6 +346,7 @@ body.fixed .header-fixed .header-limiter nav {
  * FOOTER
  ==================*/
 .footer {
+	/* position: fixed; */
 	clear: both;
 	padding: 1em;
 	bottom: 0;
@@ -433,9 +434,10 @@ body.fixed .header-fixed .header-limiter nav {
 	display: inline;
 	border: 0;
 	padding: 0;
-	position: absolute;
+	/* position: absolute; */
 	right: 0;
 	margin-right: 1em;
+	text-align: right;
 }
 
 .btn-radio:focus {
@@ -488,12 +490,6 @@ body.fixed .header-fixed .header-limiter nav {
   min-height: 27px;
 }
 
-/*
-.form-horizontal .form-group {
-  margin-right: -15px;
-  margin-left: -15px;
-}
-*/
 .form-horizontal .control-label {
     padding-top: 7px;
     margin-bottom: 0;
@@ -621,6 +617,7 @@ body.fixed .header-fixed .header-limiter nav {
 	
 	.app-name {
 		font-weight: bold;
+		display: block;
 	}
 	
 	.app-store-name {

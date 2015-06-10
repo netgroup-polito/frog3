@@ -50,15 +50,14 @@ def app(request):
 		outfile.close()
 
 		# Create the service graph and instantiate it
-		"""
 		try:
 			saveAndInstantiateServiceGraph(request.session, data)
 		except Unauthorized as ex:
 			logout(request)
 			return HttpResponse(ex.get_mess(), status=401)
-		"""	
 		
 		return HttpResponse('Success', status=200)
+		
 		
 	elif request.method == 'GET':
 		

@@ -18,7 +18,11 @@ $(document).ready(function(){
 });
 
 function calculateHeight() {
-	var height = $(window).height() - $(".header-fixed").height() - $(".footer").height() - 150;
+	console.log($(window).height());
+	console.log($(".header-fixed").height());
+	console.log($(".footer").height());
+
+	var height = $(window).height() - $(".header-fixed").height() - $(".footer").height();
 	
 	if($(window).height() > 600) {
 		$(".sortable").height(height);

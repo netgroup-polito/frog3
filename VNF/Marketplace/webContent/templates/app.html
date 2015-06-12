@@ -66,8 +66,7 @@
 					{% for image in data %}
 						<li id="psa-id_{{ image.psa_id }}" class="draggable">
 							<span class="app-name">{{ image.psa_name }}
-							<span class="scroll">
-								<img class="up" src="../static/images/arrow.png"></span>
+							
 							</span>
 							<div class="radio_button">
 								<div class="onoffswitch">
@@ -78,10 +77,11 @@
 										<span class="onoffswitch-inner"></span>
 										<span class="onoffswitch-switch"></span>
 									</label>
-								</div><!--
+								</div>
 								<div class="config">
 									<a class="o-modal" href="#openModal"><button type="button" id="{{ image.psa_id }}" class="btn btn-blue btn-config">CONFIG</button></a>
-								</div>-->
+								</div>
+								<span class="scroll"><img class="up" src="../static/images/arrow.png"></span>
 								<input type="hidden" class="app-ordered" name="psa_ordered" value="{{ image.psa_id }}">
 							</div>
 						</li>

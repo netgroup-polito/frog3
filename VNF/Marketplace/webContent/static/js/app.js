@@ -2,6 +2,7 @@ $(function(){
 	var saved = true;
 	var timeout = null;
 	
+	
 	$(".applist").sortable({
 		axis: "y",
 		delay: 900
@@ -9,7 +10,11 @@ $(function(){
 	
 	$(".draggable").mousedown(function() {
 		var obj = $(this);
-		timeout = setTimeout(function() { obj.animate({backgroundColor: "#9D9D9D"}, 300) }, 300 );
+		if($(window).width() > 910) {
+			timeout = setTimeout(function() { obj.animate({backgroundColor: "#9D9D9D"}, 300) }, 0 );
+		} else {
+			timeout = setTimeout(function() { obj.animate({backgroundColor: "#9D9D9D"}, 300) }, 300 );
+		}
 	});
 	
 	$(".draggable").mouseup(function() {

@@ -22,8 +22,10 @@ function calculateHeight() {
 	if($(window).width() > 910) {
 		$(".sortable").height(height);
 		$(".section").height(height + 120);
+		$( ".applist" ).sortable( "option", "delay", false );
 	} else {
 		$(".sortable").height('auto');
 		$(".section").height('auto');
+		$( ".applist" ).sortable( "option", "delay", 900 );
 	}
 }

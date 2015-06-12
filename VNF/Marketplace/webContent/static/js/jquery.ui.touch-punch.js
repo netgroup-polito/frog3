@@ -21,7 +21,7 @@
   var mouseProto = $.ui.mouse.prototype,
       _mouseInit = mouseProto._mouseInit,
       _mouseDestroy = mouseProto._mouseDestroy,
-      touchHandled;
+      touchHandled, touchTime;
 
   /**
    * Simulate a mouse event based on a corresponding touch event
@@ -78,6 +78,7 @@
 
     // Set the flag to prevent other widgets from inheriting the touch event
     touchHandled = true;
+    touchTime = new Date().getTime();
 
     // Track movement to determine if interaction was a click
     self._touchMoved = false;
@@ -101,6 +102,12 @@
     // Ignore event if not handled
     if (!touchHandled) {
       return;
+    }
+    
+    now = new Date().getTime();
+    
+    if( !(/iPhone|iPad|iPod/i.test(navigator.userAgent)) && (now - touchTime < 400) ) {
+	    return;
     }
 
     // Interaction was not a click

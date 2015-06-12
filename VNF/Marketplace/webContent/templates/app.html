@@ -65,7 +65,10 @@
 					<ul class="list-center applist sortable">
 					{% for image in data %}
 						<li id="psa-id_{{ image.psa_id }}" class="draggable">
-							<span class="app-name">{{ image.psa_name }}</span>
+							<span class="app-name">{{ image.psa_name }}
+							<span class="scroll">
+								<img class="up" src="../static/images/arrow.png"></span>
+							</span>
 							<div class="radio_button">
 								<div class="onoffswitch">
 									<input type="checkbox" name="psa_active" class="onoffswitch-checkbox app-checked" id="{{ image.psa_id }}" value="{{ image.psa_id }}"

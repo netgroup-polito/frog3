@@ -1,9 +1,23 @@
 $(function(){
 	var saved = true;
+	var timeout = null;
 	
-	$(".applist").sortable();
+	$(".applist").sortable({
+		axis: "y",
+		delay: 900
+	});
 	
-	$(".navbar-btn").bind("click",function (event) {
+	$(".draggable").mousedown(function() {
+		var obj = $(this);
+		timeout = setTimeout(function() { obj.animate({backgroundColor: "#9D9D9D"}, 300) }, 300 );
+	});
+	
+	$(".draggable").mouseup(function() {
+		clearTimeout(timeout);
+		$(this).animate({backgroundColor: "#C4C3C3"}, 500)
+	});
+	
+	$(".navbar-btn").bind("click", function (event) {
 		$('#startLoader').show();
 	});
 	

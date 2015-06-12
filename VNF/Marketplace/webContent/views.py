@@ -67,7 +67,7 @@ def app(request):
 		except Unauthorized as ex:
 			logout(request)
 			return HttpResponse(ex.get_mess(), status=401)
-		
+			
 		return HttpResponse('Success', status=200)
 		
 		

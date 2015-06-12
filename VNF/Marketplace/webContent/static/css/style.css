@@ -148,7 +148,7 @@ body.fixed .header-fixed .header-limiter nav {
 	background-size: cover;
 	padding-left: 8%;
 	padding-right: 8%;
-	padding-bottom: 3em;
+	padding-bottom: 1em;
 	height: 100%;
 	text-align: top;
 }
@@ -173,7 +173,7 @@ body.fixed .header-fixed .header-limiter nav {
 }
 
 .list-content {
-	margin-top: 10px;
+	/*margin-top: 10px;*/
 	margin-bottom: 10px;
 	background-color: #F7F7F7;
 	border-radius: 5px;
@@ -248,9 +248,6 @@ body.fixed .header-fixed .header-limiter nav {
 	margin-right: 15px;
 }
 
-.applist {
-	margin-top: 15px;
-}
 
 #app { 
 	list-style-type: none;
@@ -272,6 +269,18 @@ body.fixed .header-fixed .header-limiter nav {
 
 .list-app {
 	padding-bottom: 0.5em;
+}
+
+.scroll {
+	display: none;
+	float: right;
+}
+
+.scroll > img {
+	width: 1.6em;
+	height: 1.6em;
+	margin-right: 0.6em;
+	margin-top: 1.2em
 }
 
 /* UPLOAD */
@@ -353,7 +362,7 @@ body.fixed .header-fixed .header-limiter nav {
 .footer {
 	position: fixed;
 	clear: both;
-	padding: 1em;
+	padding: 0.5em;
 	bottom: 0;
 	width:100%;
 	background-color: #FFFFFF;
@@ -361,7 +370,7 @@ body.fixed .header-fixed .header-limiter nav {
 }
 
 .footer > p {
-	font-size: 12px;
+	font-size: 10px;
 	text-align: center;
 }
 
@@ -370,7 +379,7 @@ body.fixed .header-fixed .header-limiter nav {
  ==================*/
 .messageSuccess {
 	padding: 10px;
-	margin: 0 30px 20px 30px;
+	margin: 0 30px 0px 30px;
 	border: 2px solid #69CC00;
 	border-radius: 5px;
 	background-color: #D9FFB3;
@@ -379,7 +388,7 @@ body.fixed .header-fixed .header-limiter nav {
 
 .messageError {
 	padding: 10px;
-	margin: 0 30px 20px 30px;
+	margin: 0 30px 0px 30px;
 	border: 2px solid #FF4D4D;
 	border-radius: 5px;
 	background-color: #FFE5E5;
@@ -538,10 +547,10 @@ body.fixed .header-fixed .header-limiter nav {
     top: 2px; 
     bottom: 0; 
     right: 32px;
-    -moz-transition: all 0.3s ease-in 0s; 
-    -webkit-transition: all 0.3s ease-in 0s;
-    -o-transition: all 0.3s ease-in 0s; 
-    transition: all 0.3s ease-in 0s; 
+    -moz-transition: all 0.2s ease-in 0s; 
+    -webkit-transition: all 0.2s ease-in 0s;
+    -o-transition: all 0.2s ease-in 0s; 
+    transition: all 0.2s ease-in 0s; 
 }
 .onoffswitch-checkbox:checked + .onoffswitch-label .onoffswitch-inner {
     margin-left: 0;
@@ -740,6 +749,7 @@ body.fixed .header-fixed .header-limiter nav {
 	
 	.btn-upper {
 		display: inline-block;
+		margin-bottom: 0.6em;
 	}
 	
 	.footer {
@@ -747,7 +757,15 @@ body.fixed .header-fixed .header-limiter nav {
 	}
 	
 	.footer > p {
-		font-size: 10px;
+		font-size: 9px;
+	}
+	
+	.app-name {
+		display: block;
+	}
+	
+	.scroll {
+		display: inline;
 	}
 }
 

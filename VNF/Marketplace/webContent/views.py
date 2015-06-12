@@ -208,6 +208,10 @@ def store(request):
 def login_view(request):
 	
 	if request.method == 'GET':
+	
+		if "username" in request.session:
+			return redirect("/app/")
+			
 		if request.GET.has_key('err_message'):
 			err_msg = request.GET['err_message']
 		else:

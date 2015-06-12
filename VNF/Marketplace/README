@@ -1,8 +1,16 @@
 APPLICATION STORE
 =================
 
-To run the application store, be sure that secured-server is already started. Then run the following commands:
+* Installation
+sudo apt-get install libmysqlclient-dev
+virtualenv .env
+source .env/bin/activate
+pip install python-dev
+pip install django djangorestframework MySQL-python 
 
+
+* Start
+To run the application store, be sure that secured-server is already started. Then run the following commands:
 source /home/stack/server-secured/.env/bin/activate
 python manage.py migrate
 python manage.py runserver 0.0.0.0:8080

@@ -341,6 +341,23 @@ class Heat(object):
         data = json.loads(resp.text)
         return data['stack']['stack_status']
 
+    def checkStackStatus(self, heatEndpoint, token, stackName):
+        '''
+        Return the stack information
+        Args:
+            heatEndpoint:
+                The endpoint to the heat server that should instantiate the stack (example: http://serverAddr:heatport/v1/<tenant-ID>)
+            stackName:
+                Name of the stack to find
+            token:
+                Keysone token for the authentication
+        Exceptions:
+            raise the requests.HTTPError exception connected to the REST call in case of HTTP error or the token is expired
+        '''
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.get(heatEndpoint+(self.getStackIDPath % stackName), headers=headers, timeout=self.timeout)
+        return resp.status_code
+    
     def getStackResourcesStatus(self, heatEndpoint, token, stackName, stackID):
         '''
         Return the stack's resources information

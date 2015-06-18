@@ -20,7 +20,7 @@ from Common.SQL.endpoint import set_endpoint, delete_endpoint_connections, get_e
 from Common.SQL.component_adapter import set_extra_info, get_extra_info,update_extra_info
 from Common.SQL.session import checkEgressNode, checkIngressNode, get_active_user_session_by_nf_fg_id,get_instantiated_profile, get_profile_by_id, set_error
 from Common.SQL.nodes import getAvaibilityZoneByHostname, getEgressInterface, updateIPAddress, getNodeName, getIngressInterface, getNodeID,getAvaibilityZone,getIPAddress, get_node_id
-from Common.exception import NoHeatPortTranslationFound, StackError, NodeNotFound
+from Common.exception import NoHeatPortTranslationFound, StackError, NodeNotFound, DeletionTimeout
 
 DEBUG_MODE = Configuration().DEBUG_MODE
 ISP_INGRESS = Configuration().ISP_INGRESS
@@ -161,13 +161,14 @@ class HeatOrchestrator(OrchestratorInterface):
                             raise StackError("Stack error, checks HEAT logs.")   
                         
                 resources = json.dumps(self.getStackResourcesStatus(token, nf_fg.name))
-                set_extra_info(self.session_id, resources)
         except Exception as err:
             logging.error(err.message)
             logging.exception(err)
             self.deleteGraphResorces(nf_fg._id, self.token)
             set_error(self.token.get_userID())  
             raise
+        # TODO if the entry exists, update it
+        #set_extra_info(self.session_id, resources)
   
     def updateProfile(self, nf_fg_id, new_nf_fg, old_nf_fg, token, delete=False):
         self.token = token
@@ -322,6 +323,7 @@ class HeatOrchestrator(OrchestratorInterface):
         Delete connection to endpoints those are not connected to any interface or other graph
         Insert those endpoints in db as available endpoints          
         '''        
+        logging.debug("Here: "+nf_fg.getJSON())
         for endpoint in nf_fg.listEndpoint:
             if endpoint.connection is False and endpoint.attached is False and endpoint.edge is False:
                 logging.debug("Deleting flow to endoints not characterized: "+str(endpoint.name))   
@@ -818,9 +820,18 @@ class ProfileGraph(object):
                             newNet = self.edges[arch.VNF1].ports[arch.port1].net
                             break
                 if newNet == None:
+                    
                     newNet = Net('fakenet_'+str(self.num_net))
                     self.num_net += 1
                     self.networks.append(newNet)
+                    """
+                    # One network for all ports (to avoid problems during the updates of the graph)
+                    newNet = Net('fakenet')
+                    self.num_net = 1
+                    self.networks = []
+                    self.networks.append(newNet)
+                    """
+
             else:
                 newNet = port.net
                 if(port.network != None):
@@ -834,6 +845,10 @@ class ProfileGraph(object):
                 port.trash = self.trashNetwork
             else:
                 edge.network[port.name] = newNet.name
+            """
+            # One network for all ports (to avoid problems during the updates of the graph)
+            edge.network[port.name] = newNet.name
+            """
             port.net = newNet
             for arch in port.archs:
                 if arch.VNF1 == edge.id:

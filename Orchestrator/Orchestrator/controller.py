@@ -48,13 +48,13 @@ class UpperLayerOrchestratorController(object):
         # session = SessionSQL.get_active_user_device_session(token.get_userID(), self.session)
         logging.debug("session_id: "+session_id)
         
-        # TODO: Get session
+        # Get session
         infrastructure, profile = get_active_user_session_info_from_id(session_id) 
         
         # Get instantiated profile
         nf_fg = get_instantiated_profile(token.get_userID())
         
-        # TODO: De-instantiate profile
+        # De-instantiate profile
         # TODO: manage the case in which there aren't session
         logging.debug("infra: "+str(infrastructure))
 

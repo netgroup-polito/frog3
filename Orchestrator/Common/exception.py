@@ -1,3 +1,11 @@
+
+class DeletionTimeout(Exception):
+    def __init__(self, message):
+        self.message = message
+        
+    def get_mess(self):
+        return self.message
+    
 class NoUserNodeDefined(Exception):
     def __init__(self, message):
         self.message = message

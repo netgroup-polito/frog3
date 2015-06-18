@@ -133,7 +133,6 @@ class NF_FG_Management(object):
         # Find flow connected to endpoint
         for vnf in self.nf_fg.listVNF:
             for port in vnf.listPort:
-                new_flowrules = []
                 if port.list_ingoing_label is not None:
                     for flowrule in port.list_ingoing_label:
                         new_flowrule = copy.deepcopy(flowrule)
@@ -168,11 +167,14 @@ class NF_FG_Management(object):
                                     flows.append(flowrule)
         return flows
         
-    def addDeviceFlows(self, mac_address):
+    def addDevicesFlows(self, mac_addresses):
         """
         Add ingress flow for user new device
         """
-        
+        for mac_address in mac_addresses:
+            logging.debug("mac: "+str(mac_address))
+            
+            
         ingress_endpoint = None
         # Find ingress endpoint
         for endpoint in self.nf_fg.listEndpoint:
@@ -183,22 +185,25 @@ class NF_FG_Management(object):
             for port in vnf.listPort:
                 new_flowrules = []
                 if port.list_ingoing_label is not None:
-                    mac = None
-                    for flowrule in port.list_ingoing_label:
-                        new_flowrule = copy.deepcopy(flowrule)
-                        if new_flowrule.flowspec['ingress_endpoint'] == ingress_endpoint:
-                            for match in new_flowrule.matches:
-                                if mac == None or mac == match.of_field['sourceMAC']:
-                                    if 'sourceMAC' not in match.of_field:
-                                        raise NoPreviousDeviceFound("No previous device found in this graph")
-                                    mac = match.of_field['sourceMAC']
-                                    match.of_field['sourceMAC'] = mac_address
-                                    match._id = uuid.uuid4().hex
-                                    new_flowrules.append(new_flowrule)
-                    port.list_ingoing_label = port.list_ingoing_label + new_flowrules
+                    ingress_flowrules = []
+                    for flowrule in port.list_ingoing_label[:]:
+                        if flowrule.flowspec['ingress_endpoint'] == ingress_endpoint:
+                            ingress_flowrules.append(copy.deepcopy(flowrule))
+                            port.list_ingoing_label.remove(flowrule)
+                            
                     
-        logging.debug("ghent : "+self.nf_fg.getJSON())
-    
+                    for mac_address in mac_addresses:      
+                        for ingress_flowrule in ingress_flowrules:
+                            for match in ingress_flowrule.matches:
+                                match.priority = "1000"
+                                match.of_field['sourceMAC'] = mac_address
+                                match._id = uuid.uuid4().hex
+                                new_flowrules.append(copy.deepcopy(ingress_flowrule))
+
+                    port.list_ingoing_label = port.list_ingoing_label + new_flowrules
+        logging.debug("NF-FG after devices flows: "+self.nf_fg.getJSON())
+        
+
     def setDeviceFlows(self, mac_address):
         """
         Add ingress flow for user device
@@ -216,6 +221,7 @@ class NF_FG_Management(object):
                     for flowrule in port.list_ingoing_label:
                         if flowrule.flowspec['ingress_endpoint'] == ingress_endpoint:
                             for match in flowrule.matches:
+                                match.priority = "1000"
                                 match.of_field['sourceMAC'] = mac_address
                                 match.of_field['id'] = uuid.uuid4().hex
     

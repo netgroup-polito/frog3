@@ -173,11 +173,14 @@ def updateProfile(profile_id, profile):
     s.query(Profile).filter_by(id=profile_id).update({"profile":profile}, synchronize_session = False)
     s.commit() 
     
-def get_global_active_user_device_session(user_id):
+def get_active_user_devices(user_id):
     session = get_session()
     s = session()
-    user_sessions = s.query(Session).filter_by(user_id = user_id).filter_by(ended = None).filter_by(error = None).all()
-    return user_sessions
+    mac_address = s.query(Session.mac_address).filter_by(user_id = user_id).filter_by(ended = None).filter_by(error = None).first()
+    if mac_address is not None:
+        return mac_address[0]
+    else:
+        return None
    
 def get_profile_id_from_active_user_session(user_id):
     session = get_session()
@@ -215,7 +218,7 @@ def get_active_user_device_session(user_id, mac_address = None):
     s = session()
     user_sessions = s.query(Session).filter_by(user_id = user_id).filter_by(ended = None).filter_by(error = None).all()
 
-    logging.debug("mac address:"+str(mac_address))
+    logging.debug("MAC address:"+str(mac_address))
     for user_session in user_sessions:
         if mac_address is not None:
             if user_session.mac_address is not None:

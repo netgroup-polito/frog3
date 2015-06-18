@@ -13,7 +13,7 @@ import logging
 from ServiceLayerApplication.validate_request import UserProfileValidator
 from Orchestrator.controller import UpperLayerOrchestratorController
 from Common.config import Configuration
-from Common.SQL.session import update_session, get_active_user_session, add_mac_address_in_the_session, get_active_user_device_session, set_ended,get_instantiated_profile,checkDeviceSession, del_mac_address_in_the_session
+from Common.SQL.session import get_active_user_devices, update_session, get_active_user_session, add_mac_address_in_the_session, get_active_user_device_session, set_ended,get_instantiated_profile,checkDeviceSession, del_mac_address_in_the_session
 from Common.authentication import KeystoneAuthentication 
 from Common.ServiceGraph.keystone import KeystoneProfile
 from Common.users import User
@@ -59,8 +59,6 @@ class OrchestratorController():
         self.nobody_flag = False
         
         if request is not None:
-            # TODO: DELETE should take the MAC of device
-            #if method != "GET" and method !="DELETE":
             if method != "GET" and method != "DELETE":
                 session = json.load(request.stream, 'utf-8')
                 session_flag = True
@@ -111,7 +109,7 @@ class OrchestratorController():
  
     def get(self):
         #getStackStatus(self.token)
-        logging.debug("Authenticating the user - GET");
+        logging.debug("Authenticating the user - GET")
         token = KeystoneAuthentication(self.keystone_server,user_token=self.token, orch_token=self.orchToken)
         
         nf_fg_session = get_active_user_session(token.get_userID()) 
@@ -122,7 +120,7 @@ class OrchestratorController():
         nf_fg = NF_FG(profile)
         
         status = orchestrator.getStackStatus(self.token, nf_fg.name)
-        logging.debug("Status : "+status);
+        logging.debug("Status : "+status)
         if status == "CREATE_COMPLETE":
             code = falcon.HTTP_201
         else:
@@ -231,11 +229,21 @@ class OrchestratorController():
             logging.debug('ServiceLayerApplication - PUT - Add device')
             
             # Manage new device
-            if self.user_mac is not None:
-                new_profile = self.addDeviceToNF_FG(token)
-            else:
-                logging.error("No mac address for user "+token.get_username())
-                raise NoMacAddress("No mac address for user "+token.get_username())
+            if checkDeviceSession(token.get_userID(), self.user_mac) is True:
+                """
+                 A rule for this mac address is already implemented,
+                 only an update of the graph is needed 
+                 (This update is necessary only if the graph is different from the last instantiated, 
+                 but in this moment the graph is always re-instantiated).
+                """
+                self.user_mac = None
+                
+            """
+             WARNING: the update, when a graph is connected to ISP, is not supported
+            """
+            new_profile, isp_nf_fg = self.addDeviceToNF_FG(token)
+            if isp_nf_fg is not None:
+                raise NotImplemented("Update of graph attached to ISP graph")
             
             
             # Call orchestrator to update NF-FG
@@ -283,41 +291,42 @@ class OrchestratorController():
         
     def addDeviceToNF_FG(self, token):
         
-        # If the mac address passed is already involved in an active session (both in his active session, or in all active session?), throw an exception
-        if checkDeviceSession(token.get_userID(), self.user_mac) is True:
-            logging.debug('ServiceLayerApplication -  addDeviceToNF_FG - User: '+str(token.get_username())+' already have an active session with this device')
-            raise falcon.HTTPConflict("Conflict", "There are already an active session for this user's device")
-               
-        # Get nf-fg from session
-        logging.debug('ServiceLayerApplication -  addDeviceToNF_FG - Getting instantiated NF-FG')
-        old_profile = get_instantiated_profile(token.get_userID())
-        logging.debug('\n'+old_profile)
-        old_profile = json.loads(old_profile)      
+        
+        
+        # Get MAC addresses from previous session
+        logging.debug('Get MAC addresses from previous session')
+        session_mac_addresses = get_active_user_devices(token.get_userID())
+        mac_addresses = []
+        if session_mac_addresses is not None:
+            mac_addresses = mac_addresses+json.loads(session_mac_addresses)
+        if self.user_mac is not None:
+            logging.debug('new MAC : '+str(self.user_mac))      
+            mac_addresses.append(str(self.user_mac))
+        logging.debug('MAC addresses: '+str(mac_addresses))        
         
         # Retrieve the user profile
         logging.debug('ServiceLayerApplication -  addDeviceToNF_FG - Getting user profile')
         profile = KeystoneProfile(self.keystone_server, token.get_userID())
         self.graph = profile.get(token.get_token())['profile']['graph']
-        logging.debug('\n'+json.dumps(self.graph))
+        #logging.debug('\n'+json.dumps(self.graph))
 
         # Add device specific rules
-        logging.debug('ServiceLayerApplication -  addDeviceToNF_FG - Adding device specific rules')
-        old_nf_fg = NF_FG(old_profile)
-        nf_fg = copy.deepcopy(old_nf_fg)
-        manage_nf_fg = NF_FG_Management(nf_fg, self.token)
-        manage_nf_fg.addDeviceFlows(self.user_mac)
+        logging.debug('ServiceLayerApplication -  addDeviceToNF_FG - Adding devices specific rules')
+        nf_fg = NF_FG(self.graph)
+        
+        nf_fg, isp_nf_fg = self._prepareProfile(token, nf_fg)
+
+        # TODO: I should check the mac address already used in the ingress end point, but then
+        # use the new graph to add all the mac (both those old and that new)
+        if len(mac_addresses) != 0:
+            manage_nf_fg = NF_FG_Management(nf_fg, self.token)
+            manage_nf_fg.addDevicesFlows(mac_addresses)
         
             
-        return json.loads(nf_fg.getJSON())
-
-    def prepareProfile(self, token):
-        # Retrieve the user profile
-        logging.debug('ServiceLayerApplication -  addDeviceToNF_FG - Getting user profile')
-        profile = KeystoneProfile(self.keystone_server, token.get_userID())
-        self.graph = profile.get(token.get_token())['profile']['graph']
+        return json.loads(nf_fg.getJSON()), isp_nf_fg
+    
+    def _prepareProfile(self, token, nf_fg):
         
-        # Transform profile in NF_FG
-        nf_fg = ServiceGraph(self.graph).getNF_FG()
         manage = NF_FG_Management(nf_fg, self.token)        
         
         # Get INGRESS NF-FG
@@ -347,6 +356,30 @@ class OrchestratorController():
                 #logging.info(port.id)
                 manage.addToControlNet(vnf, port)
             #logging.info("")
+            
+        # TODO: if endpoint is ... then connect tu ISP
+        # Create connection to another NF-FG
+        isp_nf_fg = None
+        # TODO: The following row should be executed only if  we want to concatenate ISP to our graphs
+        if ISP is True:
+            isp_nf_fg = self.remoteConnection(nf_fg)
+        
+        Endpoint(nf_fg).characterizeEndpoint()
+    
+        return nf_fg, isp_nf_fg
+
+    def prepareProfile(self, token):
+        # Retrieve the user profile
+        logging.debug('ServiceLayerApplication -  addDeviceToNF_FG - Getting user profile')
+        profile = KeystoneProfile(self.keystone_server, token.get_userID())
+        self.graph = profile.get(token.get_token())['profile']['graph']
+        
+        # Transform profile in NF_FG
+        nf_fg = ServiceGraph(self.graph).getNF_FG()
+        manage = NF_FG_Management(nf_fg, self.token)                
+
+        
+        nf_fg, isp_nf_fg = self._prepareProfile(token, nf_fg)
         
         # Add flow that permits to user device to reach his NF-FG  
         if self.user_mac is not None:
@@ -356,14 +389,7 @@ class OrchestratorController():
             logging.warning("No mac address for user "+token.get_username())
         
         
-        # TODO: if endpoint is ... then connect tu ISP
-        # Create connection to another NF-FG
-        isp_nf_fg = None
-        # TODO: The following row should be executed only if  we want to concatenate ISP to our graphs
-        if ISP is True:
-            isp_nf_fg = self.remoteConnection(nf_fg)
-        
-        Endpoint(nf_fg).characterizeEndpoint()
+       
                             
         logging.info(nf_fg.getJSON())
         return json.loads(nf_fg.getJSON()), isp_nf_fg  

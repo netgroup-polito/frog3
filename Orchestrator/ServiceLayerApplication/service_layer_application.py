@@ -31,7 +31,6 @@ class Orchestrator(object):
         self.tenant=orch_tenant;
         self.keystone_server = AUTH_SERVER;
         self.keystoneAuth = None;
-        pass       
     
     def authenticateOrch(self):
         '''

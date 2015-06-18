@@ -8,6 +8,7 @@ Created on 30/mag/2014
 @author: fabiomignini
 '''
 from Orchestrator.ComponentAdapter.Openstack.heat import HeatOrchestrator
+from Orchestrator.ComponentAdapter.Jolnet.jolnet import JolnetAdapter
 from Orchestrator.ComponentAdapter.Unify.unify import UnifyCA
 from Common.config import Configuration
 
@@ -26,6 +27,8 @@ def Schedule(session_id, heat_endpoint, nova_endpoint):
     drivers = drivers.split(',')
     if drivers[0] == "HeatCA":
         orchestratorCA_instance = HeatOrchestrator(heat_endpoint, nova_endpoint, session_id)
+    elif drivers[0] == "Jolnet":
+        orchestratorCA_instance = JolnetAdapter(heat_endpoint, nova_endpoint, session_id)
     elif drivers[0] == "UnifiedNode":
         endpoints = Configuration().UNIFY_ENDPOINTS
         endpoints = endpoints.split(',')
@@ -35,7 +38,7 @@ def Schedule(session_id, heat_endpoint, nova_endpoint):
         else:
             logging.error("No Unify endpoint found")
         if len(endpoints) > 1:
-            logging.warning("Only first  unify endpoint is used")
+            logging.warning("Only first unify endpoint is used")
             
         core_port = Configuration().EGRESS_PORT
         if core_port is not None:
@@ -77,5 +80,7 @@ def Select(infrastructure, session_id, heat_endpoint = None, nova_endpoint = Non
             logging.error("No core port defined")
     if infrastructure['infrastructure']['name'] == 'HeatOrchestrator':
         orchestratorCA_instance = HeatOrchestrator(heat_endpoint, nova_endpoint, session_id)
+    if infrastructure['infrastructure']['name'] == 'JolnetAdapter':
+        orchestratorCA_instance = JolnetAdapter(heat_endpoint, nova_endpoint, session_id)
         
     return orchestratorCA_instance

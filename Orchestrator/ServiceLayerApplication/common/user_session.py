@@ -11,16 +11,17 @@ from Common.exception import ResourceAlreadyExistsOnNode
 from Orchestrator.scheduler import Select
 
 class UserSession(object):
-    def __init__(self, user_id, token):
+    def __init__(self, user_id, token, profile_id = None):
         self.user_id = user_id
         self.token = token
+        self.profile_id = profile_id
         
     def checkSession(self):
         '''
         return true if there is already an active session of the user 
         and it is really instantiated in a node
         '''
-        res,user_session = checkSessionDB(self.user_id, self.token)
+        res,user_session = checkSessionDB(self.user_id, self.token, self.profile_id)
         if res is True:
             orchestratorCA_instance = Select(json.loads(user_session.infrastructure), user_session.id, self.token.get_endpoints("orchestration"), self.token.get_endpoints("compute"))
             if orchestratorCA_instance.checkProfile(user_session.id, self.token) is True:

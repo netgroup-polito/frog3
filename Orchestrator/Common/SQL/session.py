@@ -287,13 +287,17 @@ def checkDeviceSession(user_id, mac_address):
                     return True
     return False
     
-def checkSession(user_id, token):
+def checkSession(user_id, token, profile = None):
     '''
     return true if there is already an active session of the user
     '''
     session = get_session()
     s = session()
-    user_session = s.query(Session).filter_by(user_id = user_id).filter_by(ended = None).filter_by(error = None).first()
+    if profile is None:
+        user_session = s.query(Session).filter_by(user_id = user_id).filter_by(ended = None).filter_by(error = None).first()
+    else:
+        user_session = s.query(Session).filter_by(user_id = user_id).filter_by(profile = profile).filter_by(ended = None).filter_by(error = None).first()
+    
     if user_session is None:
         res = False
     else:

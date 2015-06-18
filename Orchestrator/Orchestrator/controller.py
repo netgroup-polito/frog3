@@ -19,21 +19,33 @@ from Common.NF_FG.nf_fg_managment import NF_FG_Management
 from ServiceLayerApplication.common.user_session import UserSession
 from Common.SQL.nodes import getNodeID
 
-#AUTH_SERVER = Config.Configuration().AUTH_SERVER
+AUTH_MODE = Configuration().USER_AUTH_MODE
 
 
 class UpperLayerOrchestratorController(object):
     '''
         Class that performs the logic of orchestrator
     '''
-    def __init__(self, keystone_server, OrchestratorToken, method, token, response = None):
+    def __init__(self, keystone_server, OrchestratorToken = None, method = None, token = None, response = None, username = None, password = None, tenant = None):
         
         self.keystone_server = keystone_server
-        self.response = response
-        self.orchToken = OrchestratorToken
-        if token is None:       
-                raise unauthorizedRequest("Token not found.")
-        self.token = token
+        
+        if AUTH_MODE == 'basic':
+            if username is not None and password is not None and tenant is not None:
+                if username is None or password is None or tenant is None:       
+                    raise unauthorizedRequest("Access credentials not found")
+                self.username = username
+                self.password = password
+                self.tenant = tenant
+                
+        elif AUTH_MODE == 'token':
+            if token is None or OrchestratorToken is None:       
+                raise unauthorizedRequest("Token not found")
+            self.token = token
+            self.orchToken = OrchestratorToken
+            
+        if response is not None:
+            self.response = response 
 
     def get(self):
          
@@ -42,7 +54,11 @@ class UpperLayerOrchestratorController(object):
     def delete(self,session_id):
         # Authenticate the User
         logging.debug("Authenticating the user - DELETE");
-        token = KeystoneAuthentication(self.keystone_server,user_token=self.token, orch_token=self.orchToken)
+        if AUTH_MODE == 'basic':
+            token = KeystoneAuthentication(self.keystone_server, self.tenant, self.username, self.password)
+            self.token = token.get_token()
+        elif AUTH_MODE == 'token':
+            token = KeystoneAuthentication(self.keystone_server, user_token=self.token, orch_token=self.orchToken)
         
         # Retrieve the session data, from active session on a port of a switch passed, if no active session raise an exception
         # session = SessionSQL.get_active_user_device_session(token.get_userID(), self.session)
@@ -66,7 +82,11 @@ class UpperLayerOrchestratorController(object):
     
     def update(self, nf_fg, delete = False):
         logging.info('Orchestrator - UPDATE - Authenticating the user - UPDATE')
-        token = KeystoneAuthentication(self.keystone_server, user_token=self.token, orch_token=self.orchToken)
+        if AUTH_MODE == 'basic':
+            token = KeystoneAuthentication(self.keystone_server, self.tenant, self.username, self.password)
+            self.token = token.get_token()
+        elif AUTH_MODE == 'token':
+            token = KeystoneAuthentication(self.keystone_server, user_token=self.token, orch_token=self.orchToken)
         
         # Get profile from session
         logging.debug('Orchestrator - UPDATE - get instantiate profile')
@@ -101,13 +121,17 @@ class UpperLayerOrchestratorController(object):
         
         # Authenticate the User
         logging.info('Orchestrator - PUT - Authenticating the user')
-        token = KeystoneAuthentication(self.keystone_server, user_token=self.token, orch_token=self.orchToken)
+        if AUTH_MODE == 'basic':
+            token = KeystoneAuthentication(self.keystone_server, self.tenant, self.username, self.password)
+            self.token = token.get_token()
+        elif AUTH_MODE == 'token':
+            token = KeystoneAuthentication(self.keystone_server, user_token=self.token, orch_token=self.orchToken)
         
         nf_fg = NF_FG(nf_fg)
         #logging.debug("Orchestrator - PUT - nf-fg: \n\n"+nf_fg.getJSON())
         
         logging.debug('Orchestrator - PUT - Checking session ')
-        if UserSession(token.get_userID(), token).checkSession() is True:
+        if UserSession(token.get_userID(), token, nf_fg.id).checkSession() is True:
             if token.get_username() == "nobody" or token.get_username() == "isp":
                 logging.debug('Orchestrator - PUT - '+token.get_username()+' NF-FG is already instantiated')
             logging.debug('Orchestrator - PUT - Updating NF-FG')

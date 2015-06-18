@@ -56,6 +56,15 @@ class NF_FG(object):
         self.name = nf_fg['profile']['name']
         self.endpoint_map = None
         
+        '''
+        TODO: Added for Jolnet Adapter
+        '''        
+        if 'availability_zone' in nf_fg['profile']:
+            self.zone = nf_fg['profile']['availability_zone']
+        else:
+            self.zone = None
+        
+
         for vnf in nf_fg['profile']['VNFs']:
             manifest = None
             if 'manifest' in vnf: 
@@ -71,10 +80,12 @@ class NF_FG(object):
                 remote_id = None
                 remote_graph = None
                 remote_graph_name = None
+                remote_interface = None
                 edge = False
                 endpoint_type = None
                 port = None
                 interface = None
+                user_mac = None
                 if 'edge' in endpoint:
                     edge = endpoint['edge']
                 if 'remote_graph_name' in endpoint:
@@ -85,6 +96,8 @@ class NF_FG(object):
                     remote_graph = endpoint['remote_graph']
                 if 'connection' in endpoint:
                     connection = endpoint['connection']
+                if 'remote_interface' in endpoint:
+                    remote_interface = endpoint['remote_interface']
                 if 'attached' in endpoint:
                     attached = endpoint['attached']
                 if 'endpoint_switch' in endpoint:             
@@ -95,6 +108,8 @@ class NF_FG(object):
                     port = endpoint['port']
                 if 'interface' in endpoint:
                     interface = endpoint['interface']
+                if 'user_mac_address' in endpoint:
+                    user_mac = endpoint['user_mac_address']
                 connections = []
                 if 'connections' in endpoint:
                     for connection in endpoint['connections']:
@@ -111,12 +126,17 @@ class NF_FG(object):
                 self.endpoint = Endpoint(endpoint['id'], endpoint['name'], connections = connections,
                                           endpoint_switch = endpoint_switch, attached = attached,
                                            connection=connection, remote_id=remote_id, remote_graph=remote_graph,
-                                           remote_graph_name=remote_graph_name, edge=edge,
-                                           endpoint_type = endpoint_type, port=port, interface=interface)
+                                           remote_graph_name=remote_graph_name, remote_interface = remote_interface, edge=edge, 
+                                           endpoint_type = endpoint_type, port=port, interface=interface, user_mac = user_mac)
                 self.listEndpoint.append(self.endpoint)
                 
         # True when control switch will be created
         self.control_switch_label = False
+    
+    @property
+    def id(self):
+        return self._id 
+
         
     def characterizeEndpoint(self, endpoint, endpoint_type = None, interface = None, endpoint_id = None):
         if endpoint_id is not None:
@@ -563,6 +583,8 @@ class NF_FG(object):
                 j_endpoint['remote_id'] = endpoint.remote_id
             if endpoint.remote_graph is not None:
                 j_endpoint['remote_graph'] = endpoint.remote_graph
+            if endpoint.remote_interface is not None:
+                j_endpoint['remote_interface'] = endpoint.remote_interface
             if endpoint.endpoint_switch is not None:
                 j_endpoint['endpoint_switch'] = endpoint.endpoint_switch._id
             if endpoint.attached is not None:
@@ -574,7 +596,9 @@ class NF_FG(object):
             if endpoint.port is not None:
                 j_endpoint['port'] = endpoint.port
             if endpoint.interface is not None:
-                j_endpoint['interface'] = endpoint.interface  
+                j_endpoint['interface'] = endpoint.interface
+            if endpoint.user_mac is not None:
+                j_endpoint['user_mac_address'] = endpoint.user_mac
             if len(endpoint.connections) > 0:
                 j_endpoint['connections'] = []
                 for connection in endpoint.connections:  
@@ -586,6 +610,8 @@ class NF_FG(object):
                     
         j_nf_fg['profile']['id']  = self._id
         j_nf_fg['profile']['name']  = self.name
+        if self.zone is not None:
+            j_nf_fg['profile']['availability_zone'] = self.zone
         j_nf_fg['profile']['VNFs'] = j_list_vnf
         j_nf_fg['profile']['endpoints'] = j_list_endpoint
         return json.dumps(j_nf_fg)
@@ -752,6 +778,23 @@ class NF_FG(object):
                 self.endpoint_map[endpoint.id] = endpoint
         return self.endpoint_map
     
+    '''
+    Added for Jolnet adapter
+    '''
+    def getVlanIngressEndpoints(self):
+        endpoints = []
+        for endpoint in self.listEndpoint:
+            if endpoint.type == "vlan-ingress":   
+                endpoints.append(endpoint)
+        return endpoints
+    
+    def getVlanEgressEndpoints(self):
+        endpoints = []
+        for endpoint in self.listEndpoint:
+            if endpoint.type == "vlan-egress":   
+                endpoints.append(endpoint)
+        return endpoints
+
 class Connection(object):
     def __init__(self, ext_nf_fg_id, ext_edge_endpoint):
         self.ext_nf_fg = ext_nf_fg_id
@@ -761,8 +804,8 @@ class Connection(object):
         
 class Endpoint(object):
     def __init__(self, endpoint_id, name, connections = [], attached = False, endpoint_switch = None, connection = False,
-                  remote_id = None, remote_graph = None, remote_graph_name=None, edge = False, endpoint_type = None, port = None,
-                   interface = None):
+                  remote_id = None, remote_graph = None, remote_graph_name=None, remote_interface = None, edge = False, endpoint_type = None, port = None,
+                   interface = None, user_mac = None):
         self._id = endpoint_id
         self.name = name
         # Indicate that the endpoint should be connected, but not to anther endpoint
@@ -781,7 +824,12 @@ class Endpoint(object):
         self.type = endpoint_type
         self.port = port
         self.interface = interface
-
+        
+        '''
+        Added for jolnet Component adapter
+        '''
+        self.user_mac = user_mac
+        self.remote_interface = remote_interface
             
 
     @property

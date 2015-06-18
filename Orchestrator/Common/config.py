@@ -64,6 +64,9 @@ class Configuration(object):
         self._CONTROL_SWITCH_NAME = config.get('switch', 'switch_l2_control_name')
         
         self._DRIVERS = config.get('drivers', 'drivers')
+        self._ORCHESTRATION_LAYER = config.get('orchestration', 'orchestration_layer')
+        self._USER_AUTH_MODE = config.get('orchestration', 'user_authentication')
+
         
         self._DEBUG_MODE = config.getboolean('orchestrator', 'debug_mode')
         
@@ -100,6 +103,10 @@ class Configuration(object):
         
         # ODL
         self._ODL_ENDPOINT = config.get('odl','endpoint')
+        self._ODL_ENDPOINT2 = config.get('odl', 'endpoint2')
+        self._ODL_USER = config.get('odl', 'odl_user')
+        self._ODL_PASS = config.get('odl', 'odl_password')
+        
         if config.has_option('odl', 'integration_bridge'):
             self._INTEGRATION_BRIDGE = config.get('odl','integration_bridge')
         if config.has_option('odl', 'exit_switch'):
@@ -129,11 +136,45 @@ class Configuration(object):
         else:
             self._TIMEOUT_NOVA = 10
         
-            
+        #Jolnet
+        if config.has_option('jolnet', 'isp_availability_zone'):
+            self._ISP_AZ = config.get('jolnet', 'isp_availability_zone')
+        else: 
+            self._ISP_AZ = None
+
             
         # Orchestrator
         self._ISP = config.getboolean('orchestrator', 'isp')
         self._NOBODY = config.getboolean('orchestrator', 'nobody')
+
+
+    @property
+    def ORCHESTRATION_LAYER(self):
+        return self._ORCHESTRATION_LAYER
+    
+    @property
+    def USER_AUTH_MODE(self):
+        return self._USER_AUTH_MODE
+    
+    @property
+    def ISP_AZ(self):
+        return self._ISP_AZ
+    
+    @property
+    def ODL_ENDPOINT(self):
+        return self._ODL_ENDPOINT
+    
+    @property
+    def ODL_ENDPOINT2(self):
+        return self._ODL_ENDPOINT2
+    
+    @property
+    def ODL_USER(self):
+        return self._ODL_USER
+    
+    @property
+    def ODL_PASSWORD(self):
+        return self._ODL_PASS
 
     @property
     def TIMEOUT_NOVA(self):

@@ -6,3 +6,5 @@ Orchestrator/FrogOrchestrator.log
 *.DS_Store
 .DS_Store
 libreria.db
+
+Orchestrator/.metadata/

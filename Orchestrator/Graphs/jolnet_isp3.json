@@ -5,37 +5,16 @@
         "vnf_descriptor": "jolnet_switch.json",
         "ports": [
             {
-	    "ingoing_label": {
-              "flowrules": [
-                {
-                  "action": {
-                    "VNF": {
-                      "id": "endpoint_switch",
-                      "port": "L2Port:0"
-                    },
-                    "type": "output"
-                  },
-                  "flowspec": {
-                    "matches": [
-                      {
-                        "priority": "100",
-                        "id": "exp297"
-                      }
-                    ],
-                    "ingress_endpoint": "282"
-                  }
-                }
-              ]
-            },
             "id": "L2Port:0",
             "outgoing_label": {
               "flowrules": [
                 {
                   "action": {
-                    "endpoint": {
-                      "id": "297"
+                    "VNF": {
+                      "id": "Monitor",
+                      "port": "L2Port:0"
                     },
-                    "type": "endpoint"
+                    "type": "output"
                   },
                   "flowspec": {
                     "matches": [
@@ -152,7 +131,93 @@
             ],
             "name":"dhcp_isp",
             "id":"dhcp_ISP"
-         }
+         },
+         {
+				"vnf_descriptor": "jolnet_mon.json",
+				"ports": [
+					{
+						"id": "L2Port:0",
+						"outgoing_label": {
+							"flowrules": [
+								{
+									"action": {
+										"VNF": {
+											"id": "Switch",
+											"port": "L2Port:0"
+										},
+										"type": "output"
+									},
+									"flowspec": {
+										"matches": [
+											{
+												"priority": "100",
+												"id": "exp297"
+											}
+										]
+									}
+								}
+							]
+						}
+					},
+					{
+						"id": "L2Port:1",
+						"outgoing_label": {
+							"flowrules": [
+								{
+									"action": {
+										"VNF": {
+											"id": "Router-Nat",
+											"port": "L2Port:0"
+										},
+										"type": "output"
+									},
+									"flowspec": {
+										"matches": [
+											{
+												"priority": "100",
+												"id": "exp282"
+											}
+										]
+									}
+								}
+							]
+						}
+					}
+				],
+				"id": "Monitor",
+				"name": "Monitor"
+			},
+			{
+				"vnf_descriptor": "jolnet_nat.json",
+				"ports": [
+					{
+						"id": "L2Port:0",
+						"outgoing_label": {
+							"flowrules": [
+								{
+									"action": {
+										"VNF": {
+											"id": "Monitor",
+											"port": "L2Port:1"
+										},
+										"type": "output"
+									},
+									"flowspec": {
+										"matches": [
+											{
+												"priority": "100",
+												"id": "exp282"
+											}
+										]
+									}
+								}
+							]
+						}
+					}
+				],
+				"id": "Router-Nat",
+				"name": "Router-Nat"
+			}
     ],
     "endpoints": [
       {
@@ -168,8 +233,8 @@
         "name": "ISP_INGRESS_EDGE_ENDPOINT"
       }
     ],
-    "id": "0",
-    "name": "Jolnet_ISP",
+    "id": "2",
+    "name": "Jolnet_ISP_3",
     "availability_zone": "AZ_MI"
   }
 }

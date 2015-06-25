@@ -161,15 +161,15 @@
             "connection": true,
             "type": "vlan-egress",
             "id": "288",
-            "interface": "openflow:44838630154304:5102",
+            "interface": "openflow:110953238266560:5098",
             "remote_graph": "0",
             "remote_graph_name": "Jolnet ISP Graph",
             "remote_id": "288",
-            "remote_interface": "openflow:110953238266560:5098"
+            "remote_interface": "openflow:110953238267840:5097"
          }
     ],
     "id": "5",
-    "name": "Jolnet Test Graph",
-    "availability_zone": "AZ_TN"
+    "name": "Jolnet_Test_2",
+    "availability_zone": "AZ_TO"
   }
 }

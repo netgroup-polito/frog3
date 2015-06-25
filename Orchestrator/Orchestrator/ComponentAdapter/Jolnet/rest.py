@@ -12,6 +12,11 @@ ODL_ENDPOINT2 = Configuration().ODL_ENDPOINT2
 ODL_USER = Configuration().ODL_USER
 ODL_PASS = Configuration().ODL_PASSWORD
 
+'''
+######################################################################################################
+############################    OpenDaylight Helium REST calls        ################################
+######################################################################################################
+'''
 class ODL(object):
     endpoint8080 = ODL_ENDPOINT
     endpoint8181 = ODL_ENDPOINT2
@@ -21,13 +26,13 @@ class ODL(object):
     odl_node="/node"
     odl_flow="/table/0/flow/"
     
-    #Credential for authentication on Opendaylight controller
+    #Credential for authentication on OpenDaylight controller
     odl_user = ODL_USER
     odl_pass = ODL_PASS
     
     def getNodes(self):
         '''
-        Deprecated with Cisco 3850 switches because response is not a valid JSON
+        Deprecated with Cisco switches because response is not a valid JSON
         '''
         headers = {'Accept': 'application/json'}
         url = self.endpoint8080+self.odl_nodes_path
@@ -37,7 +42,9 @@ class ODL(object):
     
     def getTopology(self):
         '''
-        Gets the entire topology comprensive of hosts, switches and links
+        Get the entire topology comprensive of hosts, switches and links (JSON)
+        Exceptions:
+            raise the requests.HTTPError exception connected to the REST call in case of HTTP error
         '''
         headers = {'Accept': 'application/json'}
         url = self.endpoint8080+self.odl_topology_path
@@ -47,7 +54,16 @@ class ODL(object):
     
     def createFlow(self, jsonFlow, switch_id, flow_id):
         '''
-        Creates a flow (described by the json passed) on the switch passed
+        Create a flow on the switch selected (Currently using OF1.0)
+        Args:
+            jsonFlow:
+                JSON structure which describes the flow specifications
+            switch_id:
+                OpenDaylight id of the switch (example: openflow:1234567890)
+            flow_id:
+                OpenFlow id of the flow
+        Exceptions:
+            raise the requests.HTTPError exception connected to the REST call in case of HTTP error
         '''
         headers = {'Accept': 'application/json', 'Content-type':'application/json'}
         url = self.endpoint8181+self.odl_flows_path+self.odl_node+"/"+str(switch_id)+self.odl_flow+str(flow_id)
@@ -57,20 +73,27 @@ class ODL(object):
     
     def deleteFlow(self, switch_id, flow_id):
         '''
-        Deletes a flow identified by the switch and the id
+        Delete a flow
+        Args:
+            switch_id:
+                OpenDaylight id of the switch (example: openflow:1234567890)
+            flow_id:
+                OpenFlow id of the flow
+        Exceptions:
+            raise the requests.HTTPError exception connected to the REST call in case of HTTP error
         '''
         headers = {'Accept': 'application/json', 'Content-type':'application/json'}
         url = self.endpoint8181+self.odl_flows_path+self.odl_node+"/"+switch_id+self.odl_flow+str(flow_id)
         resp = requests.delete(url,headers=headers, auth=(self.odl_user, self.odl_pass))
         resp.raise_for_status()
         return resp.text
-    
-    #TODO: aggiungere chiamate AD-SAL per host tracking???
 
+'''
+######################################################################################################
+###############################   OpenStack Heat REST calls        ###################################
+######################################################################################################
+'''
 class Heat(object):
-    ''' 
-    Class used to call the Heat Openstack API
-    '''
     getStackPath="/stacks"
     createStackPath="/stacks"
     updateStackPath="/stacks/%s/%s"
@@ -90,7 +113,7 @@ class Heat(object):
             heatEndpoint:
                 The endpoint to the heat server that should instantiate the stack (example: http://serverAddr:heatport/v1/<tenant-ID>)
             token:
-                Keysone token for the authentication
+                Keystone token for the authentication
         Exceptions:
             raise the requests.HTTPError exception connected to the REST call in case of HTTP error or the token is expired
         '''
@@ -112,7 +135,7 @@ class Heat(object):
             jsonParameters:
                 The JSON data that identify the parameters to input in the stack with the format <param_name>:<param_value> (not the string)
             token:
-                Keysone token for the authentication
+                Keystone token for the authentication
         Exceptions:
             raise the requests.HTTPError exception connected to the REST call in case of HTTP error or the token is expired
         '''
@@ -137,7 +160,7 @@ class Heat(object):
             jsonParameters:
                 The JSON data that identify the parameters to input in the stack with the format <param_name>:<param_value> (not the string)
             token:
-                Keysone token for the authentication
+                Keystone token for the authentication
         Exceptions:
             raise the requests.HTTPError exception connected to the REST call in case of HTTP error or the token is expired
         '''
@@ -158,7 +181,7 @@ class Heat(object):
             stackID:
                 ID of the stack to update
             token:
-                Keysone token for the authentication
+                Keystone token for the authentication
         Exceptions:
             raise the requests.HTTPError exception connected to the REST call in case of HTTP error or the token is expired
         '''
@@ -176,7 +199,7 @@ class Heat(object):
             stackName:
                 Name of the stack to find
             token:
-                Keysone token for the authentication
+                Keystone token for the authentication
         Exceptions:
             raise the requests.HTTPError exception connected to the REST call in case of HTTP error or the token is expired
         '''
@@ -195,7 +218,7 @@ class Heat(object):
             stackName:
                 Name of the stack to find
             token:
-                Keysone token for the authentication
+                Keystone token for the authentication
         Exceptions:
             raise the requests.HTTPError exception connected to the REST call in case of HTTP error or the token is expired
         '''
@@ -214,7 +237,7 @@ class Heat(object):
             stackName:
                 Name of the stack to find
             token:
-                Keysone token for the authentication
+                Keystone token for the authentication
             stackID:
                 ID of the stack 
         Exceptions:
@@ -226,10 +249,12 @@ class Heat(object):
         data = json.loads(resp.text)
         return data
 
-class Nova(object):
-    '''
-    Class used to call the Nova Openstack API
-    '''    
+'''
+######################################################################################################
+##############################    OpenStack Nova REST calls        ###################################
+######################################################################################################
+'''
+class Nova(object):   
     getFlavorsDetail = "/flavors/detail"
     getHypervisorsPath="/os-hypervisors"
     getHypervisorsInfoPath="/os-hypervisors/detail"
@@ -286,7 +311,7 @@ class Nova(object):
             novaEndpoint:
                 The endpoint to the nova server (example: http://serverAddr:novaport/v2/<tenant-ID>)
             token:
-                Keysone token for the authentication
+                Keystone token for the authentication
             minRam:
                 The minimum Ram size of the returned flavors (Optional)
             minDisk:
@@ -304,12 +329,36 @@ class Nova(object):
         return flavor
     
     def createServer(self, novaEndpoint, token, server_data):
+        '''
+        Create and instantiate a server and return details
+        Args:
+            novaEndpoint:
+                The endpoint to the nova server (example: http://serverAddr:novaport/v2/<tenant-ID>)
+            token:
+                Keystone token for the authentication
+            server_data:
+                JSON structure which describes the server (see http://developer.openstack.org/api-ref-compute-v2.html)
+        Exceptions:
+            raise the requests.HTTPError exception connected to the REST call in case of HTTP error or the token is expired
+        '''
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
         resp = requests.post(novaEndpoint + self.addServer, data=json.dumps(server_data), headers=headers)
         resp.raise_for_status()
         return json.loads(resp.text)
     
     def getServerStatus(self, novaEndpoint, token, server_id):
+        '''
+        Get the status of a specific server (RUNNING, ERROR, etc..)
+        Args:
+            novaEndpoint:
+                The endpoint to the nova server (example: http://serverAddr:novaport/v2/<tenant-ID>)
+            token:
+                Keystone token for the authentication
+            server_id:
+                OpenStack internal id of the server
+        Exceptions:
+            raise the requests.HTTPError exception connected to the REST call in case of HTTP error or the token is expired
+        '''
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
         resp = requests.get(novaEndpoint + self.addServer + "/" + server_id, headers=headers)
         resp.raise_for_status()
@@ -317,18 +366,40 @@ class Nova(object):
         return data['server']['status']
     
     def deleteServer(self, novaEndpoint, token, server_id):
+        '''
+        Delete a specific server
+        Args:
+            novaEndpoint:
+                The endpoint to the nova server (example: http://serverAddr:novaport/v2/<tenant-ID>)
+            token:
+                Keystone token for the authentication
+            server_id:
+                OpenStack internal id of the server
+        Exceptions:
+            raise the requests.HTTPError exception connected to the REST call in case of HTTP error or the token is expired
+        '''
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
         resp = requests.delete(novaEndpoint + self.addServer + "/" + server_id, headers=headers)
         resp.raise_for_status()
         return resp
-       
+
+'''
+######################################################################################################
+##############################    OpenStack Glance REST calls        #################################
+######################################################################################################
+'''       
 class Glance(object):
-    '''
-    Class used for Glance API
-    '''   
+
     def getImage(self, imageURI, token):
         '''
-        Return the name of an image from the URI
+        Get the image JSON description from the OpenStack URI
+        Args:
+            imageURI:
+                Glance URI of the image (example: "http://server:9292/v2/images/16e08440-5235-4d94-94bf-7a57866b58eb")
+            token:
+                Keystone token for the authentication
+        Exceptions:
+            raise the requests.HTTPError exception connected to the REST call in case of HTTP error or the token is expired
         '''         
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
         resp = requests.get(imageURI, headers=headers)
@@ -336,33 +407,81 @@ class Glance(object):
         data = json.loads(resp.text)
         return data
 
+'''
+######################################################################################################
+##############################    OpenStack Neutron REST calls        ################################
+######################################################################################################
+'''
 class Neutron(object):
-    '''
-    Class used for Neutron API
-    '''
     get_networks = "v2.0/networks"
     get_ports = "v2.0/ports"
     
     def getNetworks(self, neutronEndpoint, token):
+        '''
+        Get a JSON list of Neutron networks
+        Args:
+            neutronEndpoint:
+                The endpoint to the neutron server (example: http://serverAddr:neutronport)
+            token:
+                Keystone token for the authentication
+        Exceptions:
+            raise the requests.HTTPError exception connected to the REST call in case of HTTP error or the token is expired
+        '''
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
         resp = requests.get(neutronEndpoint + self.get_networks, headers=headers)
         resp.raise_for_status()
         return resp.text
     
     def getPorts(self, neutronEndpoint, token):
+        '''
+        Get a JSON list of Neutron ports
+        Args:
+            neutronEndpoint:
+                The endpoint to the neutron server (example: http://serverAddr:neutronport)
+            token:
+                Keystone token for the authentication
+        Exceptions:
+            raise the requests.HTTPError exception connected to the REST call in case of HTTP error or the token is expired
+        '''
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
         resp = requests.get(neutronEndpoint + self.get_ports, headers=headers)
         resp.raise_for_status()
         return resp.text
     
     def createPort(self, neutronEndpoint, token, port_data):
+        '''
+        Create a Neutron port and return details (JSON)
+        Args:
+            neutronEndpoint:
+                The endpoint to the neutron server (example: http://serverAddr:neutronport)
+            token:
+                Keystone token for the authentication
+            port_data:
+                JSON structure which represents the port and its parameters (http://developer.openstack.org/api-ref-networking-v2.html)
+        Exceptions:
+            raise the requests.HTTPError exception connected to the REST call in case of HTTP error or the token is expired
+        '''
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
         resp = requests.post(neutronEndpoint + self.get_ports, data=json.dumps(port_data), headers=headers)
         resp.raise_for_status()
         return json.loads(resp.text)
     
     def deletePort(self, neutronEndpoint, token, port_id):
+        '''
+        Delete a Neutron port
+        Args:
+            neutronEndpoint:
+                The endpoint to the neutron server (example: http://serverAddr:neutronport)
+            token:
+                Keystone token for the authentication
+            port_id:
+                OpenStack internal id of the port
+        Exceptions:
+            raise the requests.HTTPError exception connected to the REST call in case of HTTP error or the token is expired
+        '''
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
         resp = requests.delete(neutronEndpoint + self.get_ports + "/" + port_id, headers=headers)
         resp.raise_for_status()
         return resp
+    
+    #TODO: API v2 calls for Networks creation and deletion 

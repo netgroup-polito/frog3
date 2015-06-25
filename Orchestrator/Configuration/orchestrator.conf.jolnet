@@ -19,7 +19,7 @@ nobody = false
 
 # In this modality, no one service graph will be really instantiated, but the nf-fg crated
 # will be logged in the FrogOrchestrator.log.
-debug_mode = false
+debug_mode = true
 
 [log]
 # Location of the log file
@@ -28,12 +28,6 @@ log_file=FrogOrchestrator.log
 # Log levels
 verbose=true
 debug=true
-
-[orchestration]
-# orchestration_layer = Heat, Frog
-orchestration_layer = Frog
-# user_authentication = basic, token
-user_authentication = basic
 
 [drivers]
 # Currently only one driver at a time is supported;  HeatCA, UnifiedNode or Jolnet.
@@ -44,15 +38,21 @@ drivers = Jolnet
 #drivers = UnifiedNode
 
 [authentication]
+# Specifies the type of authentication for users, if authentication is managed directly
+# from orchestrator (basic) or if a Keystone token should be acquired (token).
+# user_authentication = basic, token
+user_authentication = basic
+
 # Identify the Keystone endpoint. It is used, both to authenticate the requests towards 
 # the orchestrator and OpenStack ant to obtain the service graph associated to a user. 
-server = http://controller:35357
+server = http://jolnet-controller:35357
 
 
 # An OpenStack (keystone) admin user is needed to create new users
 orch_username = AdminPoliTO
 orch_password = AdminPoliTO
 orch_tenant = PoliTO_chain1
+
 admin_tenant_name = PoliTO_chain1
 admin_user = AdminPoliTO
 admin_password = AdminPoliTO
@@ -82,6 +82,11 @@ description = isp_user
 connection = mysql://orchestrator:stack@130.192.225.181/orchestrator
 
 [jolnet]
+# Allow to choose whether involving Heat in deployment process or 
+# directly call Nova and Neutron (better choice!)
+use_heat = false
+
+# Specifies the default availability zone for ISP graph
 isp_availability_zone = AZ_TI
 
 [unify]
@@ -165,9 +170,9 @@ file = ingress_graph_user.json
 file = egress_graph_user.json
 
 [odl]
-# OpenDayLight endpoint
-endpoint = http://odl:8080
-endpoint2 = http://odl:8181
+# OpenDayLight endpoint(s)
+endpoint = http://jolnet-odl:8080
+endpoint2 = http://jolnet-odl:8181
 
 odl_user = admin
 odl_password = admin

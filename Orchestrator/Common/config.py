@@ -29,6 +29,7 @@ class Configuration(object):
         base_folder = os.path.realpath(os.path.abspath(os.path.split(inspect.getfile( inspect.currentframe() ))[0])).rpartition('/')[0]
         config.read(base_folder+'/Configuration/orchestrator.conf')
         self._AUTH_SERVER = config.get('authentication', 'server')
+        self._USER_AUTH_MODE = config.get('authentication', 'user_authentication')
         self._ORCH_USERNAME = config.get('authentication', 'orch_username')
         self._ORCH_PASSWORD = config.get('authentication', 'orch_password')
         self._ORCH_TENANT = config.get('authentication', 'orch_tenant')        
@@ -64,8 +65,7 @@ class Configuration(object):
         self._CONTROL_SWITCH_NAME = config.get('switch', 'switch_l2_control_name')
         
         self._DRIVERS = config.get('drivers', 'drivers')
-        self._ORCHESTRATION_LAYER = config.get('orchestration', 'orchestration_layer')
-        self._USER_AUTH_MODE = config.get('orchestration', 'user_authentication')
+        self._USE_HEAT = config.getboolean('jolnet', 'use-heat')
 
         
         self._DEBUG_MODE = config.getboolean('orchestrator', 'debug_mode')
@@ -149,8 +149,8 @@ class Configuration(object):
 
 
     @property
-    def ORCHESTRATION_LAYER(self):
-        return self._ORCHESTRATION_LAYER
+    def USE_HEAT(self):
+        return self._USE_HEAT
     
     @property
     def USER_AUTH_MODE(self):
@@ -192,10 +192,6 @@ class Configuration(object):
     @property
     def TIMEOUT_ODL(self):
         return self._TIMEOUT_ODL
-    
-    @property
-    def ODL_ENDPOINT(self):
-        return self._ODL_ENDPOINT
         
     @property
     def EXIT_SWITCH(self):

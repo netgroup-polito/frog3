@@ -1,7 +1,7 @@
 {
-	"name": "jolnet_dhcp",
+	"name": "jolnet_switch",
 	"expandable": false,
-	"uri": "http://jolnet-controller:9292/v2/images/f0927c45-406b-439f-9468-a0ee1f64f69e",
+	"uri": "http://jolnet-controller:9292/v2/images/5cd69d2e-f6dc-4dd6-8348-e0bfb3a0e286",
 	"vnf-type": "virtual-machine",
 	"memory-size": 2048,
 	"root-file-system-size": 40,
@@ -17,8 +17,8 @@
 	},
 	"ports": [
 		{
-            "position": "0-0",
-			"label": "inout",
+			"position": "0-N",
+			"label": "L2Port",
 			"min": "1",
 			"ipv4-config": "none",
       		"ipv6-config": "none",

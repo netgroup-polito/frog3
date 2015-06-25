@@ -13,12 +13,30 @@ import json
 '''
 
 class Flow(object):
-    '''
-    Allows to create a flow and to get its representation in JSON (to be passed to Openflow REST API)
-    '''
     def __init__(self, name, flow_id, table_id = 0, priority = 5, installHw = True, 
                  hard_timeout = 0, idle_timeout = 0, actions = [], match = None):
-        
+        '''
+        Constructor for the Flow
+        Args:
+            name:
+                flow name (not really useful)
+            flow_id:
+                identifier of the flow (to be recorded for further deletion)
+            table_id:
+                identifier of the table where to install the flow (in OF1.0 can be only table0!!)
+            priority:
+                flow priority
+            installHw:
+                boolean to force installation on the switch (default = True)
+            hard_timeout:
+                time before flow deletion (default = 0 = no timeout)
+            idle_timeout:
+                inactivity time before flow deletion (default = 0 = no timeout)
+            actions:
+                list of Actions for this flow
+            match:
+                Match for this flow
+        '''
         self.strict = False
         self.name = name
         self.flow_id = flow_id
@@ -32,6 +50,10 @@ class Flow(object):
         self.match = match
     
     def getJSON(self):
+        '''
+        Get a JSON structure representing the flow
+        It is ready to be passed to OpenDaylight REST API
+        '''
         j_flow = {}
         j_list_action = []
         
@@ -83,10 +105,11 @@ class Flow(object):
         return json.dumps(j_flow)
 
 class Action(object):
-    '''
-    Should support all possible actions on OpenFlow 1.0, currently supports only a couple of them
-    '''
+    #Should support all possible actions on OpenFlow 1.0, currently supports only a couple of them
     def __init__(self):
+        '''
+        Represents an OpenFlow 1.0 possible action on the outgoing traffic
+        '''
         self.action_type = None
         self.output_port = None
         self.max_length = None
@@ -94,16 +117,36 @@ class Action(object):
         self.vlan_id_present = False
     
     def setOutputAction(self, out_port, max_length):
+        '''
+        Define this action as an output port action
+        Args:
+            out_port:
+                id of the output port where to send out the traffic
+            max_lenght:
+                max length of the packets
+        '''
         self.action_type = "output-action"
         self.output_port = out_port
         self.max_length = max_length
     
     def setSwapVlanAction(self, vlan_id):
+        '''
+        Define this action as a vlan tag swapping action
+        Args:
+            vlan_id:
+                vlan id for the new tag
+        '''
         self.action_type = "vlan-match"
         self.vlan_id = vlan_id
         self.vlan_id_present = True
     
     def getActions(self, order):
+        '''
+        Get the Action as an object (to be inserted in Flow actions list)
+        Args:
+            order:
+                the order number of this action in the Flow list
+        '''
         j_action = {}
         j_action['order'] = order
         
@@ -121,10 +164,11 @@ class Action(object):
         return j_action
     
 class Match(object):
-    '''
-    Should support all possible matches on OpenFlow 1.0, currently supports only a couple of them
-    '''
+    #Should support all possible matches on OpenFlow 1.0, currently supports only a couple of them
     def __init__(self):
+        '''
+        Represents an OpenFlow 1.0 possible matching rules for the incoming traffic
+        '''
         self.input_port = None
         self.vlan_id = None
         self.vlan_id_present = None
@@ -134,13 +178,31 @@ class Match(object):
         self.eth_dest = None
     
     def setInputMatch(self, in_port):
+        '''
+        Define this Match as an input port matching
+        Args:
+            in_port:
+                the input port identifier
+        '''
         self.input_port = in_port
     
     def setVlanMatch(self, vlan_id):
+        '''
+        Define this Match as an input port matching
+        Args:
+            vlan_id:
+                the vlan identifier
+        '''
         self.vlan_id = vlan_id
         self.vlan_id_present = True
         
     def setEthernetMatch(self, ethertype = None, eth_source = None, eth_dest = None):
+        '''
+        Define this Match as an ethernet address (source or dest) matching
+        Args:
+            in_port:
+                the input port identifier
+        '''
         self.eth_match = True
         self.ethertype = ethertype
         self.eth_source = eth_source
@@ -152,8 +214,13 @@ class Match(object):
 ######################################################################################################
 '''
 class VNFTemplate(object):
-
     def __init__(self, vnf):
+        '''
+        Constructor for the template
+        params:
+            vnf:
+                JSON structure containing template data
+        '''
         self.ports_label = {}
         self.id = vnf.id
         template = vnf.manifest
@@ -161,10 +228,7 @@ class VNFTemplate(object):
             tmp = int(port['position'].split("-")[0])
             self.ports_label[port['label']] = tmp
 
-class Port(object):
-    '''
-    Class that contains the port data for the VNF
-    '''    
+class Port(object):  
     def __init__(self, portTemplate, VNFId):
         '''
         Constructor for the port
@@ -180,16 +244,26 @@ class Port(object):
         self.port_id = None
     
     def setNetwork(self, net_id):
-        #Network id retrieved through Neutron REST API call
+        '''
+        Set the OpenStack network id to a port object
+        Args:
+            net_id:
+                Network id retrieved through Neutron REST API call
+        '''
         self.net = net_id
     
     def setId(self, port_id):
-        #Port id returned after port creation with Neutron API
+        '''
+        Set the OpenStack port id to a port object
+        Args:
+            port_id:
+                Port id returned after port creation with Neutron API
+        '''
         self.port_id = port_id
     
     def getResourceTemplate(self):
         '''
-        Return the Resource template of the port
+        Get the Heat resource template of the port
         '''
         resource = {}
         resource["type"] = "OS::Neutron::Port"
@@ -199,6 +273,9 @@ class Port(object):
         return resource
     
     def getResourceJSON(self):
+        '''
+        Get the JSON representation of the port
+        '''
         resource = {}
         resource['port'] = {}
         resource['port']['name'] = self.VNFId+self.name
@@ -206,10 +283,21 @@ class Port(object):
         return resource
 
 class VNF(object):
-    '''
-    Class that contains the VNF data that will be used on the profile generation
-    '''
     def __init__(self, VNFId, vnf, image, flavor, availability_zone):
+        '''
+        Constructor for the VNF (params obtained from FG completed with the template)
+        params:
+            VNFId:
+                VNF identifier
+            vnf:
+                JSON representation of the VNF
+            image:
+                URI of the image on Glance
+            flavor:
+                OpenStack flavor to be used for this VNF
+            availability_zone:
+                OpenStack zone where the VNF will be instantiated
+        '''
         self.availability_zone = availability_zone
         self._id = VNFId
         self.ports = {}
@@ -238,7 +326,7 @@ class VNF(object):
     
     def getResourceTemplate(self):
         '''
-        Return the Resource template of the VNF
+        Return the Heat resource template of the VNF
         '''
         resource = {}
         resource["type"] = "OS::Nova::Server"
@@ -254,6 +342,9 @@ class VNF(object):
         return resource
     
     def getResourceJSON(self):
+        '''
+        Get the JSON representation of the VNF
+        '''
         resource = {}
         resource['server'] = {}
         resource['server']['name'] = self.id
@@ -268,10 +359,10 @@ class VNF(object):
         return resource
     
 class ProfileGraph(object):
-    '''
-    Class that stores the profile graph of the user which will be used for template generation
-    '''
     def __init__(self):
+        '''
+        Class that stores the profile graph of the user which will be used for Heat template generation
+        '''
         self._id = None
         self.functions = {}
     
@@ -280,6 +371,9 @@ class ProfileGraph(object):
         return self._id
     
     def setId(self, profile_id):
+        '''
+        Set profile id
+        '''
         self._id = profile_id
     
     def addVNF(self, vnf):

@@ -19,39 +19,38 @@ from Common.NF_FG.nf_fg_managment import NF_FG_Management
 from ServiceLayerApplication.common.user_session import UserSession
 from Common.SQL.nodes import getNodeID
 
-# Specifies the type of authentication for the service layer toward the orchestrator.
-# The service layer can either specify a user/password (that will be used by the orchestrator
-# to authenticate in keystone) ('basic' authentication), or pass directly a token already 
-# obtained previously from Keystone ('token').
-AUTH_MODE = 'none'
-
-
 class UpperLayerOrchestratorController(object):
     '''
         Class that performs the logic of orchestrator
     '''
+    
     def __init__(self, keystone_server, OrchestratorToken = None, method = None, token = None, response = None, username = None, password = None, tenant = None):
         
+        # Specifies the type of authentication for the service layer toward the orchestrator.
+        # The service layer can either specify a user/password (that will be used by the orchestrator
+        # to authenticate in keystone) ('basic' authentication), or pass directly a token already 
+        # obtained previously from Keystone ('token').
+        self.AUTH_MODE = 'none'
         self.keystone_server = keystone_server
                
         if username is not None and password is not None and tenant is not None:
-            AUTH_MODE = 'basic'
+            self.AUTH_MODE = 'basic'
             self.username = username
             self.password = password
             self.tenant = tenant
                 
         if token is not None:
-            AUTH_MODE = 'token'       
+            self.AUTH_MODE = 'token'       
             self.token = token
             
         if OrchestratorToken is not None:
-            AUTH_MODE = 'token'     
+            self.AUTH_MODE = 'token'     
             self.orchToken = OrchestratorToken
             
         if response is not None:
             self.response = response 
             
-        if AUTH_MODE == 'none':
+        if self.AUTH_MODE == 'none':
             raise unauthorizedRequest("Authentication parameters missing")
 
     def get(self):
@@ -61,10 +60,10 @@ class UpperLayerOrchestratorController(object):
     def delete(self,session_id):
         # Authenticate the User
         logging.debug("Authenticating the user - DELETE");
-        if AUTH_MODE == 'basic':
+        if self.AUTH_MODE == 'basic':
             token = KeystoneAuthentication(self.keystone_server, self.tenant, self.username, self.password)
             self.token = token.get_token()
-        elif AUTH_MODE == 'token':
+        elif self.AUTH_MODE == 'token':
             token = KeystoneAuthentication(self.keystone_server, user_token=self.token, orch_token=self.orchToken)
         
         # Retrieve the session data, from active session on a port of a switch passed, if no active session raise an exception
@@ -89,10 +88,10 @@ class UpperLayerOrchestratorController(object):
     
     def update(self, nf_fg, delete = False):
         logging.info('Orchestrator - UPDATE - Authenticating the user - UPDATE')
-        if AUTH_MODE == 'basic':
+        if self.AUTH_MODE == 'basic':
             token = KeystoneAuthentication(self.keystone_server, self.tenant, self.username, self.password)
             self.token = token.get_token()
-        elif AUTH_MODE == 'token':
+        elif self.AUTH_MODE == 'token':
             token = KeystoneAuthentication(self.keystone_server, user_token=self.token, orch_token=self.orchToken)
         
         # Get profile from session
@@ -128,10 +127,10 @@ class UpperLayerOrchestratorController(object):
         
         # Authenticate the User
         logging.info('Orchestrator - PUT - Authenticating the user')
-        if AUTH_MODE == 'basic':
+        if self.AUTH_MODE == 'basic':
             token = KeystoneAuthentication(self.keystone_server, self.tenant, self.username, self.password)
             self.token = token.get_token()
-        elif AUTH_MODE == 'token':
+        elif self.AUTH_MODE == 'token':
             token = KeystoneAuthentication(self.keystone_server, user_token=self.token, orch_token=self.orchToken)
         
         nf_fg = NF_FG(nf_fg)

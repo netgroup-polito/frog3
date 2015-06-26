@@ -1,5 +1,6 @@
 *.pyc
 *.log
+*.conf
 *.project
 *.pydevproject
 *.DS_Store
@@ -7,5 +8,3 @@
 libreria.db
 
 Orchestrator/.metadata/
-Orchestrator/FrogOrchestrator.log
-Orchestrator/Configuration

@@ -10,7 +10,7 @@
             "id": "288",
             "interface": "openflow:44838630154304:5102",
             "remote_graph": "0",
-            "remote_graph_name": "Jolnet ISP Graph",
+            "remote_graph_name": "Jolnet_ISP_Graph",
             "remote_id": "288",
             "remote_interface": "openflow:110953238266560:5098"
          }

@@ -227,7 +227,7 @@ class JolnetAdapter(OrchestratorInterface):
             
             #Delete flows on SDN network
             self.disconnectEndpoints(nf_fg)
-            logging.debug("Graph " + profile.id + "correctly deleted!")
+            logging.debug("Graph " + nf_fg.id + "correctly deleted!")
             
         except Exception as err:
             logging.error(err.message)

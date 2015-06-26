@@ -1,5 +1,4 @@
 *.pyc
-Orchestrator/FrogOrchestrator.log
 *.log
 *.project
 *.pydevproject
@@ -8,3 +7,5 @@ Orchestrator/FrogOrchestrator.log
 libreria.db
 
 Orchestrator/.metadata/
+Orchestrator/FrogOrchestrator.log
+Orchestrator/Configuration

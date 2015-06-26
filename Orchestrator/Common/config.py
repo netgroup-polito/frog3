@@ -29,7 +29,6 @@ class Configuration(object):
         base_folder = os.path.realpath(os.path.abspath(os.path.split(inspect.getfile( inspect.currentframe() ))[0])).rpartition('/')[0]
         config.read(base_folder+'/Configuration/orchestrator.conf')
         self._AUTH_SERVER = config.get('authentication', 'server')
-        self._USER_AUTH_MODE = config.get('authentication', 'user_authentication')
         self._ORCH_USERNAME = config.get('authentication', 'orch_username')
         self._ORCH_PASSWORD = config.get('authentication', 'orch_password')
         self._ORCH_TENANT = config.get('authentication', 'orch_tenant')        
@@ -151,10 +150,6 @@ class Configuration(object):
     @property
     def USE_HEAT(self):
         return self._USE_HEAT
-    
-    @property
-    def USER_AUTH_MODE(self):
-        return self._USER_AUTH_MODE
     
     @property
     def ISP_AZ(self):

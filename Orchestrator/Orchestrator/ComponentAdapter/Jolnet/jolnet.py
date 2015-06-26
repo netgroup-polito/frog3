@@ -66,6 +66,7 @@ class JolnetAdapter(OrchestratorInterface):
     #########################    Orchestrator interface implementation        ############################
     ######################################################################################################
     '''
+    #TODO: errore se i grafi contengono primitive non valide (es: splitter)
     def instantiateProfile(self, nf_fg, token):
         '''
         Method to use to instantiate the User Profile Graph
@@ -131,6 +132,7 @@ class JolnetAdapter(OrchestratorInterface):
                         
                     if status == 'ERROR':
                         logging.debug("Instance " + vnf.id + " is in ERROR state")
+                        #TODO: delete VMs instantiated and endpoints from db
                         raise StackError("Instance ERROR: " + vnf.id)
                     
                     if status == 'ACTIVE':
@@ -220,6 +222,8 @@ class JolnetAdapter(OrchestratorInterface):
                     if res.resource_type == "OS::Nova::Server":
                         Nova().deleteServer(self.novaEndpoint, token, res.id)
                         remove_resource(res.id)
+                
+                #Delete also networks if previously created
             
             #Delete flows on SDN network
             self.disconnectEndpoints(nf_fg)
@@ -248,7 +252,8 @@ class JolnetAdapter(OrchestratorInterface):
             profile_graph.addVNF(nf)
                 
         #Complete all ports with the right Neutron network id and add them to the VNF
-        #This is necessary because the network are already present (create them on the fly would be better)   
+        #This is necessary because the network are already present (create them on the fly would be better)
+        #This should be changed with a creation call in case networks would be created on the fly   
         for vnf in nf_fg.listVNF:
             nf = profile_graph.functions[vnf.id]
             for port in vnf.listPort:

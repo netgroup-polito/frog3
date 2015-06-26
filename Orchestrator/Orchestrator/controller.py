@@ -19,7 +19,11 @@ from Common.NF_FG.nf_fg_managment import NF_FG_Management
 from ServiceLayerApplication.common.user_session import UserSession
 from Common.SQL.nodes import getNodeID
 
-AUTH_MODE = Configuration().USER_AUTH_MODE
+# Specifies the type of authentication for the service layer toward the orchestrator.
+# The service layer can either specify a user/password (that will be used by the orchestrator
+# to authenticate in keystone) ('basic' authentication), or pass directly a token already 
+# obtained previously from Keystone ('token').
+AUTH_MODE = 'none'
 
 
 class UpperLayerOrchestratorController(object):
@@ -29,23 +33,26 @@ class UpperLayerOrchestratorController(object):
     def __init__(self, keystone_server, OrchestratorToken = None, method = None, token = None, response = None, username = None, password = None, tenant = None):
         
         self.keystone_server = keystone_server
-        
-        if AUTH_MODE == 'basic':
-            if username is not None and password is not None and tenant is not None:
-                if username is None or password is None or tenant is None:       
-                    raise unauthorizedRequest("Access credentials not found")
-                self.username = username
-                self.password = password
-                self.tenant = tenant
+               
+        if username is not None and password is not None and tenant is not None:
+            AUTH_MODE = 'basic'
+            self.username = username
+            self.password = password
+            self.tenant = tenant
                 
-        elif AUTH_MODE == 'token':
-            if token is None or OrchestratorToken is None:       
-                raise unauthorizedRequest("Token not found")
+        if token is not None:
+            AUTH_MODE = 'token'       
             self.token = token
+            
+        if OrchestratorToken is not None:
+            AUTH_MODE = 'token'     
             self.orchToken = OrchestratorToken
             
         if response is not None:
             self.response = response 
+            
+        if AUTH_MODE == 'none':
+            raise unauthorizedRequest("Authentication parameters missing")
 
     def get(self):
          

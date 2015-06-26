@@ -36,12 +36,12 @@ orchestration_layer = Heat
 user_authentication = token
 
 [drivers]
-# Currently only one driver at a time is supported;  HeatCA, UnifiedNode or Jolnet.
-# HeatCA identifies the OpenStack based prototype, otherwise UnifiedNode represents the 
+# Currently only one driver at a time is supported;  HeatCA, UniversalNodeCA or JolnetCA.
+# HeatCA identifies the OpenStack based prototype, otherwise UniversalNodeCA represents the 
 # universal node realised in the european project UNIFY.
-# example: drivers = HeatCA, UnifiedNode
+# example: drivers = HeatCA, UniversalNodeCA
 drivers = HeatCA
-#drivers = UnifiedNode
+#drivers = UniversalNodeCA
 
 [authentication]
 # Identify the Keystone endpoint. It is used, both to authenticate the requests towards 

@@ -27,9 +27,9 @@ def Schedule(session_id, heat_endpoint, nova_endpoint):
     drivers = drivers.split(',')
     if drivers[0] == "HeatCA":
         orchestratorCA_instance = HeatOrchestrator(heat_endpoint, nova_endpoint, session_id)
-    elif drivers[0] == "Jolnet":
+    elif drivers[0] == "JolnetCA":
         orchestratorCA_instance = JolnetAdapter(heat_endpoint, nova_endpoint, session_id)
-    elif drivers[0] == "UnifiedNode":
+    elif drivers[0] == "UniversalNodeCA":
         endpoints = Configuration().UNIFY_ENDPOINTS
         endpoints = endpoints.split(',')
         

@@ -65,14 +65,14 @@ class Configuration(object):
         self._CONTROL_SWITCH_NAME = config.get('switch', 'switch_l2_control_name')
         
         self._DRIVERS = config.get('drivers', 'drivers')
-        self._USE_HEAT = config.getboolean('jolnet', 'use-heat')
+        self._USE_HEAT = config.getboolean('JolnetCA', 'use_heat')
 
         
         self._DEBUG_MODE = config.getboolean('orchestrator', 'debug_mode')
         
         
-        self._UNIFY_ENDPOINTS = config.get('unify', 'endpoints')
-        self._UNIFY_NUM_ENDPOINTS = config.getint('unify','number_of_endpoint')
+        self._UNIFY_ENDPOINTS = config.get('UniversalNodeCA', 'endpoints')
+        self._UNIFY_NUM_ENDPOINTS = config.getint('UniversalNodeCA','number_of_endpoint')
 
         self._SW_ENDPOINT = config.get('nobody', 'sw_endpoint')
         self._ORCH_PORT = config.get('orchestrator','port')
@@ -137,8 +137,8 @@ class Configuration(object):
             self._TIMEOUT_NOVA = 10
         
         #Jolnet
-        if config.has_option('jolnet', 'isp_availability_zone'):
-            self._ISP_AZ = config.get('jolnet', 'isp_availability_zone')
+        if config.has_option('JolnetCA', 'isp_availability_zone'):
+            self._ISP_AZ = config.get('JolnetCA', 'isp_availability_zone')
         else: 
             self._ISP_AZ = None
 

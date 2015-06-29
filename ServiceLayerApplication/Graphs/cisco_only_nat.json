@@ -1,0 +1,227 @@
+# Graph for the first step of the cisco demo (user cisco-demo1)
+
+{
+	"profile": {
+		"VNFs": [
+			{
+				"vnf_descriptor": "switch.json",
+				"id": "Switch",
+				"ports": [
+					{
+						"id": "L2Port:0",
+						"outgoing_label": {
+							"flowrules": [
+								{
+									"action": {
+										"VNF": {
+											"id": "dhcp_ISP",
+											"port": "inout:0"
+										},
+										"type": "output"
+									},
+									"flowspec": {
+										"matches": [
+											{
+												"priority": "2",
+												"id": "1"
+											}
+										]
+									}
+								}
+							]
+						}
+					},
+					{
+						"ingoing_label": {
+							"flowrules": [
+								{
+									"action": {
+										"VNF": {
+											"id": "Switch",
+											"port": "L2Port:1"
+										},
+										"type": "output"
+									},
+									"flowspec": {
+										"matches": [
+											{
+												"priority": "100",
+												"id": "2"
+											}
+										],
+										"ingress_endpoint": "ingress"
+									}
+								}
+							]
+						},
+						"id": "L2Port:1",
+						"outgoing_label": {
+							"flowrules": [
+								{
+									"action": {
+										"endpoint": {
+											"port": "ingress"
+										},
+										"type": "output"
+									},
+									"flowspec": {
+										"matches": [
+											{
+												"priority": "2",
+												"id": "3"
+											}
+										]
+									}
+								}
+							]
+						}
+					},
+					{
+						"id": "L2Port:2",
+						"outgoing_label": {
+							"flowrules": [
+								{
+									"action": {
+										"VNF": {
+											"id": "Router-Nat",
+											"port": "User:0"
+										},
+										"type": "output"
+									},
+									"flowspec": {
+										"matches": [
+											{
+												"priority": "2",
+												"id": "199433939"
+											}
+										]
+									}
+								}
+							]
+						}
+					}
+				],
+				"name": "Switch"
+			},
+			{
+				"vnf_descriptor": "cisco_dhcp.json",
+				"id": "dhcp_ISP",
+				"ports": [
+					{
+						"id": "inout:0",
+						"outgoing_label": {
+							"flowrules": [
+								{
+									"action": {
+										"VNF": {
+											"id": "Switch",
+											"port": "L2Port:0"
+										},
+										"type": "output"
+									},
+									"flowspec": {
+										"matches": [
+											{
+												"priority": "2",
+												"id": "4"
+											}
+										]
+									}
+								}
+							]
+						}
+					}
+				],
+				"name": "dhcp_isp"
+			},
+			{
+				"vnf_descriptor": "cisco_nat.json",
+				"id": "Router-Nat",
+				"ports": [
+					{
+						"ingoing_label": {
+							"flowrules": [
+								{
+									"action": {
+										"VNF": {
+											"id": "Router-Nat",
+											"port": "WAN:0"
+										},
+										"type": "output"
+									},
+									"flowspec": {
+										"matches": [
+											{
+												"priority": "100",
+												"id": "5"
+											}
+										],
+										"ingress_endpoint": "egress"
+									}
+								}
+							]
+						},
+						"id": "WAN:0",
+						"outgoing_label": {
+							"flowrules": [
+								{
+									"action": {
+										"endpoint": {
+											"port": "egress"
+										},
+										"type": "output"
+									},
+									"flowspec": {
+										"matches": [
+											{
+												"priority": "2",
+												"id": "6"
+											}
+										]
+									}
+								}
+							]
+						}
+					},
+					{
+						"id": "User:0",
+						"outgoing_label": {
+							"flowrules": [
+								{
+									"action": {
+										"VNF": {
+											"id": "Switch",
+											"port": "L2Port:2"
+										},
+										"type": "output"
+									},
+									"flowspec": {
+										"matches": [
+											{
+												"priority": "2",
+												"id": "7"
+											}
+										]
+									}
+								}
+							]
+						}
+					}
+				],
+				"name": "Router-Nat"
+			}
+		],
+		"endpoints": [
+			{
+				"id": "ingress",
+				"name": "INGRESS"
+			},
+			{
+				"id": "egress",
+				"name": "EGRESS"
+			}
+		],
+		"id": "7",
+		"name": "Only_NAT"
+	}
+}

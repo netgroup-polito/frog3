@@ -1,0 +1,335 @@
+{
+  "profile": {
+    "VNFs": [
+      {
+        "vnf_descriptor": "switch.json",
+        "ports": [
+          {
+            "id": "L2Port:0",
+            "outgoing_label": {
+              "flowrules": [
+                {
+                  "action": {
+                    "VNF": {
+                      "id": "dhcp_ISP",
+                      "port": "inout:0"
+                    },
+                    "type": "output"
+                  },
+                  "flowspec": {
+                    "matches": [
+                      {
+                        "priority": "2",
+                        "id": "197659"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "ingoing_label": {
+              "flowrules": [
+                {
+                  "action": {
+                    "VNF": {
+                      "id": "Switch_ISP",
+                      "port": "L2Port:1"
+                    },
+                    "type": "output"
+                  },
+                  "flowspec": {
+                    "matches": [
+                      {
+                        "priority": "100",
+                        "id": "67654"
+                      }
+                    ],
+                    "ingress_endpoint": "ISP_ingress_endpoint"
+                  }
+                }
+              ]
+            },
+            "id": "L2Port:1",
+            "outgoing_label": {
+              "flowrules": [
+                {
+                  "action": {
+                    "endpoint": {
+                      "port": "ISP_ingress_endpoint"
+                    },
+                    "type": "output"
+                  },
+                  "flowspec": {
+                    "matches": [
+                      {
+                        "priority": "2",
+                        "id": "41323134266"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "id": "L2Port:2",
+            "outgoing_label": {
+              "flowrules": [
+                {
+                  "action": {
+                    "VNF": {
+                      "id": "NAT_ISP",
+                      "port": "User:0"
+                    },
+                    "type": "output"
+                  },
+                  "flowspec": {
+                    "matches": [
+                      {
+                        "priority": "2",
+                        "id": "199433939"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "id": "Switch_ISP",
+        "name": "Switch"
+      },
+      {
+        "vnf_descriptor": "switch.json",
+        "ports": [
+          {
+            "ingoing_label": {
+              "flowrules": [
+                {
+                  "action": {
+                    "VNF": {
+                      "id": "Exit_Switch",
+                      "port": "L2Port:0"
+                    },
+                    "type": "output"
+                  },
+                  "flowspec": {
+                    "matches": [
+                      {
+                        "priority": "100",
+                        "id": "6513666324"
+                      }
+                    ],
+                    "ingress_endpoint": "ISP_egress_endpoint"
+                  }
+                }
+              ]
+            },
+            "id": "L2Port:0",
+            "outgoing_label": {
+              "flowrules": [
+                {
+                  "action": {
+                    "endpoint": {
+                      "port": "ISP_egress_endpoint"
+                    },
+                    "type": "output"
+                  },
+                  "flowspec": {
+                    "matches": [
+                      {
+                        "priority": "2",
+                        "id": "443425656676"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "id": "L2Port:1",
+            "outgoing_label": {
+              "flowrules": [
+                {
+                  "action": {
+                    "VNF": {
+                      "id": "ntop_isp",
+                      "port": "inout:1"
+                    },
+                    "type": "output"
+                  },
+                  "flowspec": {
+                    "matches": [
+                      {
+                        "priority": "2",
+                        "id": "44851134276"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "id": "Exit_Switch",
+        "name": "Switch"
+      },
+      {
+        "vnf_descriptor": "isp_dhcp.json",
+        "ports": [
+          {
+            "id": "inout:0",
+            "outgoing_label": {
+              "flowrules": [
+                {
+                  "action": {
+                    "VNF": {
+                      "id": "Switch_ISP",
+                      "port": "L2Port:0"
+                    },
+                    "type": "output"
+                  },
+                  "flowspec": {
+                    "matches": [
+                      {
+                        "priority": "2",
+                        "id": "5322356"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "id": "dhcp_ISP",
+        "name": "dhcp_isp"
+      },
+      {
+        "vnf_descriptor": "isp_nat.json",
+        "ports": [
+          {
+            "id": "User:0",
+            "outgoing_label": {
+              "flowrules": [
+                {
+                  "action": {
+                    "VNF": {
+                      "id": "Switch_ISP",
+                      "port": "L2Port:2"
+                    },
+                    "type": "output"
+                  },
+                  "flowspec": {
+                    "matches": [
+                      {
+                        "priority": "2",
+                        "id": "542436"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "id": "Internet:0",
+            "outgoing_label": {
+              "flowrules": [
+                {
+                  "action": {
+                    "VNF": {
+                      "id": "ntop_isp",
+                      "port": "inout:0"
+                    },
+                    "type": "output"
+                  },
+                  "flowspec": {
+                    "matches": [
+                      {
+                        "priority": "2",
+                        "id": "4434276"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "id": "NAT_ISP",
+        "name": "nat_isp"
+      },
+      {
+        "vnf_descriptor": "client_iptraf.json",
+        "ports": [
+          {
+            "id": "inout:0",
+            "outgoing_label": {
+              "flowrules": [
+                {
+                  "action": {
+                    "VNF": {
+                      "id": "NAT_ISP",
+                      "port": "Internet:0"
+                    },
+                    "type": "output"
+                  },
+                  "flowspec": {
+                    "matches": [
+                      {
+                        "priority": "2",
+                        "id": "6811324"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "id": "inout:1",
+            "outgoing_label": {
+              "flowrules": [
+                {
+                  "action": {
+                    "VNF": {
+                      "id": "Exit_Switch",
+                      "port": "L2Port:1"
+                    },
+                    "type": "output"
+                  },
+                  "flowspec": {
+                    "matches": [
+                      {
+                        "priority": "2",
+                        "id": "1485324"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "name": "ntop_isp",
+        "id": "ntop_isp"
+      }
+    ],
+    "endpoints": [
+      {
+        "id": "ISP_ingress_endpoint",
+        "name": "ISP_INGRESS"
+      },
+      {
+        "id": "ISP_egress_endpoint",
+        "name": "EGRESS"
+      }
+    ],
+    "id": "0",
+    "name": "ISPgraph"
+  }
+}

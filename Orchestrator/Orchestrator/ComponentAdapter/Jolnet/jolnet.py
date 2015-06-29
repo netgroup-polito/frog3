@@ -7,26 +7,29 @@ Created on 13/apr/2015
 import logging
 import json
 import time
-
 from Common.config import Configuration
 from Orchestrator.ComponentAdapter.interfaces import OrchestratorInterface
 from Orchestrator.ComponentAdapter.Jolnet.rest import ODL, Glance, Nova, Neutron,\
     Heat
 from Common.NF_FG.nf_fg import NF_FG
-from Common.SQL.flow import add_flow, remove_flow, get_internal_flows,flow_already_exists, get_edge_flows, get_user_flows,\
-    get_internal_link_flows, get_edge_link_flows, update_flow
-from Common.SQL.session import set_error, get_active_user_session_by_nf_fg_id
+
 from Orchestrator.ComponentAdapter.Jolnet.resources import Action, Match, Flow, ProfileGraph, VNF
 from Common.Manifest.manifest import Manifest
 from Common.exception import StackError
+'''
 from Common.SQL.component_adapter import set_extra_info, update_extra_info
 from Common.SQL.endpoint import delete_endpoint_connections, set_endpoint, get_available_endpoints_by_id,\
     updateEndpointConnection
+from Common.SQL.session import set_error, get_active_user_session_by_nf_fg_id
+from Common.SQL.flow import add_flow, remove_flow, get_internal_flows,flow_already_exists, get_edge_flows, get_user_flows,\
+    get_internal_link_flows, get_edge_link_flows, update_flow
 from Common.SQL.resource import add_resource, get_profile_resources,\
     remove_resource
-
+'''
 DEBUG_MODE = Configuration().DEBUG_MODE
 ORCHESTRATION_LAYER = Configuration().ORCHESTRATION_LAYER
+
+
 
 class JolnetAdapter(OrchestratorInterface):
     '''
@@ -36,22 +39,22 @@ class JolnetAdapter(OrchestratorInterface):
     STATUS = ['CREATE_IN_PROGRESS', 'CREATE_COMPLETE', 'CREATE_FAILED',  'DELETE_IN_PROGRESS', 'DELETE_COMPLETE', 'DELETE_FAILED', 'UPDATE_IN_PROGRESS', 'UPDATE_COMPLETE', 'UPDATE_FAILED']
     WRONG_STATUS = ['CREATE_FAILED','DELETE_FAILED', 'UPDATE_FAILED']
     
-    def __init__(self, heatEndpoint, novaEndpoint, session_id):
+    def __init__(self, session_id):
         '''
         Initialized the Jolnet translation object from the user profile
         '''
         if ORCHESTRATION_LAYER == "Heat":
-            self._URI = heatEndpoint.pop()['publicURL']
+            self._URI = None
         
-        self.novaEndpoint = novaEndpoint.pop()['publicURL']
+        self.novaEndpoint = None
         self.neutronEndpoint = None
         self.session_id = session_id
         self.token = None
             
         if DEBUG_MODE is True:
             if ORCHESTRATION_LAYER == "Heat":            
-                logging.debug(heatEndpoint)
-            logging.debug(novaEndpoint)
+                logging.debug(self.heatEndpoint)
+            logging.debug(self.novaEndpoint)
     
     @property
     def URI(self):
@@ -72,6 +75,7 @@ class JolnetAdapter(OrchestratorInterface):
                 The authentication token to use for the REST call
             Exceptions:
                 Raise some exception to be captured
+        '''
         '''
         nf_fg = NF_FG(nf_fg)
         if DEBUG_MODE is True:
@@ -135,6 +139,8 @@ class JolnetAdapter(OrchestratorInterface):
             logging.exception(err)
             set_error(self.token.get_userID())  
             raise
+        '''
+        pass
     
     def updateProfile(self, nf_fg_id, new_nf_fg, old_nf_fg, token, delete=False):
         '''
@@ -187,6 +193,7 @@ class JolnetAdapter(OrchestratorInterface):
                 The authentication token to use for the REST call
             Exceptions:
                 Raise some exception to be captured
+        '''
         '''
         self.token = token
         token = token.get_token()
@@ -254,7 +261,9 @@ class JolnetAdapter(OrchestratorInterface):
                     set_endpoint(nf_fg.id, endpoint.id, True, endpoint.name, endpoint.interface, endpoint.type)
         
         return profile_graph
-    
+        '''
+        pass
+"""
     '''
     ######################################################################################################
     ###########################    Interaction with Heat for stacks        ###############################
@@ -677,4 +686,4 @@ class JolnetAdapter(OrchestratorInterface):
                 return False
         
         return True
-    
+"""

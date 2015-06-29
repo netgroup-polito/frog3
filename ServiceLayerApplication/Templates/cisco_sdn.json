@@ -1,0 +1,28 @@
+{
+	"name": "cisco_sdn",
+	"expandable": false,
+	"uri": "http://controller:9292/v2/images/039e7b13-9cf4-4532-bbe2-02a98589eb27",
+	"vnf-type": "virtual-machine",
+	"memory-size": 2048,
+	"root-file-system-size": 40,
+	"ephemeral-file-system-size": 0,
+	"swap-disk-size": 0,
+	"CPUrequirements": {
+		"platformType": "x86",
+		"socket": [
+			{
+				"coreNumbers": 1
+			}
+		]
+	},
+	"ports": [
+		{
+			"position": "0-0",
+			"label": "inout",
+			"min": "1",
+			"ipv4-config": "static",
+      		"ipv6-config": "none",
+      		"name": "eth"
+		}
+	]
+}

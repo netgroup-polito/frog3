@@ -17,6 +17,13 @@ class OrchestratorInterface:
         pass
     
     @abstractmethod
+    def getStatus(self, session_id, node_endpoint):
+        '''
+        Returns the status of the nffg resources
+        '''
+        pass
+    
+    @abstractmethod
     def updateProfile(self, nf_fg_id, new_profile, old_profile):
         pass
     

@@ -16,10 +16,12 @@ from Orchestrator.ComponentAdapter.interfaces import OrchestratorInterface
 from Common.NF_FG.nf_fg import NF_FG, Node, Link, Action
 from Common.Manifest.manifest import Manifest
 from Common.NF_FG.nf_fg_managment import NF_FG_Management
+"""
 from Common.SQL.endpoint import set_endpoint, delete_endpoint_connections, get_endpoint_by_graph_id
 from Common.SQL.component_adapter import set_extra_info, get_extra_info,update_extra_info
 from Common.SQL.session import checkEgressNode, checkIngressNode, get_active_user_session_by_nf_fg_id,get_instantiated_profile, get_profile_by_id, set_error
 from Common.SQL.nodes import getAvaibilityZoneByHostname, getEgressInterface, updateIPAddress, getNodeName, getIngressInterface, getNodeID,getAvaibilityZone,getIPAddress, get_node_id
+"""
 from Common.exception import NoHeatPortTranslationFound, StackError, NodeNotFound, DeletionTimeout
 
 DEBUG_MODE = Configuration().DEBUG_MODE
@@ -38,7 +40,7 @@ class HeatOrchestrator(OrchestratorInterface):
     STATUS = ['CREATE_IN_PROGRESS', 'CREATE_COMPLETE', 'CREATE_FAILED',  'DELETE_IN_PROGRESS', 'DELETE_COMPLETE', 'DELETE_FAILED', 'UPDATE_IN_PROGRESS', 'UPDATE_COMPLETE', 'UPDATE_FAILED']
     WRONG_STATUS = ['CREATE_FAILED','DELETE_FAILED', 'UPDATE_FAILED']
     
-    def __init__(self, heatEndpoint, novaEndpoint, session_id):
+    def __init__(self, session_id):
         '''
         Initialized the Heat translation object from the user profile
         params:
@@ -47,10 +49,8 @@ class HeatOrchestrator(OrchestratorInterface):
             novaEndpoint:
                 The list of the novaEndpoints of the Open Stack service (it takes the first one)
         '''
-        logging.debug(heatEndpoint)
-        logging.debug(novaEndpoint)
-        self._URI = heatEndpoint.pop()['publicURL']
-        self.novaEndpoint = novaEndpoint.pop()['publicURL']
+        self._URI = None
+        self.novaEndpoint = None
         self.session_id = session_id
         self.token = None
     
@@ -65,9 +65,13 @@ class HeatOrchestrator(OrchestratorInterface):
     ######################################################################################################
     '''
     
+    def getStatus(self, session_id, node_endpoint):
+        pass
+    
     def deinstantiateProfile(self, token, profile_id, profile=None):
         '''
         Override method of the abstract class for deleting the user Stack
+        '''
         '''
         self.token = token
         token = token.get_token()
@@ -84,10 +88,13 @@ class HeatOrchestrator(OrchestratorInterface):
         self.deleteExitEndpoint(nf_fg) 
         
         self.deleteIngressEndpoint(nf_fg)
+        '''
+        pass
     
     def instantiateProfile(self, nf_fg, token):
         '''
         Override method of the abstract class for instantiating the user Stack
+        '''
         '''
         self.token = token
         #logging.debug("Heat :"+json.dumps(nf_fg))
@@ -169,8 +176,11 @@ class HeatOrchestrator(OrchestratorInterface):
             raise
         # TODO if the entry exists, update it
         #set_extra_info(self.session_id, resources)
+        '''
+        pass
   
-    def updateProfile(self, nf_fg_id, new_nf_fg, old_nf_fg, token, delete=False):
+    def updateProfile(self, new_nf_fg, old_nf_fg, token, node_endpoint):
+        '''
         self.token = token
         token = token.get_token()
         new_nf_fg = NF_FG(new_nf_fg)
@@ -226,6 +236,9 @@ class HeatOrchestrator(OrchestratorInterface):
                                 complete = False
             resources = json.dumps(self.getStackResourcesStatus(token, new_nf_fg.name))
             update_extra_info(self.session_id, resources)
+        '''
+        pass
+"""
               
     def getStackResourcesStatus(self, token, name):
         '''
@@ -291,9 +304,9 @@ class HeatOrchestrator(OrchestratorInterface):
     '''
                   
     def connectEndpoints(self, nf_fg, token):
-        """
+        '''
         characterize the endpoints that should be connected to another graph
-        """
+        '''
         endpoints = nf_fg.getEndpointThatShouldBeConnected()
 
         for endpoint in endpoints:
@@ -438,11 +451,11 @@ class HeatOrchestrator(OrchestratorInterface):
         ingress_bridge_uuid = self.getBridgeUUID(INGRESS_SWITCH)
         self.createPort(ingress_patch_port, ingress_bridge_uuid)
         node_id = get_node_id(ip_address)
-        """
+        '''
         Disabled because the orchestrator dont't know the phisical ports of node 
         if node_id is not None:
             self.createPort(getIngressInterface(node_id), ingress_bridge_uuid)
-        """
+        '''
         
         integration_bridge_uuid = self.getBridgeUUID(INTEGRATION_BRIDGE)
         self.createPort(INGRESS_PORT, integration_bridge_uuid)
@@ -462,10 +475,10 @@ class HeatOrchestrator(OrchestratorInterface):
         bridge_id_2 = self.getBridgeUUID(INTEGRATION_BRIDGE)
         # Connect exit interface on egress bridge
         node_id = get_node_id(ip_address)
-        """
+        '''
         Disabled because the orchestrator dont't know the phisical ports of node 
         self.createPort(getEgressInterface(node_id), bridge_id_1)
-        """
+        '''
         #self.createPort(EGRESS_PORT, bridge_id_1)
         
         # Create port that will be connected
@@ -494,10 +507,10 @@ class HeatOrchestrator(OrchestratorInterface):
             logging.debug("Deleting ingress network on node: "+self.node_ip+":"+self.node_port)
             self.deletePort(ingress_patch_port)
             self.deletePort(INGRESS_PORT)
-            """
+            '''
             Disabled because the orchestrator dont't know the phisical ports of node 
             self.deleteBridge(INGRESS_SWITCH)
-            """
+            ''''
             
     def deleteVirtualExitNetwork(self, nf_fg, port1, port2, ip_address):
         self.getNode(ip_address)
@@ -509,10 +522,10 @@ class HeatOrchestrator(OrchestratorInterface):
         self.createVirtualIngressNetwork(self.getNodeIPAddress())
 
     def manageExitEndpoint(self, nf_fg):
-        """
+        '''
         Characterize exit endpoint with virtual interface that bring the traffic
         to a switch that is used to forward packets on the right graph
-        """
+        '''
         logging.debug("Check if Managing exit endpoints")
         if nf_fg.getStatusExitInterface() is True:
             logging.debug("Managing exit endpoints")
@@ -521,9 +534,9 @@ class HeatOrchestrator(OrchestratorInterface):
                 logging.debug("Managing single exit endpoint : "+exit_endpoint.id)
                 
                 
-                """
+                '''
                 create connection to the WAN on the node where the user is connected
-                """
+                '''
                 graph_exit_port = self.createVirtualExitNetwork(nf_fg, exit_endpoint, self.getNodeIPAddress())
                 
                 exit_endpoint.type = "physical"
@@ -534,10 +547,10 @@ class HeatOrchestrator(OrchestratorInterface):
         self.deleteVirtualIngressNetwork(nf_fg, self.getNodeIPAddress())
 
     def deleteExitEndpoint(self, nf_fg):
-        """
+        '''
         Delete the connection between the switch where the VNFs are connected and the switch used to
         connect graphs to Internet
-        """
+        '''
         
         if nf_fg.getStatusExitInterface() is True:
             logging.debug("Deleting exit endpoints reconciliation")
@@ -550,9 +563,9 @@ class HeatOrchestrator(OrchestratorInterface):
                 port2 = "port_"+exit_endpoint.id+"_"+nf_fg.name+"_"+self.token.get_userID()+"_to_"+br_name
                 port2 = str(hashlib.md5(port2).hexdigest())[0:14]
                 
-                """
+                '''
                 deleting connection to the WAN on the node where the user is connected
-                """
+                '''
                 self.deleteVirtualExitNetwork(nf_fg, port1, port2, self.getNodeIPAddress())
     
     '''
@@ -710,7 +723,7 @@ class HeatOrchestrator(OrchestratorInterface):
                             "1")
     
     def createDropFlow(self, name, DPID, priority):
-        """
+        '''
         flowmod = {
             "installInHw":"true",
             "name":"flow1",
@@ -724,7 +737,7 @@ class HeatOrchestrator(OrchestratorInterface):
             "nwSrc":"10.0.0.1",
             "actions":["DROP"]
         }
-        """
+        '''
         DPID = ':'.join([DPID[i:i+2] for i in range(0,len(DPID[0:16]),2)])
         flowmod = {
                     "installInHw":"true",
@@ -824,13 +837,13 @@ class ProfileGraph(object):
                     newNet = Net('fakenet_'+str(self.num_net))
                     self.num_net += 1
                     self.networks.append(newNet)
-                    """
+                    '''
                     # One network for all ports (to avoid problems during the updates of the graph)
                     newNet = Net('fakenet')
                     self.num_net = 1
                     self.networks = []
                     self.networks.append(newNet)
-                    """
+                    '''
 
             else:
                 newNet = port.net
@@ -845,10 +858,10 @@ class ProfileGraph(object):
                 port.trash = self.trashNetwork
             else:
                 edge.network[port.name] = newNet.name
-            """
+            '''
             # One network for all ports (to avoid problems during the updates of the graph)
             edge.network[port.name] = newNet.name
-            """
+            '''
             port.net = newNet
             for arch in port.archs:
                 if arch.VNF1 == edge.id:
@@ -1265,7 +1278,7 @@ class NFFG(object):
         logging.debug("links: \n"+json.dumps(j_links))
         logging.debug("")
         return links
-     
+"""
     
 
 

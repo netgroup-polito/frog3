@@ -47,7 +47,7 @@ class UpperLayerOrchestrator(object):
         
 
         
-    def on_delete(self, request, response, session_id):
+    def on_delete(self, request, response, nffg_id):
         try :
             # Orchestrator authenticates himself
             logging.debug('Authenticating the Orchestrator')
@@ -65,10 +65,10 @@ class UpperLayerOrchestrator(object):
             # Now, it initialize a new controller instance to handle the request        
             controller = UpperLayerOrchestratorController(self.keystone_server, self.keystoneAuth.get_admin_token(), "Orchestrator", self.token, response)
 
-            controller.delete(session_id)
+            controller.delete(nffg_id)
             
         except NoResultFound:
-            print "EXCEPTION - NoResultFound"
+            logging.exception("EXCEPTION - NoResultFound")
             raise falcon.HTTPNotFound()
         except requests.HTTPError as err:
             logging.exception(err.response.text)
@@ -85,7 +85,7 @@ class UpperLayerOrchestrator(object):
                                               json.loads(err.response.text)) 
             elif code == 404: 
                 raise falcon.HTTPNotFound()
-            raise
+            raise err
         except jsonschema.ValidationError as err:
             logging.exception(err.message)
             raise falcon.HTTPBadRequest('Bad Request',
@@ -101,18 +101,18 @@ class UpperLayerOrchestrator(object):
             raise falcon.HTTPNotFound()
         except falcon.HTTPError as err:
             logging.exception("Falcon "+err.title)
-            raise
+            raise err
         except ingoingFlowruleMissing as err:
             logging.exception(err.message)
             raise falcon.HTTPInternalServerError('ingoingFlowruleMissing',err.message)
         except ManifestValidationError as err:
             logging.exception(err.message)
             raise falcon.HTTPInternalServerError('ManifestValidationError',err.message)
-        except:
-            logging.exception("Unexpected exception")
-            raise
+        except Exception as ex:
+            logging.exception(ex)
+            raise ex
 
-    def on_get(self, request, response):
+    def on_get(self, request, response, nffg_id):
         pass
         
     def on_put(self, request, response):

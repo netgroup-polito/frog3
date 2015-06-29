@@ -1,0 +1,28 @@
+{
+	"name": "nobody_dns",
+	"expandable": false,
+	"uri": "http://controller:9292/v2/images/ac846b48-f8ce-4935-aaaa-db8ec7440dbe",
+	"vnf-type": "virtual-machine",
+	"memory-size": 2048,
+	"root-file-system-size": 40,
+	"ephemeral-file-system-size": 0,
+	"swap-disk-size": 0,
+	"CPUrequirements": {
+		"platformType": "x86",
+		"socket": [
+			{
+				"coreNumbers": 1
+			}
+		]
+	},
+	"ports": [
+		{
+			"position": "0-0",
+			"label": "inout",
+			"min": "1",
+			"ipv4-config": "static",
+      		"ipv6-config": "none",
+      		"name": "eth"
+		}
+	]		
+}

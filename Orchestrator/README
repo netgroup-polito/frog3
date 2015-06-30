@@ -1,149 +1,31 @@
-##########################################################################################
-####   					  Service Layer & Global Orchestrator  						  ####
-##########################################################################################
+# Global Orchestrator
 
-##########################################################################################
+The Global Orchestrator is part of the  orchestration layer  (piece of a bigger architercture defined in the European project Unify - https://www.fp7-unify.eu/). It sits below the service layer and it is responsible of two important phases in the deployment of a service on the physical infrastructure. First, it further manipulates the NF-FG in order to allow its deployment;  these transformations include the enriching of the initial definition with extra details such as new VNFs, as well as the consolidation of several VNFs into a single one. Second, the orchestration layer implements the scheduler that is in charge of deciding where to instantiate the requested service (although this feature is not yet available in the current implementation of FROG).
 
+The Unify architecture splits this layer in three logical sub-layers. In FROG, the global orchestrator module implements the first two sub-layers, and consists of a technology dependent and a technology independent part. The technology independent part receives the NF-FG from the service layer through its northbound interface, and executes the following manipulations on the graph:
+- VNFs expansion: for each VNF specified in the NF-FG, it retrieves the corresponding VNF template. In fact, each VNF is associated with a template (described later on in the document),  which describes the VNF itself. It contains some information related to the hardware required by the VNF, describes the ports of the VNF, etc. Moreover, the template could say that a VNF is actually a sub-graph composed of other VNFs; for example, a Firewall could be implemented as a sub-graph composed of an URL filter only operating on the web traffic, while the non-web traffic is delivered to a stateless firewall. Even, these new VNFs are in turn associated with a template, and can be recursively expanded in further sub-graphs. The global orchestrator replaces, in the NF-FG, the original VNF with the sub-graph described in the template;
+- VNFs consolidation: those VNFs implementing the L2 forwarding and that are connected together in the NF-FG, are replaced with a single VNF, in order to limit the resources required to implement the LANs on the physical infrastructure;
 
-Installation
-	
-	* Required command to launch to install required python library (Tested on 
+The technology dependent part receives the NF-FG from the thechnology indipendendent part and it transform the NF-FG in an other formalism (even the same, like in case of the Universal node is used as infrastucture layer), according to the type of infrastructure layer on which the graph is going to be deployed.  In fact, the global orchestrator supports many implementation of the infrastructure layer.
+
+#Installation
+
+- Required command to launch to install required python library (Tested on 
 	ubuntu 14.04.1)
-		
-		* install python
-			sudo apt-get install python-dev python-setuptools
 
-		* if pip is not installed install pip
-			sudo easy_install pip
-		
-		* install core component
-			sudo apt-get install python-sqlalchemy libmysqlclient-dev
-			sudo pip install --upgrade cython falcon requests gunicorn jsonschema 
-					mysql-python json_hyper_schema
-	
-	DATABASE (on OpenStack controller node):
-		
-		* Creation:
-			mysql -u root -p
-		
-			CREATE DATABASE orchestrator;
-			CREATE TABLE IF NOT EXISTS `component_adapter` (
-  			  `session_id` varchar(64) NOT NULL,
-			  `extra` mediumtext NOT NULL,
-			  PRIMARY KEY (`session_id`)
-			) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-			CREATE TABLE IF NOT EXISTS `endpoint` (
-			  `Graph_ID` varchar(64) NOT NULL,
-			  `Endpoint_ID` varchar(64) NOT NULL,
-			  `Available` tinyint(1) NOT NULL,
-			  `Name` varchar(64) NOT NULL,
-			  `ID` varchar(64) NOT NULL,
-			  `Type` varchar(64) DEFAULT NULL,
-			  `Graph_ID_connected` varchar(64) DEFAULT NULL,
-			  `Endpoint_ID_connected` varchar(64) DEFAULT NULL,
-			  PRIMARY KEY (`Graph_ID`,`Endpoint_ID`)
-			) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-			CREATE TABLE IF NOT EXISTS `node` (
-			  `node_id` varchar(64) NOT NULL,
-			  `node_name` varchar(64) NOT NULL,
-			  `ip_address` varchar(64) DEFAULT NULL,
-			  `avaibility_zone` varchar(64) DEFAULT NULL,
-			  PRIMARY KEY (`node_id`)
-			) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-			CREATE TABLE IF NOT EXISTS `nodes_egress_interface` (
-			  `node_id` varchar(64) NOT NULL,
-			  `interface` varchar(64) NOT NULL,
-			  PRIMARY KEY (`node_id`,`interface`)
-			) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-			CREATE TABLE IF NOT EXISTS `nodes_ingress_interface` (
-			  `node_id` varchar(64) NOT NULL,
-			  `interface` varchar(64) NOT NULL,
-			  PRIMARY KEY (`node_id`,`interface`)
-			) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-			CREATE TABLE IF NOT EXISTS `profile` (
-			  `id` varchar(64) NOT NULL,
-			  `profile` text,
-			  PRIMARY KEY (`id`)
-			) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-			CREATE TABLE IF NOT EXISTS `session` (
-			  `id` varchar(64) NOT NULL,
-			  `user_id` varchar(64) DEFAULT NULL,
-			  `mac_address` text,
-			  `session_info` text,
-			  `profile` text,
-			  `infrastructure` text,
-			  `ingress_node` varchar(64) DEFAULT NULL,
-			  `egress_node` varchar(64) DEFAULT NULL,
-			  `started` datetime DEFAULT NULL,
-			  `last_update` datetime DEFAULT NULL,
-			  `error` datetime DEFAULT NULL,
-			  `ended` datetime DEFAULT NULL,
-			  PRIMARY KEY (`id`)
-			) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-			CREATE TABLE IF NOT EXISTS `user_location` (
-			  `user_id` varchar(64) NOT NULL,
-			  `node_id` varchar(64) NOT NULL,
-			  PRIMARY KEY (`user_id`,`node_id`)
-			) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-			exit
-	
-		* Change the configuration file with IP address of the Openstack controller,
-		 access credentials and the physical interface for the users. You can find it in
-		  Orchestrator/Configuration/orchestrator.conf.
+```sh	
+$ git clone https://github.com/netgroup-polito/frog3
+$ cd frog3/Orchestrator
+$ sudo apt-get install python-dev python-setuptools python-sqlalchemy libmysqlclient-dev
+$ sudo easy_install pip
+$ sudo pip install --upgrade cython falcon requests gunicorn jsonschema mysql-python json_hyper_schema
+$ ./create_db.sh
+```
 
-		* Change the image id into the "Templates" directory with the IDs assigned from
-		 Openstack to the images loaded and set the address of the controller into file 
-		 hosts.
-		
-		* Create a keystone user for every graph you want to instantiate (NFV graphs are 
-		thought to belong users).
+### Configuration
+The configuration file is stored in Configuration/orchestrator.conf
 
-		* Load the users profiles into the database. At the moment these profiles are 
-		written in json files but soon the extension for Horizon, which allows users to 
-		create their graph, will be completed. They can be found in the 
-		"Orchestrator/Graphs" folder and they have to be loaded in the user-profile table 
-		contained into keystone database. The Create Profile folder contains a simple php
-		 web page thatallows admin to create graphs by copy and paste from the json files. 
-		As an alternative you can use phpmyadmin to enter that table and manually insert 
-		the user id and profile, pasting the whole content of the corrisponding json file.
-
-	OVS compute node configuration:
-	
-		* You need to add an additional OVS virtual bridge on the compute node; it is used
-		 to give an access point that connects users and their graphs. There is a script 
-		 named "create_bridge_usr" into the folder "Scripts" that creates the bridge and
-		 links it to the internal Openstack bridge (br-int).
-
-			cd Scripts/
-			sudo ./create_bridge_usr
-		
-		* After that, you can find this new bridge in your OVS configuration. Now you have
-		 to link it to all the physical interfaces you want to use for users access. 
-		 For example:
-		
-			sudo ovs-vsctl add-port br-usr eth1
-
-##########################################################################################
-	
-Start-up:
-
-	* Run orchestrator service layer
-	
-		cd Orchestrator
-		./start_orchestrator_in_screen.sh
-	
-	* To instantiate an example user:
-		
-		cd Scripts
-		python instantiate.py <user> <tenant> <pwd> <mac_address>
-	  
-	  these instantiation scripts need to be configured with the credentials of their user
-	  (simply open them and change the parameters user, tenant and password)
-
-	* To remove these stack (DO NOT DELETE STACKS FROM HORIZON):
-
-		python delete_only_nat.py or python delete_firewall.py
-
-##########################################################################################
-		
-Complete documentation available at https://netgroup.polito.it/research-projects/sdn-edge.
+### How to run
+```sh
+$ ./start_service_layer.sh
+```

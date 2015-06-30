@@ -26,7 +26,7 @@ class Configuration(object):
     def inizialize(self): 
         config = ConfigParser.RawConfigParser()
         base_folder = os.path.realpath(os.path.abspath(os.path.split(inspect.getfile( inspect.currentframe() ))[0])).rpartition('/')[0]
-        config.read(base_folder+'/Configuration/orchestrator.conf')
+        config.read(base_folder+'/Configuration/service_layer.conf')
         self._AUTH_SERVER = config.get('authentication', 'server')
         
     @property

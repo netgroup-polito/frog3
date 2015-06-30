@@ -10,7 +10,7 @@ from Orchestrator.ComponentAdapter.Unify.rest import Unify
 from Common.NF_FG.nf_fg import NF_FG
 from Common.NF_FG.nf_fg_managment import NF_FG_Management
 from Common.config import Configuration
-from Common.SQL.endpoint import set_endpoint,delete_endpoint_connections
+#from Common.SQL.endpoint import set_endpoint,delete_endpoint_connections
 
 import json, logging, copy, uuid
 
@@ -65,7 +65,7 @@ class UnifyCA(OrchestratorInterface):
         DELETE /graph/myGraph/flow_id HTTP/1.1
         '''
         
-        delete_endpoint_connections(profile_id) 
+        #delete_endpoint_connections(profile_id) 
         
         # unifyEndpoint, graphID, unifyJSON
         if DEBUG_MODE is not True:
@@ -416,8 +416,10 @@ class Endpoint(object):
                 logging.debug("Endpoint - endpoint.name: "+endpoint.name)
                     
                 # Write in DB endpoint 1 to n
+                '''
                 for edge_endpoint in edge_endpoints:
                     set_endpoint(nf_fg._id, edge_endpoint.id, True, endpoint.name, endpoint._id, endpoint_type="endpoint")   
+                '''
                 
             if endpoint.connection is True:
                 nf_fg.characterizeEndpoint(endpoint, endpoint_id=endpoint.remote_graph+":"+endpoint.remote_id)

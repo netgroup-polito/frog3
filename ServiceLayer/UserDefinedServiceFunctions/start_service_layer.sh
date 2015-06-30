@@ -1,4 +1,4 @@
 #!/bin/bash
 pkill gunicorn
-echo "" > FrogOrchestrator.log
+echo "" > FrogServiceLayer.log
 python gunicorn.py

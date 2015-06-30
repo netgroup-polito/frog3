@@ -3,7 +3,7 @@ Created on Oct 1, 2014
 
 @author: fabiomignini
 '''
-from sqlalchemy import Column, DateTime, func, VARCHAR, Text, not_
+from sqlalchemy import Column, DateTime, func, VARCHAR, Text, not_, desc
 from Common.SQL.sql import get_session
 from sqlalchemy.ext.declarative import declarative_base
 from Common.exception import sessionNotFound
@@ -200,9 +200,12 @@ class Session(object):
                 raise sessionNotFound("Session Not Found") 
         return user_session
     
-    def get_active_user_session_by_nf_fg_id(self, service_graph_id):
+    def get_active_user_session_by_nf_fg_id(self, service_graph_id, error_aware=True):
         session = get_session()
-        session_ref = session.query(SessionModel).filter_by(service_graph_id = service_graph_id).filter_by(ended = None).filter_by(error = None).first()
+        if error_aware:
+            session_ref = session.query(SessionModel).filter_by(service_graph_id = service_graph_id).filter_by(ended = None).filter_by(error = None).first()
+        else:
+            session_ref = session.query(SessionModel).filter_by(service_graph_id = service_graph_id).filter_by(ended = None).order_by(desc(SessionModel.started_at)).first()
         if session_ref is None:
             raise sessionNotFound("Session Not Found")
         return session_ref

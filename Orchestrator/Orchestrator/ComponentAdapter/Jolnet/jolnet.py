@@ -1,35 +1,25 @@
 '''
 Created on 13/apr/2015
-
 @author: vida
 '''
 
 import logging
 import json
 import time
+
 from Common.config import Configuration
 from Orchestrator.ComponentAdapter.interfaces import OrchestratorInterface
 from Orchestrator.ComponentAdapter.Jolnet.rest import ODL, Glance, Nova, Neutron,\
     Heat
 from Common.NF_FG.nf_fg import NF_FG
 
+
 from Orchestrator.ComponentAdapter.Jolnet.resources import Action, Match, Flow, ProfileGraph, VNF
 from Common.Manifest.manifest import Manifest
 from Common.exception import StackError
-'''
-from Common.SQL.component_adapter import set_extra_info, update_extra_info
-from Common.SQL.endpoint import delete_endpoint_connections, set_endpoint, get_available_endpoints_by_id,\
-    updateEndpointConnection
-from Common.SQL.session import set_error, get_active_user_session_by_nf_fg_id
-from Common.SQL.flow import add_flow, remove_flow, get_internal_flows,flow_already_exists, get_edge_flows, get_user_flows,\
-    get_internal_link_flows, get_edge_link_flows, update_flow
-from Common.SQL.resource import add_resource, get_profile_resources,\
-    remove_resource
-'''
+
 DEBUG_MODE = Configuration().DEBUG_MODE
-ORCHESTRATION_LAYER = Configuration().ORCHESTRATION_LAYER
-
-
+USE_HEAT = Configuration().USE_HEAT
 
 class JolnetAdapter(OrchestratorInterface):
     '''
@@ -39,22 +29,26 @@ class JolnetAdapter(OrchestratorInterface):
     STATUS = ['CREATE_IN_PROGRESS', 'CREATE_COMPLETE', 'CREATE_FAILED',  'DELETE_IN_PROGRESS', 'DELETE_COMPLETE', 'DELETE_FAILED', 'UPDATE_IN_PROGRESS', 'UPDATE_COMPLETE', 'UPDATE_FAILED']
     WRONG_STATUS = ['CREATE_FAILED','DELETE_FAILED', 'UPDATE_FAILED']
     
-    def __init__(self, session_id):
+    def __init__(self, heatEndpoint, novaEndpoint, session_id):
         '''
-        Initialized the Jolnet translation object from the user profile
+        Initialize the Jolnet component adapter
+        Args:
+            session_id:
+                identifier for the current user session
         '''
-        if ORCHESTRATION_LAYER == "Heat":
-            self._URI = None
+        #TODO: endpoint can be taken from the token in various methods
+        if USE_HEAT is True:
+            self._URI = heatEndpoint.pop()['publicURL']
         
-        self.novaEndpoint = None
+        self.novaEndpoint = novaEndpoint.pop()['publicURL']
         self.neutronEndpoint = None
         self.session_id = session_id
         self.token = None
             
         if DEBUG_MODE is True:
-            if ORCHESTRATION_LAYER == "Heat":            
-                logging.debug(self.heatEndpoint)
-            logging.debug(self.novaEndpoint)
+            if USE_HEAT is True:            
+                logging.debug(heatEndpoint)
+            logging.debug(novaEndpoint)
     
     @property
     def URI(self):
@@ -65,6 +59,7 @@ class JolnetAdapter(OrchestratorInterface):
     #########################    Orchestrator interface implementation        ############################
     ######################################################################################################
     '''
+    #TODO: errore se i grafi contengono primitive non valide (es: splitter)
     def instantiateProfile(self, nf_fg, token):
         '''
         Method to use to instantiate the User Profile Graph
@@ -72,41 +67,44 @@ class JolnetAdapter(OrchestratorInterface):
             nf_fg:
                 JSON Object for the user profile graph (forwarding graph)
             token:
-                The authentication token to use for the REST call
+                The authentication token to use for the REST call (get it from Keystone)
             Exceptions:
                 Raise some exception to be captured
-        '''
         '''
         nf_fg = NF_FG(nf_fg)
         if DEBUG_MODE is True:
             logging.debug("Forwarding graph: " + nf_fg.getJSON())
         try:
+            #Get the token and the endpoints for Heat, Nova and Neutron
             self.token = token
             token = token.get_token()
             self.neutronEndpoint = self.token.get_endpoints("network").pop()['publicURL']
-                
+            
+            #Read the nf_fg JSON structure and map it into the proper objects and db entries
             profile_graph = self.buildProfileGraph(nf_fg, token)
                 
-            if ORCHESTRATION_LAYER == "Heat":
-                #Parse and instantiate the Heat stack through Heat templates (HOT)
+            if USE_HEAT is True:
+                #Instantiate the Heat stack through Heat templates (HOT)
                 stackTemplate = profile_graph.getStackTemplate()
                 if DEBUG_MODE is True:
                     logging.debug(json.dumps(stackTemplate))
                 res = Heat().instantiateStack(self.URI, token, nf_fg.name, stackTemplate)
                 if DEBUG_MODE is True:
                     logging.debug("Heat response: " + str(res))
-                    
+                
+                #Stay blocked until the stack is completed or failed    
                 while self.getStackStatus(token, nf_fg.name) == 'CREATE_IN_PROGRESS':
                     time.sleep(1)
                     
                 if self.checkErrorStatus(self.token, nf_fg.name) is True:
-                    logging.debug("Stack error, checks HEAT logs.")
-                    raise StackError("Stack error, checks HEAT logs.")   
+                    logging.debug("Stack error, check HEAT logs.")
+                    raise StackError("Stack error, check HEAT logs.")   
                             
                 resources = json.dumps(self.getStackResourcesStatus(token, nf_fg.name))
-                set_extra_info(self.session_id, resources)
+                #set_extra_info(self.session_id, resources)
                 
-            elif ORCHESTRATION_LAYER == "Frog":
+            elif USE_HEAT is False:
+                #Instantiate ports and servers directly interacting with Neutron and Nova
                 for vnf in profile_graph.functions.values():
                     for port in vnf.listPort:
                         if port.net is not None:
@@ -117,7 +115,8 @@ class JolnetAdapter(OrchestratorInterface):
                         
                     resp = Nova().createServer(self.novaEndpoint, token, vnf.getResourceJSON())
                     vnf.OSid = resp['server']['id']
-                    
+                
+                #Stay blocked until all resources are correctly instantiated or an error occurs     
                 for vnf in profile_graph.functions.values():
                     status = Nova().getServerStatus(self.novaEndpoint, token, vnf.OSid)
                     while status != 'ACTIVE' and status != 'ERROR':
@@ -126,21 +125,21 @@ class JolnetAdapter(OrchestratorInterface):
                         
                     if status == 'ERROR':
                         logging.debug("Instance " + vnf.id + " is in ERROR state")
+                        #TODO: delete VMs instantiated and endpoints from db
                         raise StackError("Instance ERROR: " + vnf.id)
                     
-                    if status == 'ACTIVE':
-                        add_resource(vnf.OSid, profile_graph.id, "OS::Nova::Server", vnf.id)
-                
-            # Add flows to remote endpoints
+                    #if status == 'ACTIVE':
+                    #    add_resource(vnf.OSid, profile_graph.id, "OS::Nova::Server", vnf.id)
+            
+            # Add flows on the SDN network to connect endpoints (both graph interconnection or user connection)
             self.connectEndpoints(nf_fg)
+            logging.debug("Graph " + profile_graph.id + "correctly instantiated!")
             
         except Exception as err:
             logging.error(err.message)
             logging.exception(err)
-            set_error(self.token.get_userID())  
+            #set_error(self.token.get_userID())  
             raise
-        '''
-        pass
     
     def updateProfile(self, nf_fg_id, new_nf_fg, old_nf_fg, token, delete=False):
         '''
@@ -185,44 +184,55 @@ class JolnetAdapter(OrchestratorInterface):
         
     def deinstantiateProfile(self, token, profile_id, profile):
         '''
-        Method used to de-instantiate the User Profile Graph
+        Method used to de-instantiate a user profile graph
         Args:
-            profile:
-                JSON Object for the user profile
             token:
                 The authentication token to use for the REST call
-            Exceptions:
-                Raise some exception to be captured
+            profile_id:
+                identifier of the profile to be deleted
+            profile:
+                JSON Object for the user profile
+        Exceptions:
+            Raise some exception to be captured
         '''
-        '''
-        self.token = token
-        token = token.get_token()
-        nf_fg = NF_FG(json.loads(profile))  
-        
-        if DEBUG_MODE is True:
-            logging.debug(profile)
+        try:
+            self.token = token
+            token = token.get_token()
+            nf_fg = NF_FG(json.loads(profile))  
             
-        # Send request to Heat to delete the stack
-        if ORCHESTRATION_LAYER == "Heat":
-            stack_id = Heat().getStackID(self.URI, token, nf_fg.name)
-            Heat().deleteStack(self.URI, token, nf_fg.name , stack_id)
+            if DEBUG_MODE is True:
+                logging.debug(profile)
+                       
+            if USE_HEAT is True:
+                # Send request to Heat to delete the stack
+                stack_id = Heat().getStackID(self.URI, token, nf_fg.name)
+                Heat().deleteStack(self.URI, token, nf_fg.name , stack_id)
+                
+            elif USE_HEAT is False:
+                #Delete every resource one by one
+                #profile_resources = get_profile_resources(profile_id)
+                #for res in profile_resources:
+                #    if res.resource_type == "OS::Nova::Server":
+                #        Nova().deleteServer(self.novaEndpoint, token, res.id)
+                #        remove_resource(res.id)
+                pass
+                #Delete also networks if previously created
             
-        #Delete every resource one by one
-        elif ORCHESTRATION_LAYER == "Frog":
-            profile_resources = get_profile_resources(profile_id)
-            for res in profile_resources:
-                if res.resource_type == "OS::Nova::Server":
-                    Nova().deleteServer(self.novaEndpoint, token, res.id)
-                    remove_resource(res.id)
-        
-        #Delete flows on SDN network
-        self.disconnectEndpoints(nf_fg)
+            #Delete flows on SDN network
+            self.disconnectEndpoints(nf_fg)
+            logging.debug("Graph " + profile.id + "correctly deleted!")
+            
+        except Exception as err:
+            logging.error(err.message)
+            logging.exception(err)
+            #set_error(self.token.get_userID())  
+            raise
     
     def buildProfileGraph(self, nf_fg, token):
         profile_graph = ProfileGraph()
         profile_graph.setId(nf_fg.id)
                 
-        #Loads all virtual network functions
+        #Get the necessary info (glance URI and Nova flavor) and create a VNF object
         for vnf in nf_fg.listVNF:
             manifest = Manifest(vnf.manifest)
             cpuRequirements = manifest.CPUrequirements.socket
@@ -234,7 +244,9 @@ class JolnetAdapter(OrchestratorInterface):
             nf = VNF(vnf.id, vnf, image, flavor, nf_fg.zone)
             profile_graph.addVNF(nf)
                 
-        #Complete all ports with the right network identifier    
+        #Complete all ports with the right Neutron network id and add them to the VNF
+        #This is necessary because the network are already present (create them on the fly would be better)
+        #This should be changed with a creation call in case networks would be created on the fly   
         for vnf in nf_fg.listVNF:
             nf = profile_graph.functions[vnf.id]
             for port in vnf.listPort:
@@ -247,8 +259,9 @@ class JolnetAdapter(OrchestratorInterface):
                             net_id = self.getNetworkId(net_name, token)
                             p.setNetwork(net_id)
                             
-                            if flowrule.action.type == "endpoint":
-                                set_endpoint(nf_fg.id, flowrule.action.endpoint['id'], True, vnf.id, port.id, "vlan")
+                            #if flowrule.action.type == "endpoint":
+                            #    #Record the available endpoints into database
+                            #    set_endpoint(nf_fg.id, flowrule.action.endpoint['id'], True, vnf.id, port.id, "vlan")
                     
                 for flowrule in port.list_ingoing_label:
                     pass
@@ -256,14 +269,12 @@ class JolnetAdapter(OrchestratorInterface):
         #Insert unattached endpoints into DB (apart for ISP ones)
         for endpoint in nf_fg.listEndpoint:
             if endpoint.connection is False and endpoint.attached is False and endpoint.edge is False:
-                existing_endpoints = get_available_endpoints_by_id(nf_fg.id, endpoint.id)
-                if existing_endpoints is None:
-                    set_endpoint(nf_fg.id, endpoint.id, True, endpoint.name, endpoint.interface, endpoint.type)
-        
+                #existing_endpoints = get_available_endpoints_by_id(nf_fg.id, endpoint.id)
+                #if existing_endpoints is None:
+                #    set_endpoint(nf_fg.id, endpoint.id, True, endpoint.name, endpoint.interface, endpoint.type)
+                pass
         return profile_graph
-        '''
-        pass
-"""
+    
     '''
     ######################################################################################################
     ###########################    Interaction with Heat for stacks        ###############################
@@ -271,19 +282,37 @@ class JolnetAdapter(OrchestratorInterface):
     '''
     def getStackStatus(self, token, name):
         '''
-        Return the status of the Stack
+        Get the status of a Stack
+        Args:
+            token:
+                The authentication token to use for the REST call
+            name:
+                stack name
         '''
         stack_id = Heat().getStackID(self.URI, token, name)
         return Heat().getStackStatus(self.URI, token, stack_id)
     
     def getStackResourcesStatus(self, token, name):
         '''
-        Return the status of Stack resources
+        Get the status of a Stack resources
+        Args:
+            token:
+                The authentication token to use for the REST call
+            name:
+                stack name
         '''
         stack_id = Heat().getStackID(self.URI, token, name)
         return Heat().getStackResourcesStatus(self.URI, token, name, stack_id)
     
     def checkStackErrorStatus(self, token, graph_name):
+        '''
+        Check if a stack is in an error state
+        Args:
+            token:
+                The authentication token to use for the REST call
+            graph_name:
+                stack name
+        '''
         try:
             stack_info = self.getStackStatus(token.get_token(), graph_name)
         except Exception as ex:
@@ -336,7 +365,12 @@ class JolnetAdapter(OrchestratorInterface):
     
     def getNetworkId(self, network_name, token):
         '''
-        Get Openstack Neutron networks ids from networks names
+        Get the Neutron network id from a network name
+        Args:
+            network_name:
+                The name of the network
+            token:
+                The authentication token to use for the REST call
         '''
         json_data = Neutron().getNetworks(self.neutronEndpoint, token)
         networks = json.loads(json_data)['networks']
@@ -357,13 +391,13 @@ class JolnetAdapter(OrchestratorInterface):
     '''
     def getNodes(self):
         '''
-        Allows to retrieve a list of Jolnet nodes (could be hosts or switches)
+        Retrieve a list of Jolnet nodes (could be hosts or switches)
         '''
         json_data = ODL().getTopology(self)
         topology = json.loads(json_data)
         nList = topology["network-topology"]["topology"][0]["node"]
         return nList
-    
+    '''
     def getUserAttachmentPoints(self, user_mac):
         nodeList = self.getNodes()
         for node in nodeList:
@@ -371,11 +405,16 @@ class JolnetAdapter(OrchestratorInterface):
             tmpList = node_id.split(":")
             if (tmpList[0] == "host"):
                 if (tmpList[1] == user_mac):
-                    return node["host-tracker-service:attachment-points"]
+                    return node["host-tracker-service:attachment-points"]'''
     
     def getLinkBetweenSwitches(self, switch1, switch2):             
         '''
-        Allows to retrieve the link between two zones, where you can find ports to use
+        Retrieve the link between two switches, where you can find ports to use
+        Args:
+            switch1:
+                OpenDaylight identifier of the source switch (example: openflow:123456789)
+            switch2:
+                OpenDaylight identifier of the destination switch (example: openflow:987654321)
         '''
         json_data = ODL().getTopology()
         topology = json.loads(json_data)
@@ -388,7 +427,24 @@ class JolnetAdapter(OrchestratorInterface):
     
     def pushVlanFlow(self, source_node, flow_id, vlan, in_port, out_port, flow_type, user):
         '''
-        Allows to push VLAN based flows into Jolnet switches
+        Push a flow into a Jolnet switch with 
+            matching on VLAN id and input port
+            output through the specified port
+        Args:
+            source_node:
+                OpenDaylight identifier of the source switch (example: openflow:123456789)
+            flow_id:
+                unique identifier of the flow on the whole OpenDaylight domain
+            vlan:
+                VLAN id of the traffic (for matching)
+            in_port:
+                ingoing port of the traffic (for matching)
+            out_port:
+                output port where to send out the traffic (action)
+            flow_type:
+                distinguish between internal flows (graphs interconnection) and user flows (users connection)
+            user:
+                user profile id to keep track of the owner of the flow
         '''
         action1 = Action()
         action1.setOutputAction(out_port, 65535)
@@ -401,18 +457,35 @@ class JolnetAdapter(OrchestratorInterface):
         flowj = Flow("jolnetflow", flow_id, 0, 20, True, 0, 0, actions, match)        
         json_req = flowj.getJSON()
         
-        if (flow_already_exists(flow_id, source_node) == False):
-            ODL().createFlow(json_req, source_node, flow_id)
-            add_flow(flow_id, source_node, flow_type, user)
-        else:
-            flows = get_internal_link_flows(vlan)
-            for flow in flows:
-                count = flow.users_count + 1
-                update_flow(flow.id, flow.switch_id, flow.flowtype, flow.user, count)
+        #if (flow_already_exists(flow_id, source_node) == False):
+        #    ODL().createFlow(json_req, source_node, flow_id)
+        #    add_flow(flow_id, source_node, flow_type, user)
+        #else:
+        #    flows = get_internal_link_flows(vlan)
+        #    for flow in flows:
+        #        count = flow.users_count + 1
+        #        update_flow(flow.id, flow.switch_id, flow.flowtype, flow.user, count)
     
     def pushMACSourceFlow(self, source_node, flow_id, user_vlan, in_port, source_mac, out_port, graph_vlan):
         '''
-        Allows to push MAC source based flows into Jolnet switches or cpes
+        Push a flow into a Jolnet switch (or cpe) with 
+            matching on source MAC address and VLAN id
+            VLAN tag swapping and output through the specified port
+        Args:
+            source_node:
+                OpenDaylight identifier of the source switch (example: openflow:123456789)
+            flow_id:
+                unique identifier of the flow on the whole OpenDaylight domain
+            user_vlan:
+                VLAN id of the traffic (for matching)
+            in_port:
+                ingoing port of the traffic (for matching)
+            source_mac:
+                MAC address of the user device
+            out_port:
+                output port where to send out the traffic (action)
+            graph_vlan:
+                new VLAN id to be applied to packets (action)
         '''
         action1 = Action()
         action1.setSwapVlanAction(graph_vlan)
@@ -431,18 +504,35 @@ class JolnetAdapter(OrchestratorInterface):
         flowj = Flow("edgeflow", flow_id, 0, priority, True, 0, 0, actions, match)        
         json_req = flowj.getJSON()
         
-        if (flow_already_exists(flow_id, source_node) == False):
-            ODL().createFlow(json_req, source_node, flow_id)
-            add_flow(flow_id, source_node, "edge", source_mac)
-        else:
-            flows = get_edge_link_flows(source_mac)
-            for flow in flows:
-                count = flow.users_count + 1
-                update_flow(flow.id, flow.switch_id, flow.flowtype, flow.user, count)
+        #if (flow_already_exists(flow_id, source_node) == False):
+        #    ODL().createFlow(json_req, source_node, flow_id)
+        #    add_flow(flow_id, source_node, "edge", source_mac)
+        #else:
+        #    flows = get_edge_link_flows(source_mac)
+        #    for flow in flows:
+        #        count = flow.users_count + 1
+        #        update_flow(flow.id, flow.switch_id, flow.flowtype, flow.user, count)
     
     def pushMACDestFlow(self, source_node, flow_id, user_vlan, in_port, dest_mac, out_port, graph_vlan):
         '''
-        Allows to push MAC destination based flows into Jolnet switches or cpes
+        Push a flow into a Jolnet switch (or cpe) with 
+            matching on destination MAC address and VLAN id
+            VLAN tag swapping and output through the specified port
+        Args:
+            source_node:
+                OpenDaylight identifier of the source switch (example: openflow:123456789)
+            flow_id:
+                unique identifier of the flow on the whole OpenDaylight domain
+            user_vlan:
+                new VLAN id for the traffic (action)
+            in_port:
+                ingoing port of the traffic (action)
+            source_mac:
+                MAC address of the user device
+            out_port:
+                output port where to send out the traffic (matching)
+            graph_vlan:
+                VLAN id of incoming packets (matching)
         '''
         action1 = Action()
         action1.setSwapVlanAction(user_vlan)
@@ -461,18 +551,29 @@ class JolnetAdapter(OrchestratorInterface):
         flowj = Flow("edgeflow", flow_id, 0, priority, True, 0, 0, actions, match)        
         json_req = flowj.getJSON()
         
-        if (flow_already_exists(flow_id, source_node) == False):
-            ODL().createFlow(json_req, source_node, flow_id)
-            add_flow(flow_id, source_node, "edge", dest_mac)
-        else:
-            flows = get_edge_link_flows(dest_mac)
-            for flow in flows:
-                count = flow.users_count + 1
-                update_flow(flow.id, flow.switch_id, flow.flowtype, flow.user, count)
+        #if (flow_already_exists(flow_id, source_node) == False):
+        #    ODL().createFlow(json_req, source_node, flow_id)
+        #    add_flow(flow_id, source_node, "edge", dest_mac)
+        #else:
+        #    flows = get_edge_link_flows(dest_mac)
+        #    for flow in flows:
+        #        count = flow.users_count + 1
+        #        update_flow(flow.id, flow.switch_id, flow.flowtype, flow.user, count)
     
     def linkZones(self, switch_user, port_vms_user, switch_isp, port_vms_isp, vlan_id):
         '''
-        Link a zone to exit point towards Internet (ISP zone)
+        Link two graphs (or two parts of a single graph) through the SDN network
+        Args:
+            switch_user:
+                OpenDaylight identifier of the first switch (example: openflow:123456789)
+            port_vms_user:
+                port on the OpenFlow switch where virtual machines are linked
+            switch_isp:
+                OpenDaylight identifier of the second switch (example: openflow:987654321)
+            port_vms_isp:
+                port on the OpenFlow switch where virtual machines are linked
+            vlan_id:
+                VLAN id of the OpenStack network which links the graphs
         '''
         link = self.getLinkBetweenSwitches(switch_user, switch_isp)
         
@@ -498,21 +599,40 @@ class JolnetAdapter(OrchestratorInterface):
         
     def unlinkZones(self, vlan_id):
         '''
-        Unlink two zones; decrement users count and delete everything after last one is gone
+        Unlink two graphs which where linked through the SDN network
+        Args:
+            vlan_id:
+                VLAN id of the OpenStack network which links the graphs
         '''
-        flows = get_internal_link_flows(vlan_id)
-        for flow in flows:
-            count = flow.users_count
-            if (count == 1):
-                ODL().deleteFlow(flow.switch_id, flow.id)
-                remove_flow(flow.id, flow.switch_id)
-            else:
-                count = count - 1
-                update_flow(flow.id, flow.switch_id, flow.flowtype, flow.user, count)
+        #flows = get_internal_link_flows(vlan_id)
+        #for flow in flows:
+        #    count = flow.users_count
+        #    if (count == 1):
+        #        ODL().deleteFlow(flow.switch_id, flow.id)
+        #        remove_flow(flow.id, flow.switch_id)
+        #    else:
+        #        count = count - 1
+        #        update_flow(flow.id, flow.switch_id, flow.flowtype, flow.user, count)
+        pass
     
     def linkUser(self, cpe, user_port, switch, switch_port, graph_vlan, user_vlan, user_mac = None):
         '''
-        Link a user with the corresponding graph
+        Link a user with his graph through the SDN network
+        Args:
+            cpe:
+                OpenDaylight identifier of the cpe where user is connecting (example: openflow:123456789)
+            user_port:
+                port on the OpenFlow switch (cpe) where the user is connecting
+            switch:
+                OpenDaylight identifier of the graph switch (example: openflow:987654321)
+            switch_port:
+                port on the OpenFlow switch where the user's graph is istantiated (compute node)
+            graph_vlan:
+                VLAN id of the graph ingress endpoint
+            user_vlan:
+                VLAN id of user's outgoing traffic (if any)
+            user_mac:
+                MAC address of the user's device
         '''
         link = self.getLinkBetweenSwitches(cpe, switch)
         
@@ -539,30 +659,35 @@ class JolnetAdapter(OrchestratorInterface):
     def unlinkUser(self, user_mac):
         '''
         Unlink a user after his logout and graph deletion
+        Args:
+            user_mac:
+                MAC address of the user's device
         '''
-        flows = get_user_flows(user_mac)
-        for flow in flows:
-            ODL().deleteFlow(flow.switch_id, flow.id)
-            remove_flow(flow.id, flow.switch_id)
-                
+        #flows = get_user_flows(user_mac)
+        #for flow in flows:
+        #    ODL().deleteFlow(flow.switch_id, flow.id)
+        #    remove_flow(flow.id, flow.switch_id)
+        pass
+            
     def removeInternalFlows(self):
         '''
-        Deletes all internal links between zones (useful while shutting down)
+        Deletes all internal links between graphs (useful while shutting down)
         '''
-        flows = get_internal_flows()
-        for flow in flows:
-            ODL().deleteFlow(flow.switch_id, flow.id)
-            remove_flow(flow.id, flow.switch_id)
+        #flows = get_internal_flows()
+        #for flow in flows:
+        #    ODL().deleteFlow(flow.switch_id, flow.id)
+        #    remove_flow(flow.id, flow.switch_id)
+        pass
     
     def removeEdgeFlows(self):
         '''
-        Deletes all users links with graphs (useful while shutting down)
+        Deletes all users links with their graphs (useful while shutting down)
         '''
-        flows = get_edge_flows()
-        for flow in flows:
-            ODL().deleteFlow(flow.switch_id, flow.id)
-            remove_flow(flow.id, flow.switch_id)
-           
+        #flows = get_edge_flows()
+        #for flow in flows:
+        #    ODL().deleteFlow(flow.switch_id, flow.id)
+        #    remove_flow(flow.id, flow.switch_id)
+        pass  
     '''
     ######################################################################################################
     ###############################       Manage graphs connection        ################################
@@ -571,7 +696,7 @@ class JolnetAdapter(OrchestratorInterface):
     
     def connectEndpoints(self, nf_fg):
         '''
-        Read nf_fg endpoints and creates corrisponding flows
+        Read nf_fg endpoints and create corrisponding flows on the SDN network
         Expecting some precise endpoint descriptions which reflect Orchestration layer scheduling choices
         '''
         #Get egress endpoints of the graph        
@@ -579,10 +704,11 @@ class JolnetAdapter(OrchestratorInterface):
         for endpoint in endpoints:
             if endpoint.connection is True:
                 # Check if the remote graph exists and the requested endpoint is available
-                session = get_active_user_session_by_nf_fg_id(endpoint.remote_graph)
-                if DEBUG_MODE is True:
-                    logging.debug("session: "+str(session.id))
-                existing_endpoints = get_available_endpoints_by_id(endpoint.remote_graph, endpoint.id)
+                #session = get_active_user_session_by_nf_fg_id(endpoint.remote_graph)
+                #if DEBUG_MODE is True:
+                #    logging.debug("session: "+str(session.id))
+                #existing_endpoints = get_available_endpoints_by_id(endpoint.remote_graph, endpoint.id)
+                existing_endpoints = None
                 if existing_endpoints is not None:
                     tmp = endpoint.interface
                     tmpList = tmp.split(":")
@@ -596,7 +722,7 @@ class JolnetAdapter(OrchestratorInterface):
                     
                     vlan = endpoint.id
                     self.linkZones(switch1, port1, switch2, port2, vlan)
-                    updateEndpointConnection(nf_fg.id, endpoint.id, endpoint.remote_graph, endpoint.remote_id)
+                    #updateEndpointConnection(endpoint.remote_graph, endpoint.remote_id, nf_fg.id, endpoint.id)
                 else:
                     logging.error("Remote graph " + endpoint.remote_graph + " has not a " + endpoint.id + " endpoint available!")
         
@@ -642,6 +768,9 @@ class JolnetAdapter(OrchestratorInterface):
     def disconnectEndpoints(self, nf_fg):
         '''
         Deletes flows after a profile deletion
+        Args:
+            nf_fg:
+                JSON Object for the user profile graph (forwarding graph)
         '''
         endpoints = nf_fg.getVlanEgressEndpoints()
         for endpoint in endpoints:           
@@ -653,9 +782,12 @@ class JolnetAdapter(OrchestratorInterface):
             user_mac = endpoint.user_mac
             self.unlinkUser(user_mac)
         
-        delete_endpoint_connections(nf_fg.id)
+        #delete_endpoint_connections(nf_fg.id)
         
     def checkEquality(self, new_endpoints, old_endpoints):
+        '''
+        Check if two endpoints are equivalent or not
+        '''
         #Actually supports only one endpoint for every vector
         if len(new_endpoints) != len(old_endpoints):
             return False
@@ -686,4 +818,3 @@ class JolnetAdapter(OrchestratorInterface):
                 return False
         
         return True
-"""

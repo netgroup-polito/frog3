@@ -5,8 +5,6 @@ import copy
 
 from Common.config import Configuration
 from Common.exception import Wrong_ISP_Graph, connectionsError
-from Common.SQL.endpoint import get_available_endpoints_by_name, get_first_available_endpoint_by_name
-from Common.SQL.endpoint import updateEndpointConnection
 
 SWITCH_TEMPLATE = Configuration().SWITCH_TEMPLATE
 DEFAULT_PRIORITY = Configuration().DEFAULT_PRIORITY

@@ -10,7 +10,6 @@ from Common.exception import  WrongConfigurationFile
 class Configuration(object):
     
     _instance = None
-    #(fmignini) Not too meaningful use this var, I should change his name with something else like inizialized = False 
     _AUTH_SERVER = None
     
     def __new__(cls, *args, **kwargs):
@@ -64,18 +63,19 @@ class Configuration(object):
         self._CONTROL_SWITCH_NAME = config.get('switch', 'switch_l2_control_name')
         
         self._DRIVERS = config.get('drivers', 'drivers')
-        self._ORCHESTRATION_LAYER = config.get('orchestration', 'orchestration_layer')
-        self._USER_AUTH_MODE = config.get('orchestration', 'user_authentication')
-
+        self._USE_HEAT = config.getboolean('JolnetCA', 'use_heat')
         
         self._DEBUG_MODE = config.getboolean('orchestrator', 'debug_mode')
         
         
-        self._UNIFY_ENDPOINTS = config.get('unify', 'endpoints')
-        self._UNIFY_NUM_ENDPOINTS = config.getint('unify','number_of_endpoint')
+        self._UNIFY_ENDPOINTS = config.get('UniversalNodeCA', 'endpoints')
+        self._UNIFY_NUM_ENDPOINTS = config.getint('UniversalNodeCA','number_of_endpoint')
 
         self._SW_ENDPOINT = config.get('nobody', 'sw_endpoint')
         self._ORCH_PORT = config.get('orchestrator','port')
+        self._ORCH_IP = config.get('orchestrator','ip')
+        self._ORCH_TIMEOUT = config.get('orchestrator','timeout')
+        
         self._FLOW_PRIORITY = config.get('user_connection', 'flow_priority')
         self._MAXIMUM_NUMBER_OF_VNF_IN_GRAPH = config.get('constraints','maximum_number_of_vnf_in_graph')
         self._SWITCH_TEMPLATE = config.get('switch','template')
@@ -137,8 +137,8 @@ class Configuration(object):
             self._TIMEOUT_NOVA = 10
         
         #Jolnet
-        if config.has_option('jolnet', 'isp_availability_zone'):
-            self._ISP_AZ = config.get('jolnet', 'isp_availability_zone')
+        if config.has_option('JolnetCA', 'isp_availability_zone'):
+            self._ISP_AZ = config.get('JolnetCA', 'isp_availability_zone')
         else: 
             self._ISP_AZ = None
 
@@ -146,15 +146,10 @@ class Configuration(object):
         # Orchestrator
         self._ISP = config.getboolean('orchestrator', 'isp')
         self._NOBODY = config.getboolean('orchestrator', 'nobody')
-
-
-    @property
-    def ORCHESTRATION_LAYER(self):
-        return self._ORCHESTRATION_LAYER
     
     @property
-    def USER_AUTH_MODE(self):
-        return self._USER_AUTH_MODE
+    def ORCH_TIMEOUT(self):
+        return self._ORCH_TIMEOUT
     
     @property
     def ISP_AZ(self):
@@ -167,6 +162,10 @@ class Configuration(object):
     @property
     def ODL_ENDPOINT2(self):
         return self._ODL_ENDPOINT2
+    
+    @property
+    def USE_HEAT(self):
+        return self._USE_HEAT
     
     @property
     def ODL_USER(self):
@@ -192,10 +191,6 @@ class Configuration(object):
     @property
     def TIMEOUT_ODL(self):
         return self._TIMEOUT_ODL
-    
-    @property
-    def ODL_ENDPOINT(self):
-        return self._ODL_ENDPOINT
         
     @property
     def EXIT_SWITCH(self):
@@ -340,6 +335,10 @@ class Configuration(object):
     @property
     def FLOW_PRIORITY(self):
         return self._FLOW_PRIORITY
+    
+    @property
+    def ORCH_IP(self):
+        return self._ORCH_IP
     
     @property
     def ORCH_PORT(self):

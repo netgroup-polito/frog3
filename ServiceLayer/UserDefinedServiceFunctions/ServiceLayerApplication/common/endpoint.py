@@ -49,7 +49,7 @@ class Endpoint(object):
                     endpoint.type = INGRESS_TYPE
                     endpoint.interface = INGRESS_PORT
                     if user_id is not None:
-                        endpoint.node = Node().getNodeIPAddress(Node().getUserLocation(user_id))
+                        endpoint.node = Node().getNodeDomainID(Node().getUserLocation(user_id))
                     logging.debug("NF-FG name: "+self.nf_fg.name)
                     logging.debug("endpoint name: "+endpoint.name)
                     self.nf_fg.characterizeEndpoint(endpoint, endpoint_type = endpoint.type, interface = endpoint.interface)

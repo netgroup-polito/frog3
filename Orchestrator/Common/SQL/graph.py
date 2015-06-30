@@ -15,7 +15,6 @@ import datetime
 import json
 import logging
 from Common.NF_FG.nf_fg import NF_FG, Match
-from Common.SQL.endpoint import EndpointModel
 from Common.exception import EndpointNotFound, PortNotFound, GraphNotFound
 
 
@@ -347,7 +346,7 @@ class Graph(object):
                                 matches.append(Match(priority=flowspec_ref.priority, match_id=flowspec_ref.id, of_field=of_field))
                                 flowrule.changeMatches(matches)
                         
-                        # TODO: find arch from endpoint to this port
+                        # find arch from endpoint to this port
                         #connection_from_endpoints_ref = session.query(O_ArchModel).filter_by(session_id = session_id).filter_by(start_node_type = "endpoint").filter_by(end_node_type = "port").filter_by(end_node_id = port_ref.id).join(O_ArchModel.start_node_id).join(EndpointModel.id).all()
                         #session.query(O_ArchModel).filter_by(session_id = session_id).filter_by(start_node_type = "endpoint").filter_by(end_node_type = "port").filter_by(end_node_id = port_ref.id).join(O_ArchModel.start_node_id).join(EndpointModel.id).all()
                         connection_from_endpoints_ref = session.query(EndpointModel,O_ArchModel.id).filter(O_ArchModel.start_node_id == EndpointModel.id).filter(O_ArchModel.session_id == session_id).filter(O_ArchModel.start_node_type == "endpoint").filter(O_ArchModel.end_node_type == "port").filter(O_ArchModel.end_node_id == port_ref.id).all()
@@ -365,7 +364,7 @@ class Graph(object):
         endpoints_ref = session.query(EndpointModel).filter_by(session_id = session_id).all()
         for endpoint_ref in endpoints_ref:
             endpoint = nffg.createEndpoint(endpoint_ref.type, endpoint_id=endpoint_ref.graph_endpoint_id)
-            # TODO: endpoint resource
+            # endpoint resource
             endpoint_resorces_ref = session.query(EndpointResourceModel).filter_by(endpoint_id = endpoint_ref.id).filter_by(session_id = session_id).all()
             for endpoint_resorce_ref in endpoint_resorces_ref:
                 if endpoint_resorce_ref.resource_type == 'port':
@@ -438,17 +437,11 @@ class Graph(object):
     
     def _id_generator(self, nffg, session_id):
         graph_base_id = self._get_higher_graph_id()
-        print "graph_base_id: "+str(graph_base_id)
         vnf_base_id = self._get_higher_vnf_id()
-        print "vnf_base_id: "+str(vnf_base_id)
         port_base_id = self._get_higher_port_id()
-        print "port_base_id: "+str(port_base_id)
         endpoint_base_id = self._get_higher_endpoint_id()
-        print "endpoint_base_id: "+str(endpoint_base_id)
         o_arch_base_id = self._get_higher_o_arch_id()
-        print "o_arch_base_id: "+str(o_arch_base_id)
         flowspec_base_id = self._get_higher_flowspec_id()
-        print "flowspec_base_id: "+str(flowspec_base_id)
         if graph_base_id is not None:
             self.graph_id = int(graph_base_id) + 1
         else:

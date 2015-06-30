@@ -20,7 +20,7 @@ class NodeModel(Base):
     Maps the database table node
     '''
     __tablename__ = 'node'
-    attributes = ['id', 'name', 'type','ip_address','availability_zone','controller_node']
+    attributes = ['id', 'name', 'type','domain_id','availability_zone','controller_node']
     id = Column(VARCHAR(64), primary_key=True)
     name = Column(VARCHAR(64))
     
@@ -35,7 +35,7 @@ class NodeModel(Base):
         UnifiedNode        # for the Universal node component adapter 
     '''
     type = Column(VARCHAR(64))
-    ip_address = Column(VARCHAR(64))
+    domain_id = Column(VARCHAR(64))
     availability_zone = Column(VARCHAR(64))
     
     '''
@@ -72,13 +72,13 @@ class Node(object):
         '''
         pass
     
-    def getNodeFromIPAddress(self, ip_address):
+    def getNodeFromDomainID(self, domain_id):
         session = get_session()
         try:
-            return session.query(NodeModel).filter_by(ip_address = ip_address).one()
+            return session.query(NodeModel).filter_by(domain_id = domain_id).one()
         except Exception as ex:
             logging.error(ex)
-            raise NodeNotFound("Node not found for ip address: "+str(ip_address))
+            raise NodeNotFound("Node not found for domani id: "+str(domain_id))
     
     def getAvailabilityZone(self, node_id):
         session = get_session()
@@ -88,10 +88,10 @@ class Node(object):
             logging.error(ex)
             raise NodeNotFound("Node not found: "+str(node_id))
     
-    def getNodeIPAddress(self, node_id):
+    def getNodeDomainID(self, node_id):
         session = get_session()
         try:
-            return session.query(NodeModel.ip_address).filter_by(id = node_id).one().ip_address
+            return session.query(NodeModel.domain_id).filter_by(id = node_id).one().domain_id
         except Exception as ex:
             logging.error(ex)
             raise NodeNotFound("Node not found: "+str(node_id))
@@ -115,9 +115,3 @@ class Node(object):
         except Exception as ex:
             logging.error(ex)
             raise UserLocationNotFound("It is not defined a default location for the user: "+str(user_id))
-
-
-
-class UserLocation(object):
-    def __init__(self):
-        pass

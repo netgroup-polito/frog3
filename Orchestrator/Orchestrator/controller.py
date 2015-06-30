@@ -6,22 +6,19 @@ from __future__ import division
 
 import json
 import logging
-import scheduler 
+from scheduler import Scheduler
 import uuid
 
-from Common.exception import unauthorizedRequest, GraphError, sessionNotFound
+from Common.exception import unauthorizedRequest, sessionNotFound, GraphError
 from Common.authentication import KeystoneAuthentication
 from Common.SQL.session import Session
 from Common.SQL.graph import Graph
 from Common.SQL.node import Node 
-#from Common.SQL.session import set_ended, get_active_user_session_info_from_id, get_instantiated_profile, get_active_user_session_from_id, get_active_user_session, update_session, add_session
 from Common.NF_FG.validator import ValidateNF_FG
 from Common.config import Configuration
 from Common.NF_FG.nf_fg import NF_FG
 from Common.NF_FG.nf_fg_managment import NF_FG_Management
 from httplib import CONFLICT
-
-AUTH_MODE = Configuration().USER_AUTH_MODE
 
 
 class UpperLayerOrchestratorController(object):
@@ -30,43 +27,56 @@ class UpperLayerOrchestratorController(object):
     '''
     def __init__(self, keystone_server, OrchestratorToken = None, method = None, token = None, response = None, username = None, password = None, tenant = None):
         
+        # Specifies the type of authentication for the service layer toward the orchestrator.
+        # The service layer can either specify a user/password (that will be used by the orchestrator
+        # to authenticate in keystone) ('basic' authentication), or pass directly a token already 
+        # obtained previously from Keystone ('token').
+        self.AUTH_MODE = 'none'
         self.keystone_server = keystone_server
         
-        if AUTH_MODE == 'basic':
-            if username is not None and password is not None and tenant is not None:
-                if username is None or password is None or tenant is None:       
-                    raise unauthorizedRequest("Access credentials not found")
-                self.username = username
-                self.password = password
-                self.tenant = tenant
+        if username is not None and password is not None and tenant is not None:
+            self.AUTH_MODE = 'basic'
+            self.username = username
+            self.password = password
+            self.tenant = tenant
                 
-        elif AUTH_MODE == 'token':
-            if token is None or OrchestratorToken is None:       
-                raise unauthorizedRequest("Token not found")
+        if token is not None:
+            self.AUTH_MODE = 'token'       
             self.token = token
+            
+        if OrchestratorToken is not None:
+            self.AUTH_MODE = 'token'     
             self.orchToken = OrchestratorToken
             
         if response is not None:
             self.response = response 
+            
+        if self.AUTH_MODE == 'none':
+            raise unauthorizedRequest("Authentication parameters missing")
 
     def get(self, nffg_id):
         '''
         Returns the status of the graph
         '''
+        logging.debug("Authenticating the user - Get");
+        if self.AUTH_MODE == 'basic':
+            token = KeystoneAuthentication(self.keystone_server, self.tenant, self.username, self.password)
+            self.token = token.get_token()
+        elif self.AUTH_MODE == 'token':
+            token = KeystoneAuthentication(self.keystone_server, user_token=self.token, orch_token=self.orchToken)
+            
         # TODO: have I to manage a sort of cache? Reading from db the status, maybe
         session_id = Session().get_active_user_session_by_nf_fg_id(nffg_id).id
         status = self.getResourcesStatus(session_id)
         return json.dumps(status)
     
-    def delete(self, nffg_id):
-        # TODO: dare la possibilita di cancellare anche le sessioni in error
-        
+    def delete(self, nffg_id):        
         # Authenticate the User
         logging.debug("Authenticating the user - DELETE");
-        if AUTH_MODE == 'basic':
+        if self.AUTH_MODE == 'basic':
             token = KeystoneAuthentication(self.keystone_server, self.tenant, self.username, self.password)
             self.token = token.get_token()
-        elif AUTH_MODE == 'token':
+        elif self.AUTH_MODE == 'token':
             token = KeystoneAuthentication(self.keystone_server, user_token=self.token, orch_token=self.orchToken)
         
         # Retrieve the session data, from active session on a port of a switch passed, if no active session raise an exception
@@ -74,7 +84,7 @@ class UpperLayerOrchestratorController(object):
         logging.debug("nffg_id: "+nffg_id)
         
         # Get the component adapter associated  to the node where the nffg was instantiated
-        session_id = Session().get_active_user_session_by_nf_fg_id(nffg_id).id
+        session_id = Session().get_active_user_session_by_nf_fg_id(nffg_id, error_aware=False).id
         logging.debug("session_id: "+str(session_id))
         node = Node().getNode(Graph().getNodeID(session_id))
         
@@ -86,10 +96,10 @@ class UpperLayerOrchestratorController(object):
         nffg = Graph().get_nffg_by_id(nffg_id)
         
         # De-instantiate profile
-        orchestrator, new_node_endpoint = scheduler.Select( session_id, node, nffg)
+        orchestrator, node_endpoint = Scheduler(session_id).getInstance(node)
         '''
         try:
-            orchestrator.deinstantiateProfile(token, instantiated_nffg, node.ip_address)
+            orchestrator.deinstantiateProfile(token, instantiated_nffg, node.domain_id)
         except Exception as ex:
             logging.exception(ex)
             Session().set_error(session_id)
@@ -103,10 +113,10 @@ class UpperLayerOrchestratorController(object):
     
     def update(self, nf_fg, delete = False):
         logging.info('Orchestrator - UPDATE - Authenticating the user - UPDATE')
-        if AUTH_MODE == 'basic':
+        if self.AUTH_MODE == 'basic':
             token = KeystoneAuthentication(self.keystone_server, self.tenant, self.username, self.password)
             self.token = token.get_token()
-        elif AUTH_MODE == 'token':
+        elif self.AUTH_MODE == 'token':
             token = KeystoneAuthentication(self.keystone_server, user_token=self.token, orch_token=self.orchToken)
         
         session = Session().get_active_user_session(token.get_userID()) 
@@ -119,12 +129,17 @@ class UpperLayerOrchestratorController(object):
         old_nf_fg = json.loads(old_nf_fg)
         
         nf_fg = self.prepareNF_FG(token, nf_fg)
-        
+            
         
         
         # Get the component adapter associated  to the node where the nffg was instantiated
-        component_adapter = Node().getComponentAdapter(Graph().getNodeID(session.session_id))
-        orchestrator, new_node_endpoint = scheduler.Select(component_adapter, token.get_endpoints("orchestration"), token.get_endpoints("compute"))
+        node = Node().getNode(Graph().getNodeID(session.session_id))
+        scheduler = Scheduler(session.session_id)
+        old_orchestrator_instance, old_node_endpoint = scheduler.getInstance(node)
+        orchestrator, new_node_endpoint = scheduler.schedule(nf_fg)
+        
+        if new_node_endpoint != old_node_endpoint:
+            self.delete(nf_fg.id)
 
         # Update the nffg
         '''
@@ -149,10 +164,10 @@ class UpperLayerOrchestratorController(object):
         
         # Authenticate the User
         logging.info('Orchestrator - PUT - Authenticating the user')
-        if AUTH_MODE == 'basic':
+        if self.AUTH_MODE == 'basic':
             token = KeystoneAuthentication(self.keystone_server, self.tenant, self.username, self.password)
             self.token = token.get_token()
-        elif AUTH_MODE == 'token':
+        elif self.AUTH_MODE == 'token':
             token = KeystoneAuthentication(self.keystone_server, user_token=self.token, orch_token=self.orchToken)
         
         nf_fg = NF_FG(nf_fg)
@@ -170,16 +185,13 @@ class UpperLayerOrchestratorController(object):
             try:
                 # Manage profile
                 nf_fg = self.prepareNF_FG(token, nf_fg)
-                
-                
-    
-                        
-                # TODO: Save the NFFG in the database, with the state initializing
+                 
+                # Save the NFFG in the database, with the state initializing
                 Graph().addNFFG(nf_fg, session_id)
                 
                 # Take a decision about where we should schedule the serving graph (UN or HEAT), and the node
-                orchestrator, node_endpoint = scheduler.Schedule(session_id, nf_fg)            
-                
+                scheduler = Scheduler(session_id)           
+                orchestrator, node_endpoint = scheduler.schedule(nf_fg)
                 
                 # Instantiate profile
                 logging.info('Orchestrator - PUT - Call CA to instantiate NF-FG')
@@ -236,6 +248,8 @@ class UpperLayerOrchestratorController(object):
     def getResourcesStatus(self, session_id):
         # Check where the nffg is instantiated and get the instance of the CA and the endpoint of the node
         node = Node().getNode(Graph().getNodeID(session_id))
+        
         # Get the status of the resources
-        orchestrator = scheduler.GetInstance(node, session_id)
-        return orchestrator.getStatus(session_id, node.ip_address)
+        scheduler = Scheduler(session_id)  
+        orchestrator, node_endpoint = scheduler.getInstance(node)
+        return orchestrator.getStatus(session_id, node_endpoint)

@@ -13,6 +13,7 @@ SWITCH_NAME = Configuration().SWITCH_NAME
 
 ISP_EGRESS = Configuration().ISP_EGRESS
 ISP_INGRESS = Configuration().ISP_INGRESS
+USER_INGRESS = Configuration().USER_INGRESS
 CONTROL_EGRESS = Configuration().CONTROL_EGRESS
 ISP = Configuration().ISP
 
@@ -787,8 +788,14 @@ class NF_FG(object):
         return links
             
     def getStatusExitInterface(self):
+        return self.getStatusInterface(ISP_EGRESS)
+        
+    def getStatusIngressInterface(self):
+        return self.getStatusInterface(USER_INGRESS)
+    
+    def getStatusInterface(self, endpoint_name):
         for endpoint in self.listEndpoint:
-            if endpoint.name == ISP_EGRESS:
+            if endpoint.name == endpoint_name:
                 return True
         return False
     
@@ -800,9 +807,15 @@ class NF_FG(object):
         return endpoints 
     
     def getExitEndpoint(self): 
+        return self.getEndpoint(ISP_EGRESS)
+    
+    def getIngressEndpoint(self):
+        return self.getEndpoint(USER_INGRESS)
+
+    def getEndpoint(self, endpoint_name):
         exitEndpoints = []
         for endpoint in self.listEndpoint:
-            if endpoint.name == ISP_EGRESS:   
+            if endpoint.name == endpoint_name:   
                 exitEndpoints.append(endpoint)
         return exitEndpoints 
         
@@ -911,9 +924,7 @@ class Endpoint(object):
         self.remote_id = ext_nf_fg.getEndpointFromName(endpoint_name).id
         self.remote_graph = ext_nf_fg._id
         self.connection = True 
-    
-     
-          
+             
 class VNF(object):
     
     def __init__(self, VNFname, template, vnf_id = None, ports = None, manifest = None, avialability_zone=None):
@@ -1251,6 +1262,7 @@ class Flowrule(object):
     
     def getJSON(self):
         j_flowrule = {}
+        j_flowrule['id'] = self.id
         j_flowrule['action'] = {}
         j_flowrule['action']['type'] = self.action.type
         if self.action.vnf is not None:

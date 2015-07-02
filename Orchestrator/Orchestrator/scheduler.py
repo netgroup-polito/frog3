@@ -7,7 +7,7 @@ Created on 30/mag/2014
 
 @author: fabiomignini
 '''
-from Orchestrator.ComponentAdapter.Openstack.heat import HeatOrchestrator
+from Orchestrator.ComponentAdapter.Openstack.openstack import HeatOrchestrator
 from Orchestrator.ComponentAdapter.Jolnet.jolnet import JolnetAdapter
 from Orchestrator.ComponentAdapter.Unify.unify import UnifyCA
 from Common.SQL.node import Node
@@ -17,10 +17,13 @@ import logging
 
 class Scheduler(object):
     
-    def __init__(self, session_id):
+    def __init__(self, session_id, token):
         self.session_id = session_id
+        self.token = token
+
     
     def schedule(self, nffg):
+        
         
         node = Node().getNodeFromDomainID(self.checkEndpointLocation(nffg))
         self.changeAvialabilityZone(nffg, Node().getAvailabilityZone(node.id))
@@ -34,10 +37,10 @@ class Scheduler(object):
     def getInstance(self, node):
         if node.type == "HeatCA" or node.type == "OpenStack_compute":
             node_endpoint = self.findNode("HeatCA", node)
-            orchestratorCA_instance = HeatOrchestrator(self.session_id)
+            orchestratorCA_instance = HeatOrchestrator(self.session_id, node.domain_id, self.token)
         elif node.type == "JolnetCA":
             node_endpoint = node.ip_ddress
-            orchestratorCA_instance = JolnetAdapter(self.session_id)
+            orchestratorCA_instance = JolnetAdapter(self.session_id, node.domain_id, self.token)
         elif node.type == "UniversalNodeCA":
             node_endpoint = node.ip_ddress
             orchestratorCA_instance = UnifyCA(self.session_id);

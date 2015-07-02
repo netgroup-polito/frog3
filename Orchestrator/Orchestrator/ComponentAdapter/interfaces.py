@@ -43,14 +43,14 @@ class OrchestratorInterface:
     
         
     @abstractmethod
-    def instantiateProfile(self, profile_id, profile = None):
+    def instantiateProfile(self,  nffg, node_endpoint):
         '''
         Method to use to instantiate the User Profile Graph
         Args:
-            profile:
-                JSON Object for the User Profile (it should be a map that follow the User Profile Graph Schema
-            token:
-                The authentication token to use for the REST call
+            nffg:
+                Object of the Class Common.NF_FG.nf_fg.NF_FG
+            node_endpoint:
+                End point used to contact the infrastructure layer
             Exceptions:
                 Raise some exception to be captured
         '''

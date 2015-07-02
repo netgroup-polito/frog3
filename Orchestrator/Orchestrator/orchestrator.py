@@ -72,36 +72,20 @@ class UpperLayerOrchestrator(object):
             raise falcon.HTTPNotFound()
         except requests.HTTPError as err:
             logging.exception(err.response.text)
-            if 'code' not in json.loads(err.response.text)['error']:
-                code = json.loads(err.response.text)['code']
-            else:
-                code = json.loads(err.response.text)['error']['code']
-                
-            if code == 401:
-                raise falcon.HTTPUnauthorized(json.loads(err.response.text)['error']['title'],
-                                              json.loads(err.response.text))
-            elif code == 403:
-                raise falcon.HTTPForbidden(json.loads(err.response.text)['error']['title'],
-                                              json.loads(err.response.text)) 
-            elif code == 404: 
-                raise falcon.HTTPNotFound()
+            if err.response.status_code == 401:
+                raise falcon.HTTPInternalServerError('Unauthorized.',err.message)
+            elif err.response.status_code == 403:
+                raise falcon.HTTPInternalServerError('Forbidden.',err.message)
+            elif err.response.status_code == 404:
+                raise falcon.HTTPInternalServerError('Resource Not found.',err.message)
             raise err
         except jsonschema.ValidationError as err:
             logging.exception(err.message)
             raise falcon.HTTPBadRequest('Bad Request',
                                         err.message)
-        except ValueError:
-            logging.exception("Malformed JSON")
-            raise falcon.HTTPError(falcon.HTTP_753,
-                                   'Malformed JSON',
-                                   'Could not decode the request body. The '
-                                   'JSON was incorrect.')
         except sessionNotFound as err:
             logging.exception(err.message)
             raise falcon.HTTPNotFound()
-        except falcon.HTTPError as err:
-            logging.exception("Falcon "+err.title)
-            raise err
         except ingoingFlowruleMissing as err:
             logging.exception(err.message)
             raise falcon.HTTPInternalServerError('ingoingFlowruleMissing',err.message)
@@ -110,7 +94,7 @@ class UpperLayerOrchestrator(object):
             raise falcon.HTTPInternalServerError('ManifestValidationError',err.message)
         except Exception as ex:
             logging.exception(ex)
-            raise ex
+            raise falcon.HTTPInternalServerError('Contact the admin. ',ex.message)
 
     def on_get(self, request, response, nffg_id):
         pass
@@ -147,20 +131,13 @@ class UpperLayerOrchestrator(object):
             raise falcon.HTTPUnauthorized("Unauthorized", err.description)
         except requests.HTTPError as err:
             logging.exception(err.response.text)
-            if 'code' not in json.loads(err.response.text)['error']:
-                code = json.loads(err.response.text)['code']
-            else:
-                code = json.loads(err.response.text)['error']['code']
-                
-            if code == 401:
-                raise falcon.HTTPUnauthorized(json.loads(err.response.text)['error']['title'],
-                                              json.loads(err.response.text))
-            elif code == 403:
-                raise falcon.HTTPForbidden(json.loads(err.response.text)['error']['title'],
-                                              json.loads(err.response.text)) 
-            elif code == 404: 
-                raise falcon.HTTPNotFound()
-            raise
+            if err.response.status_code == 401:
+                raise falcon.HTTPInternalServerError('Unauthorized.',err.message)
+            elif err.response.status_code == 403:
+                raise falcon.HTTPInternalServerError('Forbidden.',err.message)
+            elif err.response.status_code == 404: 
+                raise falcon.HTTPInternalServerError('Resource Not found.',err.message)
+            raise err
     
     def on_post(self, request, response):
         pass

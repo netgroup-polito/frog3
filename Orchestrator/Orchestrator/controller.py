@@ -67,7 +67,7 @@ class UpperLayerOrchestratorController(object):
             
         # TODO: have I to manage a sort of cache? Reading from db the status, maybe
         session_id = Session().get_active_user_session_by_nf_fg_id(nffg_id).id
-        status = self.getResourcesStatus(session_id)
+        status = self.getResourcesStatus(session_id, token)
         return json.dumps(status)
     
     def delete(self, nffg_id):        
@@ -93,18 +93,17 @@ class UpperLayerOrchestratorController(object):
         logging.debug('Instantiated_nffg that we are going to delete: '+instantiated_nffg.getJSON())
         
         # Get nffg
-        nffg = Graph().get_nffg_by_id(nffg_id)
+        #nffg = Graph().get_nffg_by_id(nffg_id)
         
         # De-instantiate profile
-        orchestrator, node_endpoint = Scheduler(session_id).getInstance(node)
-        '''
+        orchestrator, node_endpoint = Scheduler(session_id, token).getInstance(node)
         try:
-            orchestrator.deinstantiateProfile(token, instantiated_nffg, node.domain_id)
+            orchestrator.deinstantiateProfile(instantiated_nffg, node.domain_id)
         except Exception as ex:
             logging.exception(ex)
-            Session().set_error(session_id)
+            #Graph().delete_graph(session_id)
+            #Session().set_error(session_id)
             raise ex
-        '''
         
         # Set the field ended in the table session to the actual datatime
         
@@ -134,7 +133,7 @@ class UpperLayerOrchestratorController(object):
         
         # Get the component adapter associated  to the node where the nffg was instantiated
         node = Node().getNode(Graph().getNodeID(session.session_id))
-        scheduler = Scheduler(session.session_id)
+        scheduler = Scheduler(session.session_id, token)
         old_orchestrator_instance, old_node_endpoint = scheduler.getInstance(node)
         orchestrator, new_node_endpoint = scheduler.schedule(nf_fg)
         
@@ -175,7 +174,7 @@ class UpperLayerOrchestratorController(object):
         
         logging.debug('Orchestrator - PUT - Checking session ')
         #if UserSession(token.get_userID(), token, nf_fg.id).checkSession() is True:
-        if self.checkNFFGStatus(nf_fg.id) is True:
+        if self.checkNFFGStatus(nf_fg.id, token) is True:
             logging.debug('Orchestrator - PUT - Updating NF-FG')
             session_id = self.update(nf_fg)
             logging.debug('Orchestrator - PUT - Update success')
@@ -190,21 +189,20 @@ class UpperLayerOrchestratorController(object):
                 Graph().addNFFG(nf_fg, session_id)
                 
                 # Take a decision about where we should schedule the serving graph (UN or HEAT), and the node
-                scheduler = Scheduler(session_id)           
+                scheduler = Scheduler(session_id, token)           
                 orchestrator, node_endpoint = scheduler.schedule(nf_fg)
                 
                 # Instantiate profile
                 logging.info('Orchestrator - PUT - Call CA to instantiate NF-FG')
                 logging.debug(nf_fg.getJSON())
-                '''
-                orchestrator.instantiateProfile(json.loads(nf_fg.getJSON()), token, node_endpoint)
-                '''
+                orchestrator.instantiateProfile(nf_fg, node_endpoint)
                 logging.debug('Orchestrator - PUT - NF-FG instantiated')
                      
                 # Save instantiated NF-FG in db            
                 Session().updateSession(session_id, Node().getNodeID(token.get_userID()), Node().getNodeID(token.get_userID()), 'complete')
             except Exception as ex:
                 logging.exception(ex)
+                Graph().delete_graph(session_id)
                 Session().set_error(session_id)
                 raise ex
                                 
@@ -222,7 +220,7 @@ class UpperLayerOrchestratorController(object):
         manage.addManifests()
         return nf_fg
 
-    def checkNFFGStatus(self, service_graph_id):
+    def checkNFFGStatus(self, service_graph_id, token):
         # TODO: Check if the graph exists, if true
         try:
             session_id = Session().get_active_user_session_by_nf_fg_id(service_graph_id).id
@@ -230,7 +228,7 @@ class UpperLayerOrchestratorController(object):
             return False
             
         
-        status = self.getResourcesStatus(session_id)
+        status = self.getResourcesStatus(session_id, token)
         
         # If the status of the graph is complete, return False
         if status['graph'] == 'complete':
@@ -245,11 +243,11 @@ class UpperLayerOrchestratorController(object):
         if status['graph'] == 'ended' or status['graph'] == 'not_found':
             return False
     
-    def getResourcesStatus(self, session_id):
+    def getResourcesStatus(self, session_id, token):
         # Check where the nffg is instantiated and get the instance of the CA and the endpoint of the node
         node = Node().getNode(Graph().getNodeID(session_id))
         
         # Get the status of the resources
-        scheduler = Scheduler(session_id)  
+        scheduler = Scheduler(session_id, token)  
         orchestrator, node_endpoint = scheduler.getInstance(node)
         return orchestrator.getStatus(session_id, node_endpoint)

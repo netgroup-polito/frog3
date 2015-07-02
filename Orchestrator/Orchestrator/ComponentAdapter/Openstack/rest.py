@@ -390,6 +390,7 @@ class Nova(object):
     getAvailabilityZonesPath="/os-availability-zone/detail"
     getHostAggregateListPath="/os-aggregates"
     addComputeNodeToHostAggregatePath = "/os-aggregates/%s/action"
+    addServer = "/servers"
     timeout = Configuration().TIMEOUT_NOVA
     
     
@@ -550,14 +551,35 @@ class Nova(object):
         resp.raise_for_status()
         flavor = json.loads(resp.text)
         return flavor
-       
+    
+    def createServer(self, novaEndpoint, token, server_data):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.post(novaEndpoint + self.addServer, data=json.dumps(server_data), headers=headers)
+        resp.raise_for_status()
+        return json.loads(resp.text)
+    
+    def getServerStatus(self, novaEndpoint, token, server_id):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.get(novaEndpoint + self.addServer + "/" + server_id, headers=headers)
+        resp.raise_for_status()
+        data = json.loads(resp.text)
+        return data['server']['status']
+    
+    def deleteServer(self, novaEndpoint, token, server_id):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.delete(novaEndpoint + self.addServer + "/" + server_id, headers=headers)
+        if resp.status_code == 404:
+            return None
+        resp.raise_for_status()
+        return resp
+          
 class Glance(object):
     '''
     Class used for Glance API
     '''
     timeout = Configuration().TIMEOUT_GLANCE
     
-    def get_image_name(self, imageURI, token):
+    def get_image(self, imageURI, token):
         '''
         Return the name of an image from the URI
         '''         
@@ -565,5 +587,85 @@ class Glance(object):
         resp = requests.get(imageURI, headers=headers, timeout=self.timeout)
         resp.raise_for_status()
         data = json.loads(resp.text)
-        return data['name']
+        return data
         
+class Neutron(object):
+    '''
+    Class used for Neutron API
+    '''
+    get_networks = "/v2.0/networks"
+    create_network = "/v2.0/networks"
+    get_ports = "/v2.0/ports"
+    create_subnet = "/v2.0/subnets"
+    create_flowrule = "/v2.0/flowrules"
+    delete_flowrule = "/v2.0/flowrules/%s"
+    delete_network = "/v2.0/networks/%s"
+    delete_subnet = "/v2.0/subnets/%s"
+    
+    def createFlowrule(self, neutronEndpoint, token, flowroute_data):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.post(neutronEndpoint + self.create_flowrule, data=json.dumps(flowroute_data), headers=headers)
+        resp.raise_for_status()
+        return json.loads(resp.text)
+    
+    def deleteFlowrule(self, neutronEndpoint, token, flowrule_id):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        path = neutronEndpoint + (self.delete_flowrule % flowrule_id)
+        logging.debug(path)
+        resp = requests.delete(path, headers=headers)
+        return resp
+
+    def createNetwork(self, neutronEndpoint, token, network_data):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        logging.debug(neutronEndpoint + self.create_network)
+        resp = requests.post(neutronEndpoint + self.create_network, data=json.dumps(network_data), headers=headers)
+        resp.raise_for_status()
+        return json.loads(resp.text)
+    
+    def deleteNetwork(self, neutronEndpoint, token, network_id):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.delete(neutronEndpoint + (self.delete_network % network_id), headers=headers)
+        if resp.status_code == 404:
+            return None
+        resp.raise_for_status()
+        return resp
+    
+    def createSubNet(self, neutronEndpoint, token, subnet_data):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.post(neutronEndpoint + self.create_subnet, data=json.dumps(subnet_data), headers=headers)
+        resp.raise_for_status()
+        return json.loads(resp.text)
+    
+    def deleteSubNet(self, neutronEndpoint, token, subnet_id):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.delete(neutronEndpoint + (self.delete_subnet %  subnet_id), headers=headers)
+        if resp.status_code == 404:
+            return None
+        resp.raise_for_status()
+        return resp
+    
+    def getNetworks(self, neutronEndpoint, token):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.get(neutronEndpoint + self.get_networks, headers=headers)
+        resp.raise_for_status()
+        return resp.text
+    
+    def getPorts(self, neutronEndpoint, token):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.get(neutronEndpoint + self.get_ports, headers=headers)
+        resp.raise_for_status()
+        return resp.text
+    
+    def createPort(self, neutronEndpoint, token, port_data):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.post(neutronEndpoint + self.get_ports, data=json.dumps(port_data), headers=headers)
+        resp.raise_for_status()
+        return json.loads(resp.text)
+    
+    def deletePort(self, neutronEndpoint, token, port_id):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.delete(neutronEndpoint + self.get_ports + "/" + port_id, headers=headers)
+        if resp.status_code == 404:
+            return None
+        resp.raise_for_status()
+        return resp

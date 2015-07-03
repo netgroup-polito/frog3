@@ -26,6 +26,7 @@ class GlobalOrchestrator(object):
         headers = {'Content-Type': 'application/json', "cache-control": "no-cache", 'X-Auth-Token': self.token}
         resp = requests.get(self.get_url % (nffg_id), headers=headers, timeout=long(self.timeout))
         resp.raise_for_status()
+        logging.debug(resp.text)
         return resp.text
         
     def put(self, nffg):
@@ -44,9 +45,7 @@ class GlobalOrchestrator(object):
         return resp.text
         
     def checkNFFG(self, nffg_id):
-        self.get(nffg_id)
+        status = self.get(nffg_id)
         logging.debug("Check completed")
-        response = {}
-        response['status']='CREATE_COMPLETE'
-        return response
+        return status
         

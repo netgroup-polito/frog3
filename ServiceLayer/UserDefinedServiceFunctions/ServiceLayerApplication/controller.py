@@ -98,22 +98,19 @@ class OrchestratorController():
         token = KeystoneAuthentication(self.keystone_server,user_token=self.token, orch_token=self.orchToken)
         
         session = Session().get_active_user_session(token.get_userID()) 
+
         
-        profile = Session().get_instantiated_profile(token.get_userID())
-        profile = json.loads(profile)
-        nf_fg = NF_FG(profile)
-        
-        status = self.orchestrator.checkNFFG(nf_fg.id)
-        logging.debug("Status : "+status['graph'])
-        if status['graph'] == "complete":
+        status = json.loads(self.orchestrator.checkNFFG(session.service_graph_id))
+        logging.debug("Status : "+status['status'])
+        if status['status'] == "complete":
             code = falcon.HTTP_201
         else:
             code = falcon.HTTP_202
 
-        logging.debug("Username : "+token.get_username()+", Resources : "+json.dumps(status['resources']))
+        logging.debug("Username : "+token.get_username()+", Resources : "+json.dumps(status))
         
         
-        self.response.body = json.dumps(status['resources'])
+        self.response.body = json.dumps(status)
         self.response.status = code    
   
         logging.debug("GET from Username : "+token.get_username())
@@ -184,8 +181,7 @@ class OrchestratorController():
         
         if self.user_mac is not None:
             Session().del_mac_address_in_the_session(self.user_mac, session.id)
-        
-        
+         
     def put(self):
         """
         Request of profile scheduling from specific user

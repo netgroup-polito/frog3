@@ -97,7 +97,55 @@ class UpperLayerOrchestrator(object):
             raise falcon.HTTPInternalServerError('Contact the admin. ',ex.message)
 
     def on_get(self, request, response, nffg_id):
-        pass
+        try :
+            # Orchestrator authenticates himself
+            logging.debug('Authenticating the Orchestrator')
+            #self.authenticateOrch()
+            
+            token = request.get_header("X-Auth-Token")
+            
+            if token is None:
+                description = "{\"error\":{\"message\":\"Please provide an auth token\",\"code\":\"401\",\"title\":\"Unauthorized\"}}"            
+                raise falcon.HTTPUnauthorized('Auth token required',
+                                              description,
+                                              href='http://docs.example.com/auth')
+            self.token = token
+            
+            # Now, it initialize a new controller instance to handle the request        
+            controller = UpperLayerOrchestratorController(self.keystone_server, self.keystoneAuth.get_admin_token(), "Orchestrator", self.token, response)
+
+            
+            response.body = controller.get(nffg_id)
+            response.status = falcon.HTTP_200
+            
+        except NoResultFound:
+            logging.exception("EXCEPTION - NoResultFound")
+            raise falcon.HTTPNotFound()
+        except requests.HTTPError as err:
+            logging.exception(err.response.text)
+            if err.response.status_code == 401:
+                raise falcon.HTTPInternalServerError('Unauthorized.',err.message)
+            elif err.response.status_code == 403:
+                raise falcon.HTTPInternalServerError('Forbidden.',err.message)
+            elif err.response.status_code == 404:
+                raise falcon.HTTPInternalServerError('Resource Not found.',err.message)
+            raise err
+        except jsonschema.ValidationError as err:
+            logging.exception(err.message)
+            raise falcon.HTTPBadRequest('Bad Request',
+                                        err.message)
+        except sessionNotFound as err:
+            logging.exception(err.message)
+            raise falcon.HTTPNotFound()
+        except ingoingFlowruleMissing as err:
+            logging.exception(err.message)
+            raise falcon.HTTPInternalServerError('ingoingFlowruleMissing',err.message)
+        except ManifestValidationError as err:
+            logging.exception(err.message)
+            raise falcon.HTTPInternalServerError('ManifestValidationError',err.message)
+        except Exception as ex:
+            logging.exception(ex)
+            raise falcon.HTTPInternalServerError('Contact the admin. ',ex.message)
         
     def on_put(self, request, response):
         """

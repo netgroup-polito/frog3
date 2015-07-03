@@ -3,7 +3,7 @@ Created on Oct 1, 2014
 
 @author: fabiomignini
 '''
-
+from __future__ import division
 import logging
 import json
 import os
@@ -18,6 +18,8 @@ from Common.NF_FG.nf_fg_managment import NF_FG_Management
 from Orchestrator.ComponentAdapter.Openstack.resources import FlowRoute,Net,Port,ProfileGraph,VNF
 from Common.SQL.graph import Graph
 from Common.exception import NoHeatPortTranslationFound, StackError, NodeNotFound, DeletionTimeout
+from threading import Thread
+
 
 DEBUG_MODE = Configuration().DEBUG_MODE
 ISP_INGRESS = Configuration().ISP_INGRESS
@@ -63,7 +65,8 @@ class HeatOrchestrator(OrchestratorInterface):
     ######################################################################################################
     
     def getStatus(self, session_id, node_endpoint):
-        pass
+        self.node_endpoint = node_endpoint
+        return self.openstackResourcesStatus(self.token.get_token())
     
     def deinstantiateProfile(self, nffg, node_endpoint):
         '''
@@ -71,10 +74,10 @@ class HeatOrchestrator(OrchestratorInterface):
         '''
         self.node_endpoint = node_endpoint   
 
-        token = self.token.get_token()
+        token_id = self.token.get_token()
     
         if DEBUG_MODE is not True:
-            self.openstackResourcesDeletion(token)               
+            self.openstackResourcesDeletion(token_id)               
         # Disconnect exit switch from graph
         self.deleteExitEndpoint(nffg) 
     
@@ -129,8 +132,6 @@ class HeatOrchestrator(OrchestratorInterface):
             #self.deleteGraphResorces(nffg._id, self.token)
             #set_error(self.token.get_userID())  
             raise
-        # TODO if the entry exists, update it
-        #set_extra_info(self.session_id, resources)
   
     def updateProfile(self, new_nf_fg, old_nf_fg, token, node_endpoint):
         pass
@@ -152,7 +153,70 @@ class HeatOrchestrator(OrchestratorInterface):
         stack_id = Heat().getStackID(self.URI, token, name)
         return Heat().getStackStatus(self.URI, token, stack_id)
     
+    def openstackResourcesStatus(self, token_id):
+        resources_status = {}
+        resources_status['networks'] = {}
+        networks = Graph().getNetworks(self.session_id)
+        for network in networks:
+            resources_status['networks'][network.id] = Neutron().getNetworkStatus(self.neutronEndpoint, token_id, network.id)
+        resources_status['subnets'] = {}
+        subnets = Graph().getSubnets(self.session_id)
+        for subnet in subnets:
+            resources_status['subnets'][subnet.id] = Neutron().getSubNetStatus(self.neutronEndpoint, token_id, subnet.id)
+        resources_status['ports'] = {}
+        ports = Graph().getPorts(self.session_id)
+        for port in ports:
+            if port.type == 'openstack':
+                resources_status['ports'][port.id] = Neutron().getPortStatus(self.neutronEndpoint, token_id, port.internal_id)
+        resources_status['vnfs'] = {}
+        vnfs = Graph().getVNFs(self.session_id)
+        for vnf in vnfs:
+            resources_status['vnfs'][vnf.id] = Nova().getServerStatus(self.novaEndpoint, token_id, vnf.internal_id)
+        resources_status['flowrules'] = {}
+        flowrules = Graph().getOArchs(self.session_id)
+        for flowrule in flowrules:
+            if flowrule.internal_id is not None:
+                resources_status['flowrules'][flowrule.id] = Neutron().getFlowruleStatus(self.neutronEndpoint, token_id, flowrule.internal_id)
+            else:
+                resources_status['flowrules'][flowrule.id] = 'not_found'
+        
+        num_resources = len(resources_status['networks'])+len(resources_status['subnets'])+len(resources_status['ports'])\
+                        +len(resources_status['vnfs'])+len(resources_status['flowrules'])
+        num_resources_completed = 0
+        for value in resources_status['networks'].itervalues():
+            logging.debug("network - "+value)
+            if value == 'ACTIVE':
+                num_resources_completed = num_resources_completed + 1
+        for value in resources_status['subnets'].itervalues():
+            logging.debug("subnet - "+value)
+            if value == 'ACTIVE':
+                num_resources_completed = num_resources_completed + 1
+        for value in resources_status['ports'].itervalues():
+            logging.debug("port - "+value)
+            if value == 'ACTIVE':
+                num_resources_completed = num_resources_completed + 1
+        for value in resources_status['vnfs'].itervalues():
+            logging.debug("vnf - "+value)
+            if value == 'ACTIVE':
+                num_resources_completed = num_resources_completed + 1
+        for value in resources_status['flowrules'].itervalues():
+            logging.debug("flowrule - "+value)
+            if value == 'ACTIVE':
+                num_resources_completed = num_resources_completed + 1
+        status  = {}
+        logging.debug("num_resources_completed "+str(num_resources_completed))
+        logging.debug("num_resources "+str(num_resources))
+        if num_resources_completed == num_resources:
+            status['status'] = 'complete'
+            status['percentage_completed'] = num_resources_completed/num_resources*100
+        else:
+            status['status'] = 'in_progress'
+            status['percentage_completed'] = num_resources_completed/num_resources*100
+        return status
+                            
     def openstackResourcesDeletion(self, token_id):
+        subnets = Graph().getSubnets(self.session_id)
+        networks = Graph().getNetworks(self.session_id)
         flowrules = Graph().getOArchs(self.session_id)
         for flowrule in flowrules:
             Neutron().deleteFlowrule(self.neutronEndpoint, token_id, flowrule.internal_id)
@@ -162,10 +226,8 @@ class HeatOrchestrator(OrchestratorInterface):
         ports = Graph().getPorts(self.session_id)
         for port in ports:
             Neutron().deletePort(self.neutronEndpoint, token_id, port.internal_id)
-        subnets = Graph().getSubnets(self.session_id)
         for subnet in subnets:
             Neutron().deleteSubNet(self.neutronEndpoint, token_id, subnet.id)
-        networks = Graph().getNetworks(self.session_id)
         for network in networks:
             Neutron().deleteNetwork(self.neutronEndpoint, token_id, network.id)
             
@@ -182,11 +244,29 @@ class HeatOrchestrator(OrchestratorInterface):
             for port in vnf.listPort:
                 logging.debug("Port: "+json.dumps(port.getResourceJSON()))
                 port.port_id = Neutron().createPort(self.neutronEndpoint, self.token.get_token(), port.getResourceJSON())['port']['id']
-                Graph().setPortInternalID(port.name, nffg.getVNFByID(vnf.id).db_id, port.port_id, self.session_id, nffg.db_id)
+                Graph().setPortInternalID(port.name, nffg.getVNFByID(vnf.id).db_id, port.port_id, self.session_id, nffg.db_id, port_type='openstack')
                 Graph().setOSNetwork(port.net.network_id, port.name, nffg.getVNFByID(vnf.id).db_id, port.port_id, self.session_id, nffg.db_id)
             logging.debug("VNF: "+json.dumps(vnf.getResourceJSON()))
             vnf.vnf_id = Nova().createServer(self.novaEndpoint, self.token.get_token(), vnf.getResourceJSON())['server']['id']
             Graph().setVNFInternalID(vnf.id, vnf.vnf_id, self.session_id, nffg.db_id)
+        
+        thread = Thread(target = self.setFlows, args = (graph, nffg ))
+        thread.start()
+        
+    def setFlows(self, graph, nffg):
+        while True:
+            time.sleep(1)
+            complete = True
+            resources_status = {}
+            resources_status['vnfs'] = {}
+            vnfs = Graph().getVNFs(self.session_id)
+            for vnf in vnfs:
+                resources_status['vnfs'][vnf.internal_id] = Nova().getServerStatus(self.novaEndpoint, self.token.get_token(), vnf.internal_id)
+            for value in resources_status['vnfs'].itervalues():
+                if value != 'ACTIVE':
+                    complete = False
+            if complete is True:
+                break
         for flow in graph.archs:
             vect = flow.getResourcesJSON(self.token.get_tenantID(), graph.edges)
             index = 0

@@ -226,10 +226,10 @@ class Graph(object):
             os_network_ref = OpenstackSubnetModel(id = os_subnet_id, name = name, os_network_id=os_network_id)
             session.add(os_network_ref)
     
-    def setPortInternalID(self, port_name, vnf_id, internal_id, session_id, graph_id, status='complete'):
+    def setPortInternalID(self, port_name, vnf_id, internal_id, session_id, graph_id, port_type = None, status='complete'):
         session = get_session()  
         with session.begin():
-            assert (session.query(PortModel).filter_by(name = port_name).filter_by(vnf_id = vnf_id).filter_by(session_id = session_id).filter_by(graph_id = graph_id).update({"internal_id": internal_id,"last_update":datetime.datetime.now(), 'status':status})==1)
+            assert (session.query(PortModel).filter_by(name = port_name).filter_by(vnf_id = vnf_id).filter_by(session_id = session_id).filter_by(graph_id = graph_id).update({"internal_id": internal_id,"last_update":datetime.datetime.now(), 'status':status, 'type':port_type})==1)
     
     def setVNFInternalID(self, graph_vnf_id, internal_id, session_id, graph_id, status='complete'):
         session = get_session()  

@@ -8,7 +8,7 @@ from abc import ABCMeta, abstractmethod, abstractproperty
 
 class OrchestratorInterface:
     '''
-    Abstract class that defines the interface to be implemented on the other orchestrator
+    Abstract class that defines the interface to be implemented on the component adapters
     '''
     __metaclass__ = ABCMeta
     
@@ -28,14 +28,14 @@ class OrchestratorInterface:
         pass
     
     @abstractmethod
-    def deinstantiateProfile(self, token, session_id):
+    def deinstantiateProfile(self, nffg, node_endpoint):
         '''
         Method used to de-instantiate the User Profile Graph
         Args:
-            profile:
-                JSON Object for the User Profile (it should be a map that follow the User Profile Graph Schema
-            token:
-                The authentication token to use for the REST call
+            nffg:
+                Object of the Class Common.NF_FG.nf_fg.NF_FG
+            node_endpoint:
+                End point used to contact the infrastructure layer
             Exceptions:
                 Raise some exception to be captured
         '''

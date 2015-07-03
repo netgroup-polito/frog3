@@ -601,6 +601,18 @@ class Neutron(object):
     delete_flowrule = "/v2.0/flowrules/%s"
     delete_network = "/v2.0/networks/%s"
     delete_subnet = "/v2.0/subnets/%s"
+    get_network_status = "/v2.0/networks/%s"
+    get_subnet_status = "/v2.0/subnets/%s"
+    get_port_status = "/v2.0/ports/%s"
+    get_flowrule_status = "/v2.0/flowrules/%s"
+    
+    def getFlowruleStatus(self, neutronEndpoint, token, flowrule_id):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.get(neutronEndpoint + (self.get_flowrule_status % flowrule_id), headers=headers)
+        if resp.status_code == 404 or resp.status_code == 500:
+            return 'not_found'
+        resp.raise_for_status()
+        return 'ACTIVE'
     
     def createFlowrule(self, neutronEndpoint, token, flowroute_data):
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
@@ -630,6 +642,15 @@ class Neutron(object):
         resp.raise_for_status()
         return resp
     
+    def getNetworkStatus(self, neutronEndpoint, token, network_id):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.get(neutronEndpoint + (self.get_network_status % network_id), headers=headers)
+        if resp.status_code == 404:
+            return 'not_found'
+        resp.raise_for_status()
+        data = json.loads(resp.text)
+        return data['network']['status']
+    
     def createSubNet(self, neutronEndpoint, token, subnet_data):
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
         resp = requests.post(neutronEndpoint + self.create_subnet, data=json.dumps(subnet_data), headers=headers)
@@ -643,6 +664,14 @@ class Neutron(object):
             return None
         resp.raise_for_status()
         return resp
+    
+    def getSubNetStatus(self, neutronEndpoint, token, subnet_id):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.get(neutronEndpoint + (self.get_subnet_status % subnet_id), headers=headers)
+        if resp.status_code == 404:
+            return 'not_found'
+        resp.raise_for_status()
+        return 'ACTIVE'
     
     def getNetworks(self, neutronEndpoint, token):
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
@@ -669,3 +698,12 @@ class Neutron(object):
             return None
         resp.raise_for_status()
         return resp
+    
+    def getPortStatus(self, neutronEndpoint, token, port_id):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.get(neutronEndpoint + (self.get_port_status % port_id), headers=headers)
+        if resp.status_code == 404:
+            return 'not_found'
+        resp.raise_for_status()
+        data = json.loads(resp.text)
+        return data['port']['status']

@@ -1,13 +1,14 @@
 -- phpMyAdmin SQL Dump
--- version 3.3.9.2
+-- version 4.0.10deb1
 -- http://www.phpmyadmin.net
 --
 -- Host: localhost
--- Generation Time: Jun 30, 2015 at 11:20 AM
--- Server version: 5.5.9
--- PHP Version: 5.3.6
+-- Generato il: Lug 03, 2015 alle 15:52
+-- Versione del server: 5.5.41-0ubuntu0.14.04.1
+-- Versione PHP: 5.5.9-1ubuntu4.7
 
-SET SQL_MODE="NO_AUTO_VALUE_ON_ZERO";
+SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+SET time_zone = "+00:00";
 
 --
 -- Database: `orchestrator`
@@ -16,10 +17,10 @@ SET SQL_MODE="NO_AUTO_VALUE_ON_ZERO";
 -- --------------------------------------------------------
 
 --
--- Table structure for table `endpoint`
+-- Struttura della tabella `endpoint`
 --
 
-CREATE TABLE `endpoint` (
+CREATE TABLE IF NOT EXISTS `endpoint` (
   `id` int(64) NOT NULL,
   `internal_id` varchar(64) DEFAULT NULL,
   `graph_endpoint_id` varchar(64) NOT NULL,
@@ -33,10 +34,10 @@ CREATE TABLE `endpoint` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `endpoint_resource`
+-- Struttura della tabella `endpoint_resource`
 --
 
-CREATE TABLE `endpoint_resource` (
+CREATE TABLE IF NOT EXISTS `endpoint_resource` (
   `endpoint_id` int(64) NOT NULL,
   `resource_type` varchar(64) NOT NULL,
   `resource_id` int(64) NOT NULL,
@@ -47,10 +48,10 @@ CREATE TABLE `endpoint_resource` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `flowspec`
+-- Struttura della tabella `flowspec`
 --
 
-CREATE TABLE `flowspec` (
+CREATE TABLE IF NOT EXISTS `flowspec` (
   `id` int(64) NOT NULL,
   `match_id` varchar(64) NOT NULL,
   `o_arch_id` varchar(64) NOT NULL,
@@ -74,10 +75,10 @@ CREATE TABLE `flowspec` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `graph`
+-- Struttura della tabella `graph`
 --
 
-CREATE TABLE `graph` (
+CREATE TABLE IF NOT EXISTS `graph` (
   `id` int(64) NOT NULL,
   `session_id` varchar(64) NOT NULL,
   `node_id` varchar(64) DEFAULT NULL,
@@ -89,10 +90,10 @@ CREATE TABLE `graph` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `graph_connection`
+-- Struttura della tabella `graph_connection`
 --
 
-CREATE TABLE `graph_connection` (
+CREATE TABLE IF NOT EXISTS `graph_connection` (
   `endpoint_id_1` varchar(64) NOT NULL,
   `endpoint_id_2` varchar(64) NOT NULL,
   PRIMARY KEY (`endpoint_id_1`,`endpoint_id_2`)
@@ -101,10 +102,10 @@ CREATE TABLE `graph_connection` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `node`
+-- Struttura della tabella `node`
 --
 
-CREATE TABLE `node` (
+CREATE TABLE IF NOT EXISTS `node` (
   `id` varchar(64) NOT NULL,
   `name` varchar(64) NOT NULL,
   `type` varchar(64) NOT NULL,
@@ -117,10 +118,10 @@ CREATE TABLE `node` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `openstack_network`
+-- Struttura della tabella `openstack_network`
 --
 
-CREATE TABLE `openstack_network` (
+CREATE TABLE IF NOT EXISTS `openstack_network` (
   `id` varchar(64) NOT NULL,
   `name` varchar(64) NOT NULL,
   `status` varchar(64) NOT NULL,
@@ -131,10 +132,10 @@ CREATE TABLE `openstack_network` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `openstack_subnet`
+-- Struttura della tabella `openstack_subnet`
 --
 
-CREATE TABLE `openstack_subnet` (
+CREATE TABLE IF NOT EXISTS `openstack_subnet` (
   `id` varchar(64) NOT NULL,
   `name` varchar(64) NOT NULL,
   `os_network_id` varchar(64) NOT NULL,
@@ -144,10 +145,10 @@ CREATE TABLE `openstack_subnet` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `o_arch`
+-- Struttura della tabella `o_arch`
 --
 
-CREATE TABLE `o_arch` (
+CREATE TABLE IF NOT EXISTS `o_arch` (
   `id` int(64) NOT NULL,
   `internal_id` varchar(64) DEFAULT NULL,
   `graph_o_arch_id` varchar(64) NOT NULL,
@@ -158,6 +159,7 @@ CREATE TABLE `o_arch` (
   `start_node_id` varchar(64) NOT NULL,
   `end_node_type` varchar(64) NOT NULL,
   `end_node_id` varchar(64) NOT NULL,
+  `status` varchar(64) DEFAULT NULL,
   `creation_date` datetime NOT NULL,
   `last_update` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
@@ -166,10 +168,10 @@ CREATE TABLE `o_arch` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `port`
+-- Struttura della tabella `port`
 --
 
-CREATE TABLE `port` (
+CREATE TABLE IF NOT EXISTS `port` (
   `id` int(64) NOT NULL,
   `internal_id` varchar(64) DEFAULT NULL,
   `graph_port_id` varchar(64) DEFAULT NULL,
@@ -195,10 +197,10 @@ CREATE TABLE `port` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `session`
+-- Struttura della tabella `session`
 --
 
-CREATE TABLE `session` (
+CREATE TABLE IF NOT EXISTS `session` (
   `id` varchar(64) NOT NULL,
   `user_id` varchar(64) DEFAULT NULL,
   `service_graph_id` varchar(63) NOT NULL,
@@ -216,10 +218,10 @@ CREATE TABLE `session` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `user_device`
+-- Struttura della tabella `user_device`
 --
 
-CREATE TABLE `user_device` (
+CREATE TABLE IF NOT EXISTS `user_device` (
   `session_id` varchar(64) NOT NULL,
   `mac_address` varchar(64) NOT NULL,
   PRIMARY KEY (`session_id`,`mac_address`)
@@ -228,10 +230,10 @@ CREATE TABLE `user_device` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `user_location`
+-- Struttura della tabella `user_location`
 --
 
-CREATE TABLE `user_location` (
+CREATE TABLE IF NOT EXISTS `user_location` (
   `user_id` varchar(64) NOT NULL,
   `node_id` varchar(64) NOT NULL,
   PRIMARY KEY (`user_id`,`node_id`)
@@ -240,10 +242,10 @@ CREATE TABLE `user_location` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `vnf`
+-- Struttura della tabella `vnf`
 --
 
-CREATE TABLE `vnf` (
+CREATE TABLE IF NOT EXISTS `vnf` (
   `id` int(64) NOT NULL,
   `internal_id` varchar(64) DEFAULT NULL,
   `graph_vnf_id` varchar(64) NOT NULL,

@@ -231,16 +231,16 @@ class UpperLayerOrchestratorController(object):
         status = self.getResourcesStatus(session_id, token)
         
         # If the status of the graph is complete, return False
-        if status['graph'] == 'complete':
+        if status['status'] == 'complete':
             return True
         # If the graph is in ERROR.. raise a proper exception
-        if status['graph'] == 'error':
+        if status['status'] == 'error':
             raise GraphError("The graph has encountered a fatal error, contact the administrator")
         # TODO:  If the graph is still under instantiation returns 409
-        if status['graph'] == 'deploying':
+        if status['status'] == 'in_progress':
             pass
         # If the graph is deleted, return True
-        if status['graph'] == 'ended' or status['graph'] == 'not_found':
+        if status['status'] == 'ended' or status['status'] == 'not_found':
             return False
     
     def getResourcesStatus(self, session_id, token):
@@ -250,4 +250,6 @@ class UpperLayerOrchestratorController(object):
         # Get the status of the resources
         scheduler = Scheduler(session_id, token)  
         orchestrator, node_endpoint = scheduler.getInstance(node)
-        return orchestrator.getStatus(session_id, node_endpoint)
+        status = orchestrator.getStatus(session_id, node_endpoint)
+        logging.debug(status)
+        return status

@@ -3,6 +3,7 @@
     "VNFs": [
       {
         "vnf_descriptor": "jolnet_switch.json",
+        "availability_zone": "AZ_TN",
         "ports": [
             {
             "ingoing_label": {
@@ -79,6 +80,7 @@
       },
       {
         "vnf_descriptor": "jolnet_switch.json",
+        "availability_zone": "AZ_TN",
         "ports": [
             {
             "id": "L2Port:0",
@@ -161,15 +163,16 @@
             "connection": true,
             "type": "vlan-egress",
             "id": "288",
-            "interface": "openflow:44838630154304:5102",
+            "node": "openflow:44838630154304",
+            "interface": "5102",
             "remote_graph": "0",
             "remote_graph_name": "Jolnet ISP Graph",
             "remote_id": "288",
-            "remote_interface": "openflow:110953238266560:5098"
+            "remote_node": "openflow:110953238266560",
+            "remote_interface": "5098"           
          }
     ],
     "id": "5",
-    "name": "Jolnet Test Graph",
-    "availability_zone": "AZ_TN"
+    "name": "Jolnet Test Graph"
   }
 }

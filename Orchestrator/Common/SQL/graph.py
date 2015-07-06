@@ -39,7 +39,7 @@ class VNFModel(Base):
     Maps the database table node
     '''
     __tablename__ = 'vnf'
-    attributes = ['id', 'internal_id', 'graph_vnf_id','session_id', 'graph_id', 'name','template_location', 'image_location', 'location','type', 'status', 'creation_date','last_update', 'avialability_zone']
+    attributes = ['id', 'internal_id', 'graph_vnf_id','session_id', 'graph_id', 'name','template_location', 'image_location', 'location','type', 'status', 'creation_date','last_update', 'availability_zone']
     id = Column(Integer, primary_key=True)
     internal_id = Column(VARCHAR(64))
     graph_vnf_id = Column(VARCHAR(64))
@@ -53,7 +53,7 @@ class VNFModel(Base):
     status = Column(VARCHAR(64))
     creation_date = Column(VARCHAR(64))
     last_update = Column(VARCHAR(64))
-    avialability_zone = Column(VARCHAR(64))
+    availability_zone = Column(VARCHAR(64))
 
 class PortModel(Base):
     '''
@@ -276,7 +276,7 @@ class Graph(object):
                 '''
                 attributes = ['id', 'internal_id', 'graph_vnf_id','session_id', 'graph_id',
                                'name','template_location', 'image_location', 'location',
-                               'type', 'status', 'creation_date','last_update', 'avialability_zone']
+                               'type', 'status', 'creation_date','last_update', 'availability_zone']
                 '''
                 
                 vnf_ref = VNFModel(id=vnf.db_id, graph_vnf_id = vnf.id, session_id=session_id,

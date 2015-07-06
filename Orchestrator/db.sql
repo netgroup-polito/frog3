@@ -259,7 +259,7 @@ CREATE TABLE IF NOT EXISTS `vnf` (
   `status` varchar(64) DEFAULT NULL,
   `creation_date` datetime NOT NULL,
   `last_update` datetime DEFAULT NULL,
-  `avialability_zone` varchar(64) DEFAULT NULL,
+  `availability_zone` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `graph_vnf_id` (`graph_vnf_id`,`session_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;

@@ -19,10 +19,10 @@
                     "matches": [
                       {
                         "priority": "100",
-                        "id": "exp297"
+                        "id": "297"
                       }
                     ],
-                    "ingress_endpoint": "282"
+                    "ingress_endpoint": "297"
                   }
                 }
               ]
@@ -41,7 +41,7 @@
                     "matches": [
                       {
                         "priority": "100",
-                        "id": "exp297"
+                        "id": "297"
                       }
                     ]
                   }
@@ -64,7 +64,7 @@
                     "matches": [
                       {
                         "priority": "100",
-                        "id": "exp288"
+                        "id": "288"
                       }
                     ],
                     "ingress_endpoint": "288"
@@ -86,7 +86,7 @@
                     "matches": [
                       {
                         "priority": "100",
-                        "id": "exp288"
+                        "id": "288"
                       }
                     ]
                   }
@@ -110,7 +110,7 @@
                     "matches": [
                       {
                         "priority": "100",
-                        "id": "exp296"
+                        "id": "296"
                       }
                     ]
                   }
@@ -132,7 +132,7 @@
                         {
                            "action":{
                               "VNF":{
-                                 "id":"Switch",
+                                 "id":"endpoint_switch",
                                  "port":"L2Port:2"
                               },
                               "type":"output"
@@ -141,7 +141,7 @@
                               "matches":[
                                  {
                                     "priority":"100",
-                                    "id":"exp297"
+                                    "id":"297"
                                  }
                               ]
                            }
@@ -156,20 +156,25 @@
     ],
     "endpoints": [
       {
-        "edge": true,
+        "name": "ISP_INGRESS",
         "attached": false,
-        "id": "1",
-        "name": "ISP_INGRESS_EDGE_ENDPOINT"
-      },
-      {
-        "edge": true,
+        "connection": false,
+        "type": "vlan-egress",
+        "id": "288",
+        "node": "openflow:110953238266560",
+        "interface": "5098" 
+     },
+     {
+        "name": "ISP_INGRESS",
         "attached": false,
-        "id": "2",
-        "name": "ISP_INGRESS_EDGE_ENDPOINT"
-      }
+        "connection": false,
+        "type": "vlan-egress",
+        "id": "297",
+        "node": "openflow:110953238266560",
+        "interface": "5098" 
+     }
     ],
     "id": "0",
-    "name": "Jolnet ISP Graph",
-    "availability_zone": "AZ_TO"
+    "name": "Jolnet ISP Graph"
   }
 }

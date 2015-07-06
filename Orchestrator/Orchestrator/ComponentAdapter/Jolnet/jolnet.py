@@ -29,26 +29,32 @@ class JolnetAdapter(OrchestratorInterface):
     STATUS = ['CREATE_IN_PROGRESS', 'CREATE_COMPLETE', 'CREATE_FAILED',  'DELETE_IN_PROGRESS', 'DELETE_COMPLETE', 'DELETE_FAILED', 'UPDATE_IN_PROGRESS', 'UPDATE_COMPLETE', 'UPDATE_FAILED']
     WRONG_STATUS = ['CREATE_FAILED','DELETE_FAILED', 'UPDATE_FAILED']
     
-    def __init__(self, heatEndpoint, novaEndpoint, session_id):
+    def __init__(self, compute_node_address, session_id, token):
         '''
         Initialize the Jolnet component adapter
         Args:
             session_id:
                 identifier for the current user session
         '''
-        #TODO: endpoint can be taken from the token in various methods
-        if USE_HEAT is True:
-            self._URI = heatEndpoint.pop()['publicURL']
-        
-        self.novaEndpoint = novaEndpoint.pop()['publicURL']
-        self.neutronEndpoint = None
         self.session_id = session_id
-        self.token = None
-            
+        self.token = token
+        self.compute_node_address = compute_node_address
+        self._URI = "http://" + compute_node_address
+        self.novaEndpoint = token.get_endpoints('compute')[0]['publicURL']
+        self.glanceEndpoint = token.get_endpoints('image')[0]['publicURL']
+        self.neutronEndpoint = token.get_endpoints('network')[0]['publicURL']
+        
+        if USE_HEAT is True:
+            self.heatEndpoint = token.get_endpoints('orchestration')[0]['publicURL']
+        
+        logging.debug(self._URI)    
         if DEBUG_MODE is True:
             if USE_HEAT is True:            
-                logging.debug(heatEndpoint)
-            logging.debug(novaEndpoint)
+                logging.debug(self.heatEndpoint)
+            else:
+                logging.debug(self.novaEndpoint)
+                logging.debug(self.glanceEndpoint)
+                logging.debug(self.neutronEndpoint)
     
     @property
     def URI(self):
@@ -59,80 +65,25 @@ class JolnetAdapter(OrchestratorInterface):
     #########################    Orchestrator interface implementation        ############################
     ######################################################################################################
     '''
-    #TODO: errore se i grafi contengono primitive non valide (es: splitter)
-    def instantiateProfile(self, nf_fg, token):
+    def getStatus(self, session_id, node_endpoint):
+        if USE_HEAT is True:
+            pass
+        else:
+            pass
+    
+    def instantiateProfile(self, nf_fg, node_endpoint):
         '''
-        Method to use to instantiate the User Profile Graph
-        Args:
-            nf_fg:
-                JSON Object for the user profile graph (forwarding graph)
-            token:
-                The authentication token to use for the REST call (get it from Keystone)
-            Exceptions:
-                Raise some exception to be captured
+        Override method of the abstract class for instantiating the user Stack
         '''
+        self.node_endpoint = node_endpoint
+        
         nf_fg = NF_FG(nf_fg)
         if DEBUG_MODE is True:
             logging.debug("Forwarding graph: " + nf_fg.getJSON())
-        try:
-            #Get the token and the endpoints for Heat, Nova and Neutron
-            self.token = token
-            token = token.get_token()
-            self.neutronEndpoint = self.token.get_endpoints("network").pop()['publicURL']
-            
+        try:            
             #Read the nf_fg JSON structure and map it into the proper objects and db entries
-            profile_graph = self.buildProfileGraph(nf_fg, token)
-                
-            if USE_HEAT is True:
-                #Instantiate the Heat stack through Heat templates (HOT)
-                stackTemplate = profile_graph.getStackTemplate()
-                if DEBUG_MODE is True:
-                    logging.debug(json.dumps(stackTemplate))
-                res = Heat().instantiateStack(self.URI, token, nf_fg.name, stackTemplate)
-                if DEBUG_MODE is True:
-                    logging.debug("Heat response: " + str(res))
-                
-                #Stay blocked until the stack is completed or failed    
-                while self.getStackStatus(token, nf_fg.name) == 'CREATE_IN_PROGRESS':
-                    time.sleep(1)
-                    
-                if self.checkErrorStatus(self.token, nf_fg.name) is True:
-                    logging.debug("Stack error, check HEAT logs.")
-                    raise StackError("Stack error, check HEAT logs.")   
-                            
-                resources = json.dumps(self.getStackResourcesStatus(token, nf_fg.name))
-                #set_extra_info(self.session_id, resources)
-                
-            elif USE_HEAT is False:
-                #Instantiate ports and servers directly interacting with Neutron and Nova
-                for vnf in profile_graph.functions.values():
-                    for port in vnf.listPort:
-                        if port.net is not None:
-                            resp = Neutron().createPort(self.neutronEndpoint, token, port.getResourceJSON())
-                            if resp['port']['status'] == "DOWN":
-                                port_id = resp['port']['id']
-                                port.setId(port_id)
-                        
-                    resp = Nova().createServer(self.novaEndpoint, token, vnf.getResourceJSON())
-                    vnf.OSid = resp['server']['id']
-                
-                #Stay blocked until all resources are correctly instantiated or an error occurs     
-                for vnf in profile_graph.functions.values():
-                    status = Nova().getServerStatus(self.novaEndpoint, token, vnf.OSid)
-                    while status != 'ACTIVE' and status != 'ERROR':
-                        time.sleep(1)
-                        status = Nova().getServerStatus(self.novaEndpoint, token, vnf.OSid)
-                        
-                    if status == 'ERROR':
-                        logging.debug("Instance " + vnf.id + " is in ERROR state")
-                        #TODO: delete VMs instantiated and endpoints from db
-                        raise StackError("Instance ERROR: " + vnf.id)
-                    
-                    #if status == 'ACTIVE':
-                    #    add_resource(vnf.OSid, profile_graph.id, "OS::Nova::Server", vnf.id)
-            
-            # Add flows on the SDN network to connect endpoints (both graph interconnection or user connection)
-            self.connectEndpoints(nf_fg)
+            profile_graph = self.buildProfileGraph(nf_fg)
+            self.openstackResourcesInstantiation(profile_graph, nf_fg)
             logging.debug("Graph " + profile_graph.id + "correctly instantiated!")
             
         except Exception as err:
@@ -141,86 +92,23 @@ class JolnetAdapter(OrchestratorInterface):
             #set_error(self.token.get_userID())  
             raise
     
-    def updateProfile(self, nf_fg_id, new_nf_fg, old_nf_fg, token, delete=False):
-        '''
-        new_nf_fg = NF_FG(new_nf_fg)
-        old_nf_fg = NF_FG(old_nf_fg)       
-        try:
-            if DEBUG_MODE is not True:
-                self.token = token
-                token = token.get_token()
-                self.neutronEndpoint = token.get_endpoints("network").pop()['publicURL']
-                
-                profile_graph = self.buildProfileGraph(new_nf_fg, token)
-                
-                if ORCHESTRATION_LAYER == "Heat":
-                #Parse and instantiate the Heat stack through Heat templates (HOT)
-                    stackTemplate = profile_graph.getStackTemplate()
-                    logging.debug(json.dumps(stackTemplate))
-                    res = Heat().updateStack(self.URI, token, new_nf_fg.name , Heat().getStackID(self.URI, token, new_nf_fg.name), stackTemplate)
-                    logging.debug("Heat response: "+str(res)) 
-                    
-                    while self.getStackStatus(token, new_nf_fg.name) == 'CREATE_IN_PROGRESS':
-                        time.sleep(1)
-                    
-                    if self.checkErrorStatus(self.token, new_nf_fg.name) is True:
-                        logging.debug("Stack error, checks HEAT logs.")
-                        raise StackError("Stack error, checks HEAT logs.")   
-                            
-                    resources = json.dumps(self.getStackResourcesStatus(token, new_nf_fg.name))
-                    update_extra_info(self.session_id, resources)
-            
-            # Add flows to new remote endpoints
-            self.updateEndpoints(new_nf_fg, old_nf_fg)
-            
-        except Exception as err:
-            if DEBUG_MODE is not True:
-                logging.error(err.message)
-                logging.exception(err)
-            set_error(self.token.get_userID())  
-            raise
-        '''
+    def updateProfile(self, new_nf_fg, old_nf_fg, token, node_endpoint):
         pass
         
-    def deinstantiateProfile(self, token, profile_id, profile):
+    def deinstantiateProfile(self, nffg, node_endpoint):
         '''
-        Method used to de-instantiate a user profile graph
-        Args:
-            token:
-                The authentication token to use for the REST call
-            profile_id:
-                identifier of the profile to be deleted
-            profile:
-                JSON Object for the user profile
-        Exceptions:
-            Raise some exception to be captured
+        Override method of the abstract class for deleting the user Stack
         '''
+        self.node_endpoint = node_endpoint 
+        
         try:
-            self.token = token
-            token = token.get_token()
-            nf_fg = NF_FG(json.loads(profile))  
+            nf_fg = NF_FG(json.loads(nffg))  
             
             if DEBUG_MODE is True:
-                logging.debug(profile)
+                logging.debug(nffg)
                        
-            if USE_HEAT is True:
-                # Send request to Heat to delete the stack
-                stack_id = Heat().getStackID(self.URI, token, nf_fg.name)
-                Heat().deleteStack(self.URI, token, nf_fg.name , stack_id)
-                
-            elif USE_HEAT is False:
-                #Delete every resource one by one
-                #profile_resources = get_profile_resources(profile_id)
-                #for res in profile_resources:
-                #    if res.resource_type == "OS::Nova::Server":
-                #        Nova().deleteServer(self.novaEndpoint, token, res.id)
-                #        remove_resource(res.id)
-                pass
-                #Delete also networks if previously created
-            
-            #Delete flows on SDN network
-            self.disconnectEndpoints(nf_fg)
-            logging.debug("Graph " + profile.id + "correctly deleted!")
+            self.openstackResourcesDeletion(nf_fg)
+            logging.debug("Graph " + nffg.id + "correctly deleted!")
             
         except Exception as err:
             logging.error(err.message)
@@ -241,6 +129,7 @@ class JolnetAdapter(OrchestratorInterface):
             image = Glance().getImage(manifest.uri, token)
             flavor = self.findFlavor(int(manifest.memorySize), int(manifest.rootFileSystemSize),
                     int(manifest.ephemeralFileSystemSize), int(cpuRequirements[0]['coreNumbers']), token)
+            #TODO: la availbality zone non sta piu nel grafo ma nelle VNF stesse
             nf = VNF(vnf.id, vnf, image, flavor, nf_fg.zone)
             profile_graph.addVNF(nf)
                 
@@ -252,8 +141,10 @@ class JolnetAdapter(OrchestratorInterface):
             for port in vnf.listPort:
                 p = nf.ports[port.id]
                 for flowrule in port.list_outgoing_label:
+                    #TODO: errore se i grafi contengono primitive non valide (es: splitter)
                     if flowrule.action.type == "output" or flowrule.action.type == "endpoint" or flowrule.action.type == "control":
                         if flowrule.matches is not None:
+                            #TODO: cambiare come vengono lette queste info e la flowspec
                             #The port name is inserted into flowspec id field (both expXXX or XXmgmt networks)
                             net_name = flowrule.matches[0].id
                             net_id = self.getNetworkId(net_name, token)
@@ -267,6 +158,7 @@ class JolnetAdapter(OrchestratorInterface):
                     pass
         
         #Insert unattached endpoints into DB (apart for ISP ones)
+        #TODO: spostare questo negli endpoint
         for endpoint in nf_fg.listEndpoint:
             if endpoint.connection is False and endpoint.attached is False and endpoint.edge is False:
                 #existing_endpoints = get_available_endpoints_by_id(nf_fg.id, endpoint.id)
@@ -275,36 +167,80 @@ class JolnetAdapter(OrchestratorInterface):
                 pass
         return profile_graph
     
+    def openstackResourcesInstantiation(self, profile_graph, nf_fg):
+        if USE_HEAT is True:
+            #Instantiate the Heat stack through Heat templates (HOT)
+            stackTemplate = profile_graph.getStackTemplate()
+            if DEBUG_MODE is True:
+                logging.debug(json.dumps(stackTemplate))
+            res = Heat().instantiateStack(self.URI, self.token, nf_fg.name, stackTemplate)
+            if DEBUG_MODE is True:
+                logging.debug("Heat response: " + str(res))
+                
+        elif USE_HEAT is False:
+            #Instantiate ports and servers directly interacting with Neutron and Nova
+            for vnf in profile_graph.functions.values():
+                for port in vnf.listPort:
+                    if port.net is not None:
+                        #TODO: creare la rete openstack se non esiste
+                        
+                        resp = Neutron().createPort(self.neutronEndpoint, self.token, port.getResourceJSON())
+                        if resp['port']['status'] == "DOWN":
+                            port_id = resp['port']['id']
+                            port.setId(port_id)
+                        
+                resp = Nova().createServer(self.novaEndpoint, self.token, vnf.getResourceJSON())
+                vnf.OSid = resp['server']['id']
+                    
+        # Add flows on the SDN network to connect endpoints
+        self.connectEndpoints(nf_fg)
+    
+    def openstackResourcesDeletion(self, nf_fg):
+        #TODO:
+        if USE_HEAT is True:
+            # Send request to Heat to delete the stack
+            stack_id = Heat().getStackID(self.heatEndpoint, self.token, nf_fg.name)
+            Heat().deleteStack(self.heatEndpoint, self.token, nf_fg.name , stack_id)
+                
+        elif USE_HEAT is False:
+            #Delete every resource one by one
+            #profile_resources = get_profile_resources(profile_id)
+            #for res in profile_resources:
+            #    if res.resource_type == "OS::Nova::Server":
+            #        Nova().deleteServer(self.novaEndpoint, token, res.id)
+            #        remove_resource(res.id)
+            pass
+            #Delete also networks if previously created
+            
+        #Delete flows on SDN network
+        self.disconnectEndpoints(nf_fg)
+    
     '''
     ######################################################################################################
     ###########################    Interaction with Heat for stacks        ###############################
     ######################################################################################################
     '''
-    def getStackStatus(self, token, name):
+    def getStackStatus(self, name):
         '''
         Get the status of a Stack
         Args:
-            token:
-                The authentication token to use for the REST call
             name:
                 stack name
         '''
-        stack_id = Heat().getStackID(self.URI, token, name)
-        return Heat().getStackStatus(self.URI, token, stack_id)
+        stack_id = Heat().getStackID(self.heatEndpoint, self.token, name)
+        return Heat().getStackStatus(self.heatEndpoint, self.token, stack_id)
     
-    def getStackResourcesStatus(self, token, name):
+    def getStackResourcesStatus(self, name):
         '''
         Get the status of a Stack resources
         Args:
-            token:
-                The authentication token to use for the REST call
             name:
                 stack name
         '''
-        stack_id = Heat().getStackID(self.URI, token, name)
-        return Heat().getStackResourcesStatus(self.URI, token, name, stack_id)
+        stack_id = Heat().getStackID(self.heatEndpoint, self.token, name)
+        return Heat().getStackResourcesStatus(self.heatEndpoint, self.token, name, stack_id)
     
-    def checkStackErrorStatus(self, token, graph_name):
+    def checkStackErrorStatus(self, graph_name):
         '''
         Check if a stack is in an error state
         Args:
@@ -314,7 +250,7 @@ class JolnetAdapter(OrchestratorInterface):
                 stack name
         '''
         try:
-            stack_info = self.getStackStatus(token.get_token(), graph_name)
+            stack_info = self.getStackStatus(self.token.get_token(), graph_name)
         except Exception as ex:
             logging.debug("Stack status exception: " + str(ex))
             return True    
@@ -693,6 +629,8 @@ class JolnetAdapter(OrchestratorInterface):
     ###############################       Manage graphs connection        ################################
     ######################################################################################################
     ''' 
+    
+    #TODO: interface e node da inserire al posto delle sole interface
     
     def connectEndpoints(self, nf_fg):
         '''

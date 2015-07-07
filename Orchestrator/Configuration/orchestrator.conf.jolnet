@@ -81,12 +81,7 @@ description = isp_user
 connection = mysql://orchestrator:stack@130.192.225.181/orchestrator
 
 [JolnetCA]
-# Allow to choose whether involving Heat in deployment process or 
-# directly call Nova and Neutron (better choice!)
-use_heat = false
-
-# Specifies the default availability zone for ISP graph
-isp_availability_zone = AZ_TI
+# Section dedicated to the Jolnet network
 
 [UniversalNodeCA]
 # Section dedicated to the Universal node (UNIFY)

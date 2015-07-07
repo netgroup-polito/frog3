@@ -159,7 +159,7 @@
         "name": "ISP_INGRESS",
         "attached": false,
         "connection": false,
-        "type": "vlan-egress",
+        "type": "vlan-ingress",
         "id": "288",
         "node": "openflow:110953238266560",
         "interface": "5098" 
@@ -168,7 +168,7 @@
         "name": "ISP_INGRESS",
         "attached": false,
         "connection": false,
-        "type": "vlan-egress",
+        "type": "vlan-ingress",
         "id": "297",
         "node": "openflow:110953238266560",
         "interface": "5098" 

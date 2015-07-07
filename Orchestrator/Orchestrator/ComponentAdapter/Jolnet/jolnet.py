@@ -10,7 +10,7 @@ from Common.config import Configuration
 from Common.NF_FG.nf_fg import NF_FG
 from Common.Manifest.manifest import Manifest
 from Common.exception import StackError
-from Common.SQL.graph.Graph import getNetworks
+from Common.SQL.graph import Graph
 
 from Orchestrator.ComponentAdapter.interfaces import OrchestratorInterface
 from Orchestrator.ComponentAdapter.Jolnet.rest import ODL, Glance, Nova, Neutron, Heat
@@ -18,17 +18,13 @@ from Orchestrator.ComponentAdapter.Jolnet.resources import Action, Match, Flow, 
 
 
 DEBUG_MODE = Configuration().DEBUG_MODE
-USE_HEAT = Configuration().USE_HEAT
 
 class JolnetAdapter(OrchestratorInterface):
     '''
     Override class of the abstract class OrchestratorInterface
     '''
     
-    STATUS = ['CREATE_IN_PROGRESS', 'CREATE_COMPLETE', 'CREATE_FAILED',  'DELETE_IN_PROGRESS', 'DELETE_COMPLETE', 'DELETE_FAILED', 'UPDATE_IN_PROGRESS', 'UPDATE_COMPLETE', 'UPDATE_FAILED']
-    WRONG_STATUS = ['CREATE_FAILED','DELETE_FAILED', 'UPDATE_FAILED']
-    
-    def __init__(self, compute_node_address, session_id, token):
+    def __init__(self, session_id, compute_node_address, token):
         '''
         Initialize the Jolnet component adapter
         Args:
@@ -47,17 +43,11 @@ class JolnetAdapter(OrchestratorInterface):
         self.glanceEndpoint = token.get_endpoints('image')[0]['publicURL']
         self.neutronEndpoint = token.get_endpoints('network')[0]['publicURL']
         
-        if USE_HEAT is True:
-            self.heatEndpoint = token.get_endpoints('orchestration')[0]['publicURL']
-        
         logging.debug(self._URI)    
         if DEBUG_MODE is True:
-            if USE_HEAT is True:            
-                logging.debug(self.heatEndpoint)
-            else:
-                logging.debug(self.novaEndpoint)
-                logging.debug(self.glanceEndpoint)
-                logging.debug(self.neutronEndpoint)
+            logging.debug(self.novaEndpoint)
+            logging.debug(self.glanceEndpoint)
+            logging.debug(self.neutronEndpoint)
     
     @property
     def URI(self):
@@ -70,10 +60,7 @@ class JolnetAdapter(OrchestratorInterface):
     '''
     def getStatus(self, session_id, node_endpoint):
         #TODO:
-        if USE_HEAT is True:
-            pass
-        else:
-            pass
+        pass
     
     def instantiateProfile(self, nf_fg, node_endpoint):
         '''
@@ -81,7 +68,6 @@ class JolnetAdapter(OrchestratorInterface):
         '''
         self.node_endpoint = node_endpoint
         
-        nf_fg = NF_FG(nf_fg)
         if DEBUG_MODE is True:
             logging.debug("Forwarding graph: " + nf_fg.getJSON())
         try:            
@@ -120,7 +106,7 @@ class JolnetAdapter(OrchestratorInterface):
             #set_error(self.token.get_userID())  
             raise
     
-    def buildProfileGraph(self, nf_fg, token):
+    def buildProfileGraph(self, nf_fg):
         profile_graph = ProfileGraph()
         profile_graph.setId(nf_fg.id)
                 
@@ -130,9 +116,9 @@ class JolnetAdapter(OrchestratorInterface):
             cpuRequirements = manifest.CPUrequirements.socket
             if DEBUG_MODE is True:
                 logging.debug(manifest.uri)
-            image = Glance().getImage(manifest.uri, token)
+            image = Glance().getImage(manifest.uri, self.token.get_token())
             flavor = self.findFlavor(int(manifest.memorySize), int(manifest.rootFileSystemSize),
-                    int(manifest.ephemeralFileSystemSize), int(cpuRequirements[0]['coreNumbers']), token)
+                    int(manifest.ephemeralFileSystemSize), int(cpuRequirements[0]['coreNumbers']), self.token.get_token())
             nf = VNF(vnf.id, vnf, image, flavor, vnf.availability_zone)
             profile_graph.addVNF(nf)
                 
@@ -147,122 +133,56 @@ class JolnetAdapter(OrchestratorInterface):
                     #TODO: errore se i grafi contengono primitive non valide (es: splitter)
                     if flowrule.action.type == "output" or flowrule.action.type == "endpoint":
                         if flowrule.matches is not None:
-                            #TODO: cambiare come vengono lette queste info e la flowspec
+                            #TODO: flowspecs with vlan_id and ip_addresses (mgmt network)
                             net_vlan = flowrule.matches[0].id
                             net_id = self.getNetworkIdfromVlan(net_vlan)
                             p.setNetwork(net_id)
-                            
-                            #if flowrule.action.type == "endpoint":
-                            #    #Record the available endpoints into database
-                            #    set_endpoint(nf_fg.id, flowrule.action.endpoint['id'], True, vnf.id, port.id, "vlan")
                     
                     if flowrule.action.type == "control":
-                        #TODO: attach the port to the right management network
-                        pass
+                        if flowrule.matches is not None:
+                            #TODO: attach the port to the right management network
+                            pass
                     
                 for flowrule in port.list_ingoing_label:
                     pass
-        
-        #Insert unattached endpoints into DB (apart for ISP ones)
-        #TODO: spostare questo negli endpoint
-        for endpoint in nf_fg.listEndpoint:
-            if endpoint.connection is False and endpoint.attached is False and endpoint.edge is False:
-                #existing_endpoints = get_available_endpoints_by_id(nf_fg.id, endpoint.id)
-                #if existing_endpoints is None:
-                #    set_endpoint(nf_fg.id, endpoint.id, True, endpoint.name, endpoint.interface, endpoint.type)
-                pass
+                
         return profile_graph
     
     def openstackResourcesInstantiation(self, profile_graph, nf_fg):
-        if USE_HEAT is True:
-            #Instantiate the Heat stack through Heat templates (HOT)
-            stackTemplate = profile_graph.getStackTemplate()
-            if DEBUG_MODE is True:
-                logging.debug(json.dumps(stackTemplate))
-            res = Heat().instantiateStack(self.URI, self.token, nf_fg.name, stackTemplate)
-            if DEBUG_MODE is True:
-                logging.debug("Heat response: " + str(res))
-                
-        elif USE_HEAT is False:
-            #Instantiate ports and servers directly interacting with Neutron and Nova
-            for vnf in profile_graph.functions.values():
-                for port in vnf.listPort:
-                    if port.net is not None:
-                        #TODO: creare la rete openstack se non esiste
+        #Instantiate ports and servers directly interacting with Neutron and Nova
+        for vnf in profile_graph.functions.values():
+            for port in vnf.listPort:
+                if port.net is None:
+                    #TODO: create an Openstack network and set the id into port.net
+                    pass
                         
-                        resp = Neutron().createPort(self.neutronEndpoint, self.token, port.getResourceJSON())
-                        if resp['port']['status'] == "DOWN":
-                            port_id = resp['port']['id']
-                            port.setId(port_id)
-                        
-                resp = Nova().createServer(self.novaEndpoint, self.token, vnf.getResourceJSON())
-                vnf.OSid = resp['server']['id']
+                resp = Neutron().createPort(self.neutronEndpoint, self.token.get_token(), port.getResourceJSON())
+                if resp['port']['status'] == "DOWN":
+                    port_id = resp['port']['id']
+                    port.setId(port_id)
+                    Graph().setPortInternalID(port.name, nf_fg.getVNFByID(vnf.id).db_id, port_id, self.session_id, nf_fg.db_id, port_type='openstack')
+                    Graph().setOSNetwork(port.net, port.name, nf_fg.getVNFByID(vnf.id).db_id, port_id, self.session_id, nf_fg.db_id)
+                           
+            resp = Nova().createServer(self.novaEndpoint, self.token.get_token(), vnf.getResourceJSON())
+            vnf.OSid = resp['server']['id']
+            Graph().setVNFInternalID(vnf.id, vnf.OSid, self.session_id, nf_fg.db_id)
                     
         # Add flows on the SDN network to connect endpoints
         self.connectEndpoints(nf_fg)
     
     def openstackResourcesDeletion(self, nf_fg):
         #TODO:
-        if USE_HEAT is True:
-            # Send request to Heat to delete the stack
-            stack_id = Heat().getStackID(self.heatEndpoint, self.token, nf_fg.name)
-            Heat().deleteStack(self.heatEndpoint, self.token, nf_fg.name , stack_id)
-                
-        elif USE_HEAT is False:
             #Delete every resource one by one
             #profile_resources = get_profile_resources(profile_id)
             #for res in profile_resources:
             #    if res.resource_type == "OS::Nova::Server":
             #        Nova().deleteServer(self.novaEndpoint, token, res.id)
             #        remove_resource(res.id)
-            pass
+        pass
             #Delete also networks if previously created
             
         #Delete flows on SDN network
         self.disconnectEndpoints(nf_fg)
-    
-    '''
-    ######################################################################################################
-    ###########################    Interaction with Heat for stacks        ###############################
-    ######################################################################################################
-    '''
-    def getStackStatus(self, name):
-        '''
-        Get the status of a Stack
-        Args:
-            name:
-                stack name
-        '''
-        stack_id = Heat().getStackID(self.heatEndpoint, self.token, name)
-        return Heat().getStackStatus(self.heatEndpoint, self.token, stack_id)
-    
-    def getStackResourcesStatus(self, name):
-        '''
-        Get the status of a Stack resources
-        Args:
-            name:
-                stack name
-        '''
-        stack_id = Heat().getStackID(self.heatEndpoint, self.token, name)
-        return Heat().getStackResourcesStatus(self.heatEndpoint, self.token, name, stack_id)
-    
-    def checkStackErrorStatus(self, graph_name):
-        '''
-        Check if a stack is in an error state
-        Args:
-            token:
-                The authentication token to use for the REST call
-            graph_name:
-                stack name
-        '''
-        try:
-            stack_info = self.getStackStatus(self.token.get_token(), graph_name)
-        except Exception as ex:
-            logging.debug("Stack status exception: " + str(ex))
-            return True    
-        if stack_info in self.WRONG_STATUS:
-            return True
-        return False
     
     '''
     ######################################################################################################
@@ -312,9 +232,9 @@ class JolnetAdapter(OrchestratorInterface):
             vlan_id:
                 id of the vlan
         '''
-        networks = getNetworks(self.session_id)
+        networks = Graph().getAllNetworks()
         for net in networks:
-            if net.vlan_id.equals(vlan_id):
+            if net.vlan_id == vlan_id:
                 return net.id
         return None       
      
@@ -642,6 +562,7 @@ class JolnetAdapter(OrchestratorInterface):
         endpoints = nf_fg.getVlanEgressEndpoints()
         for endpoint in endpoints:
             if endpoint.connection is True:
+                #TODO:
                 # Check if the remote graph exists and the requested endpoint is available
                 #session = get_active_user_session_by_nf_fg_id(endpoint.remote_graph)
                 #if DEBUG_MODE is True:
@@ -649,22 +570,21 @@ class JolnetAdapter(OrchestratorInterface):
                 #existing_endpoints = get_available_endpoints_by_id(endpoint.remote_graph, endpoint.id)
                 existing_endpoints = None
                 if existing_endpoints is not None:
-                    tmp = endpoint.interface
-                    tmpList = tmp.split(":")
-                    switch1 = tmpList[0] + ":" + tmpList[1]
-                    port1 = tmpList[2]
+                    switch1 = endpoint.node
+                    port1 = endpoint.interface
                     
-                    tmp = endpoint.remote_interface
-                    tmpList = tmp.split(":")
-                    switch2 = tmpList[0] + ":" + tmpList[1]
-                    port2 = tmpList[2]
+                    #TODO: rimuovi remote node e prendilo dal grafo esistente
+                    switch2 = endpoint.remote_node
+                    port2 = endpoint.remote_interface
                     
                     vlan = endpoint.id
                     self.linkZones(switch1, port1, switch2, port2, vlan)
                     #updateEndpointConnection(endpoint.remote_graph, endpoint.remote_id, nf_fg.id, endpoint.id)
                 else:
                     logging.error("Remote graph " + endpoint.remote_graph + " has not a " + endpoint.id + " endpoint available!")
-        
+            else:
+                pass
+            
         #Get ingress endpoints of the graph (auth graph has the same endpoint but without user_mac)
         endpoints = nf_fg.getVlanIngressEndpoints()
         for endpoint in endpoints:
@@ -684,7 +604,13 @@ class JolnetAdapter(OrchestratorInterface):
                 switch_port = tmpList[2]
                     
                 self.linkUser(cpe, cpe_port, switch, switch_port, graph_vlan, user_vlan, user_mac)
-    
+            else:
+                #TODO: grafi con attached = falsevanno solo inseriti nel db
+                #existing_endpoints = get_available_endpoints_by_id(nf_fg.id, endpoint.id)
+                #if existing_endpoints is None:
+                #    set_endpoint(nf_fg.id, endpoint.id, True, endpoint.name, endpoint.interface, endpoint.type)
+                pass
+            
     def updateEndpoints(self, new_nf_fg, old_nf_fg):     
         #Check ingress endpoint of the graph
         new_endpoints = new_nf_fg.getVlanEgressEndpoints()

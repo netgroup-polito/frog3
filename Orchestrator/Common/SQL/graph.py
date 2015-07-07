@@ -208,7 +208,11 @@ class Graph(object):
     def getNetworks(self, session_id):
         session = get_session()
         return session.query(OpenstackNetworkModel.id).filter(OpenstackNetworkModel.id == PortModel.os_network_id).filter(PortModel.session_id == session_id).all()
-
+    
+    def getAllNetworks(self):
+        session = get_session()
+        return session.query(OpenstackNetworkModel).all()
+    
     def setOSNetwork(self, os_network_id, port_name, vnf_id, internal_id, session_id, graph_id, status='complete'):
         session = get_session()  
         with session.begin():

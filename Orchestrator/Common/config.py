@@ -63,7 +63,6 @@ class Configuration(object):
         self._CONTROL_SWITCH_NAME = config.get('switch', 'switch_l2_control_name')
         
         self._DRIVERS = config.get('drivers', 'drivers')
-        self._USE_HEAT = config.getboolean('JolnetCA', 'use_heat')
         
         self._DEBUG_MODE = config.getboolean('orchestrator', 'debug_mode')
         
@@ -135,13 +134,6 @@ class Configuration(object):
             self._TIMEOUT_NOVA = config.get('nova','timeout')
         else:
             self._TIMEOUT_NOVA = 10
-        
-        #Jolnet
-        if config.has_option('JolnetCA', 'isp_availability_zone'):
-            self._ISP_AZ = config.get('JolnetCA', 'isp_availability_zone')
-        else: 
-            self._ISP_AZ = None
-
             
         # Orchestrator
         self._ISP = config.getboolean('orchestrator', 'isp')
@@ -152,20 +144,12 @@ class Configuration(object):
         return self._ORCH_TIMEOUT
     
     @property
-    def ISP_AZ(self):
-        return self._ISP_AZ
-    
-    @property
     def ODL_ENDPOINT(self):
         return self._ODL_ENDPOINT
     
     @property
     def ODL_ENDPOINT2(self):
         return self._ODL_ENDPOINT2
-    
-    @property
-    def USE_HEAT(self):
-        return self._USE_HEAT
     
     @property
     def ODL_USER(self):

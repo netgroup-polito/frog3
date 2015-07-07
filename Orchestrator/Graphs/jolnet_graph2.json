@@ -3,7 +3,6 @@
     "VNFs": [
       {
         "vnf_descriptor": "jolnet_switch.json",
-        "availability_zone": "AZ_TN",
         "ports": [
             {
             "ingoing_label": {
@@ -20,7 +19,7 @@
                     "matches": [
                       {
                         "priority": "100",
-                        "id": "exp295"
+                        "id": "295"
                       }
                     ],
                     "ingress_endpoint": "295"
@@ -42,7 +41,7 @@
                               "matches":[
                                  {
                                     "priority":"100",
-                                    "id":"exp295"
+                                    "id":"295"
                                  }
                               ]
                            }
@@ -66,7 +65,7 @@
                     "matches": [
                       {
                         "priority": "100",
-                        "id": "exp293"
+                        "id": "293"
                       }
                     ]
                   }
@@ -80,7 +79,6 @@
       },
       {
         "vnf_descriptor": "jolnet_switch.json",
-        "availability_zone": "AZ_TN",
         "ports": [
             {
             "id": "L2Port:0",
@@ -98,7 +96,7 @@
                     "matches": [
                       {
                         "priority": "100",
-                        "id": "exp293"
+                        "id": "293"
                       }
                     ]
                   }
@@ -121,7 +119,7 @@
                     "matches": [
                       {
                         "priority": "100",
-                        "id": "exp288"
+                        "id": "288"
                       }
                     ],
                     "ingress_endpoint": "288"
@@ -143,7 +141,7 @@
                     "matches": [
                       {
                         "priority": "100",
-                        "id": "exp288"
+                        "id": "288"
                       }
                     ]
                   }
@@ -157,6 +155,13 @@
       }
     ],
     "endpoints": [
+    	{
+            "name": "INGRESS",
+            "attached": false,
+            "connection": false,
+            "type": "vlan-ingress",
+            "id": "295",
+         },
          {
             "name": "EGRESS",
             "attached": false,

@@ -5,18 +5,17 @@ Created on 13/apr/2015
 
 import logging
 import json
-import time
 
 from Common.config import Configuration
-from Orchestrator.ComponentAdapter.interfaces import OrchestratorInterface
-from Orchestrator.ComponentAdapter.Jolnet.rest import ODL, Glance, Nova, Neutron,\
-    Heat
 from Common.NF_FG.nf_fg import NF_FG
-
-
-from Orchestrator.ComponentAdapter.Jolnet.resources import Action, Match, Flow, ProfileGraph, VNF
 from Common.Manifest.manifest import Manifest
 from Common.exception import StackError
+from Common.SQL.graph.Graph import getNetworks
+
+from Orchestrator.ComponentAdapter.interfaces import OrchestratorInterface
+from Orchestrator.ComponentAdapter.Jolnet.rest import ODL, Glance, Nova, Neutron, Heat
+from Orchestrator.ComponentAdapter.Jolnet.resources import Action, Match, Flow, ProfileGraph, VNF
+
 
 DEBUG_MODE = Configuration().DEBUG_MODE
 USE_HEAT = Configuration().USE_HEAT
@@ -35,6 +34,10 @@ class JolnetAdapter(OrchestratorInterface):
         Args:
             session_id:
                 identifier for the current user session
+            compute_node_address:
+                address of the compute node where to deploy the graph (can change at every graph)
+            token:
+                OpenStack access token of the orchestration user
         '''
         self.session_id = session_id
         self.token = token
@@ -66,6 +69,7 @@ class JolnetAdapter(OrchestratorInterface):
     ######################################################################################################
     '''
     def getStatus(self, session_id, node_endpoint):
+        #TODO:
         if USE_HEAT is True:
             pass
         else:
@@ -129,8 +133,7 @@ class JolnetAdapter(OrchestratorInterface):
             image = Glance().getImage(manifest.uri, token)
             flavor = self.findFlavor(int(manifest.memorySize), int(manifest.rootFileSystemSize),
                     int(manifest.ephemeralFileSystemSize), int(cpuRequirements[0]['coreNumbers']), token)
-            #TODO: la availbality zone non sta piu nel grafo ma nelle VNF stesse
-            nf = VNF(vnf.id, vnf, image, flavor, nf_fg.zone)
+            nf = VNF(vnf.id, vnf, image, flavor, vnf.availability_zone)
             profile_graph.addVNF(nf)
                 
         #Complete all ports with the right Neutron network id and add them to the VNF
@@ -142,17 +145,20 @@ class JolnetAdapter(OrchestratorInterface):
                 p = nf.ports[port.id]
                 for flowrule in port.list_outgoing_label:
                     #TODO: errore se i grafi contengono primitive non valide (es: splitter)
-                    if flowrule.action.type == "output" or flowrule.action.type == "endpoint" or flowrule.action.type == "control":
+                    if flowrule.action.type == "output" or flowrule.action.type == "endpoint":
                         if flowrule.matches is not None:
                             #TODO: cambiare come vengono lette queste info e la flowspec
-                            #The port name is inserted into flowspec id field (both expXXX or XXmgmt networks)
-                            net_name = flowrule.matches[0].id
-                            net_id = self.getNetworkId(net_name, token)
+                            net_vlan = flowrule.matches[0].id
+                            net_id = self.getNetworkIdfromVlan(net_vlan)
                             p.setNetwork(net_id)
                             
                             #if flowrule.action.type == "endpoint":
                             #    #Record the available endpoints into database
                             #    set_endpoint(nf_fg.id, flowrule.action.endpoint['id'], True, vnf.id, port.id, "vlan")
+                    
+                    if flowrule.action.type == "control":
+                        #TODO: attach the port to the right management network
+                        pass
                     
                 for flowrule in port.list_ingoing_label:
                     pass
@@ -299,23 +305,18 @@ class JolnetAdapter(OrchestratorInterface):
     ######################################################################################################
     '''
     
-    def getNetworkId(self, network_name, token):
+    def getNetworkIdfromVlan(self, vlan_id):
         '''
-        Get the Neutron network id from a network name
+        Get the Neutron network id from the database
         Args:
-            network_name:
-                The name of the network
-            token:
-                The authentication token to use for the REST call
+            vlan_id:
+                id of the vlan
         '''
-        json_data = Neutron().getNetworks(self.neutronEndpoint, token)
-        networks = json.loads(json_data)['networks']
+        networks = getNetworks(self.session_id)
         for net in networks:
-            if net['name'] == network_name:
-                return net['id']
-        if DEBUG_MODE is True:
-            logging.debug("Network " + net['name'] + " not found")
-        return None        
+            if net.vlan_id.equals(vlan_id):
+                return net.id
+        return None       
      
     '''
     ######################################################################################################

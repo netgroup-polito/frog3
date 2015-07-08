@@ -213,10 +213,10 @@ class Graph(object):
         session = get_session()
         return session.query(OpenstackNetworkModel).all()
     
-    def setOSNetwork(self, os_network_id, port_name, vnf_id, internal_id, session_id, graph_id, status='complete'):
+    def setOSNetwork(self, os_network_id, port_name, vnf_id, internal_id, session_id, graph_id, vlan_id = None, status='complete'):
         session = get_session()  
         with session.begin():
-            assert (session.query(PortModel).filter_by(name = port_name).filter_by(vnf_id = vnf_id).filter_by(session_id = session_id).filter_by(graph_id = graph_id).update({"os_network_id": os_network_id,"last_update":datetime.datetime.now(), 'status':status})==1)
+            assert (session.query(PortModel).filter_by(name = port_name).filter_by(vnf_id = vnf_id).filter_by(session_id = session_id).filter_by(graph_id = graph_id).update({"os_network_id": os_network_id, 'vlan_id':vlan_id, "last_update":datetime.datetime.now(), 'status':status})==1)
        
     def addOSNetwork(self, os_network_id, name, status='complete', vlan_id = None):
         session = get_session() 
@@ -230,6 +230,18 @@ class Graph(object):
             os_network_ref = OpenstackSubnetModel(id = os_subnet_id, name = name, os_network_id=os_network_id)
             session.add(os_network_ref)
     
+    def AddFlowrule(self, session_id, graph_id, internal_id, flow_type, start_node_type, start_node_id, end_node_type, end_node_id, status):
+        session = get_session()
+        with session.begin():  
+            o_arch_db_id = self._get_higher_o_arch_id() + 1
+            o_arch_id = str(start_node_type)+str(start_node_id)+":"+str(end_node_type)+str(end_node_id)
+            o_arch_ref = O_ArchModel(id=o_arch_db_id, internal_id = internal_id, graph_o_arch_id = o_arch_id, session_id=session_id,
+                                    graph_id=graph_id, type = flow_type, start_node_type=start_node_type,
+                                    start_node_id=start_node_id, end_node_type=end_node_type,
+                                    end_node_id=end_node_id, status=status,
+                                    creation_date=datetime.datetime.now(), last_update=datetime.datetime.now())
+            session.add(o_arch_ref)
+    
     def setPortInternalID(self, port_name, vnf_id, internal_id, session_id, graph_id, port_type = None, status='complete'):
         session = get_session()  
         with session.begin():
@@ -238,12 +250,12 @@ class Graph(object):
     def setVNFInternalID(self, graph_vnf_id, internal_id, session_id, graph_id, status='complete'):
         session = get_session()  
         with session.begin():
-            assert (session.query(VNFModel).filter_by(graph_vnf_id = graph_vnf_id).filter_by(session_id = session_id).filter_by(graph_id = graph_id).update({"internal_id": internal_id,"last_update":datetime.datetime.now(), 'status':status})==1)
+            assert (session.query(VNFModel).filter_by(graph_vnf_id = graph_vnf_id).filter_by(session_id = session_id).filter_by(graph_id = graph_id).update({"internal_id": internal_id, "last_update":datetime.datetime.now(), 'status':status})==1)
   
-    def setOArchInternalID(self, graph_o_arch_id, internal_id, session_id, graph_id, status='complete'):
+    def setOArchInternalID(self, graph_o_arch_id, internal_id, session_id, graph_id, arch_type = None, status='complete'):
         session = get_session()  
         with session.begin():
-            session.query(O_ArchModel).filter_by(graph_o_arch_id = graph_o_arch_id).filter_by(session_id = session_id).filter_by(graph_id = graph_id).update({"internal_id": internal_id,"last_update":datetime.datetime.now(), 'status':status})
+            session.query(O_ArchModel).filter_by(graph_o_arch_id = graph_o_arch_id).filter_by(session_id = session_id).filter_by(graph_id = graph_id).update({"internal_id": internal_id, 'type':arch_type, "last_update":datetime.datetime.now(), 'status':status})
     
     def getGraphConnections(self, service_graph_id, endpoint_name):
         #graph_id = self._getGraphID(service_graph_id)
@@ -521,7 +533,7 @@ class Graph(object):
     def _getEndpointID(self, graph_endpoint_id, graph_id):
         session = get_session()  
         try:
-            return session.query(EndpointModel).filter_by(graph_endpoint_id=graph_endpoint_id).filter_by(graph_id=graph_id).one()
+            return session.query(EndpointModel).filter_by(graph_endpoint_id=graph_endpoint_id).filter_by(graph_id=graph_id).one().id
         except Exception as ex:
             logging.error(ex)
             raise EndpointNotFound("Endpoint not found: ")

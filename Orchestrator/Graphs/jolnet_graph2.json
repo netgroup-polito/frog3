@@ -160,7 +160,7 @@
             "attached": false,
             "connection": false,
             "type": "vlan-ingress",
-            "id": "295",
+            "id": "295"
          },
          {
             "name": "EGRESS",

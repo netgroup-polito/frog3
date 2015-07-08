@@ -11,6 +11,8 @@ from Common.NF_FG.nf_fg import NF_FG
 from Common.Manifest.manifest import Manifest
 from Common.exception import StackError
 from Common.SQL.graph import Graph
+from Common.SQL.session import Session
+from Common.SQL.node import Node
 
 from Orchestrator.ComponentAdapter.interfaces import OrchestratorInterface
 from Orchestrator.ComponentAdapter.Jolnet.rest import ODL, Glance, Nova, Neutron, Heat
@@ -136,7 +138,7 @@ class JolnetAdapter(OrchestratorInterface):
                             #TODO: flowspecs with vlan_id and ip_addresses (mgmt network)
                             net_vlan = flowrule.matches[0].id
                             net_id = self.getNetworkIdfromVlan(net_vlan)
-                            p.setNetwork(net_id)
+                            p.setNetwork(net_id, net_vlan)
                     
                     if flowrule.action.type == "control":
                         if flowrule.matches is not None:
@@ -153,18 +155,21 @@ class JolnetAdapter(OrchestratorInterface):
         for vnf in profile_graph.functions.values():
             for port in vnf.listPort:
                 if port.net is None:
-                    #TODO: create an Openstack network and set the id into port.net
-                    pass
+                    #TODO: create an Openstack network and set the id into port.net instead of exception
+                    raise StackError("No network found for this port")
                         
                 resp = Neutron().createPort(self.neutronEndpoint, self.token.get_token(), port.getResourceJSON())
                 if resp['port']['status'] == "DOWN":
                     port_id = resp['port']['id']
                     port.setId(port_id)
+                    #TODO: mac address and other info missing
                     Graph().setPortInternalID(port.name, nf_fg.getVNFByID(vnf.id).db_id, port_id, self.session_id, nf_fg.db_id, port_type='openstack')
-                    Graph().setOSNetwork(port.net, port.name, nf_fg.getVNFByID(vnf.id).db_id, port_id, self.session_id, nf_fg.db_id)
+                    Graph().setOSNetwork(port.net, port.name, nf_fg.getVNFByID(vnf.id).db_id, port_id, self.session_id, nf_fg.db_id,  vlan_id = port.vlan)
+                    #TODO: Graph().setOArchInternalID(graph_o_arch_id, port.net, self.session_id, nf_fg.db_id, arch_type = "neutron-network")
                            
             resp = Nova().createServer(self.novaEndpoint, self.token.get_token(), vnf.getResourceJSON())
             vnf.OSid = resp['server']['id']
+            #TODO: image location, location, type and availability_zone missing
             Graph().setVNFInternalID(vnf.id, vnf.OSid, self.session_id, nf_fg.db_id)
                     
         # Add flows on the SDN network to connect endpoints
@@ -282,7 +287,7 @@ class JolnetAdapter(OrchestratorInterface):
             if (source_node == switch1 and dest_node == switch2):
                 return link
     
-    def pushVlanFlow(self, source_node, flow_id, vlan, in_port, out_port, flow_type, user):
+    def pushVlanFlow(self, source_node, flow_id, vlan, in_port, out_port, user):
         '''
         Push a flow into a Jolnet switch with 
             matching on VLAN id and input port
@@ -298,8 +303,6 @@ class JolnetAdapter(OrchestratorInterface):
                 ingoing port of the traffic (for matching)
             out_port:
                 output port where to send out the traffic (action)
-            flow_type:
-                distinguish between internal flows (graphs interconnection) and user flows (users connection)
             user:
                 user profile id to keep track of the owner of the flow
         '''
@@ -313,15 +316,7 @@ class JolnetAdapter(OrchestratorInterface):
         
         flowj = Flow("jolnetflow", flow_id, 0, 20, True, 0, 0, actions, match)        
         json_req = flowj.getJSON()
-        
-        #if (flow_already_exists(flow_id, source_node) == False):
-        #    ODL().createFlow(json_req, source_node, flow_id)
-        #    add_flow(flow_id, source_node, flow_type, user)
-        #else:
-        #    flows = get_internal_link_flows(vlan)
-        #    for flow in flows:
-        #        count = flow.users_count + 1
-        #        update_flow(flow.id, flow.switch_id, flow.flowtype, flow.user, count)
+        ODL().createFlow(json_req, source_node, flow_id)
     
     def pushMACSourceFlow(self, source_node, flow_id, user_vlan, in_port, source_mac, out_port, graph_vlan):
         '''
@@ -360,15 +355,7 @@ class JolnetAdapter(OrchestratorInterface):
         
         flowj = Flow("edgeflow", flow_id, 0, priority, True, 0, 0, actions, match)        
         json_req = flowj.getJSON()
-        
-        #if (flow_already_exists(flow_id, source_node) == False):
-        #    ODL().createFlow(json_req, source_node, flow_id)
-        #    add_flow(flow_id, source_node, "edge", source_mac)
-        #else:
-        #    flows = get_edge_link_flows(source_mac)
-        #    for flow in flows:
-        #        count = flow.users_count + 1
-        #        update_flow(flow.id, flow.switch_id, flow.flowtype, flow.user, count)
+        ODL().createFlow(json_req, source_node, flow_id)
     
     def pushMACDestFlow(self, source_node, flow_id, user_vlan, in_port, dest_mac, out_port, graph_vlan):
         '''
@@ -407,28 +394,26 @@ class JolnetAdapter(OrchestratorInterface):
         
         flowj = Flow("edgeflow", flow_id, 0, priority, True, 0, 0, actions, match)        
         json_req = flowj.getJSON()
-        
-        #if (flow_already_exists(flow_id, source_node) == False):
-        #    ODL().createFlow(json_req, source_node, flow_id)
-        #    add_flow(flow_id, source_node, "edge", dest_mac)
-        #else:
-        #    flows = get_edge_link_flows(dest_mac)
-        #    for flow in flows:
-        #        count = flow.users_count + 1
-        #        update_flow(flow.id, flow.switch_id, flow.flowtype, flow.user, count)
+        ODL().createFlow(json_req, source_node, flow_id)
     
-    def linkZones(self, switch_user, port_vms_user, switch_isp, port_vms_isp, vlan_id):
+    def linkZones(self, graph_id, switch_user, port_vms_user, switch_user_id, switch_isp, port_vms_isp, switch_isp_id, vlan_id):
         '''
         Link two graphs (or two parts of a single graph) through the SDN network
         Args:
+            graph_id:
+                id of the user's graph
             switch_user:
                 OpenDaylight identifier of the first switch (example: openflow:123456789)
             port_vms_user:
                 port on the OpenFlow switch where virtual machines are linked
+            switch_user_id:
+                id of the node in the database
             switch_isp:
                 OpenDaylight identifier of the second switch (example: openflow:987654321)
             port_vms_isp:
                 port on the OpenFlow switch where virtual machines are linked
+            switch_isp_id:
+                id of the node in the database
             vlan_id:
                 VLAN id of the OpenStack network which links the graphs
         '''
@@ -444,13 +429,17 @@ class JolnetAdapter(OrchestratorInterface):
             port21 = tmpList[2]
                  
             fid = int(str(vlan_id) + str(1))              
-            self.pushVlanFlow(switch_user, fid, vlan_id, port_vms_user, port12, "internal", vlan_id)
+            self.pushVlanFlow(switch_user, fid, vlan_id, port_vms_user, port12, vlan_id)
+            Graph().AddFlowrule(self.session_id, graph_id, fid, "external", "node", switch_user_id, "node", switch_isp_id, "complete")
             fid = int(str(vlan_id) + str(2))
-            self.pushVlanFlow(switch_isp, fid, vlan_id, port21, port_vms_isp, "internal", vlan_id)
+            self.pushVlanFlow(switch_isp, fid, vlan_id, port21, port_vms_isp, vlan_id)
+            Graph().AddFlowrule(self.session_id, graph_id, fid, "external", "node", switch_isp_id, "node", switch_user_id, "complete")
             fid = int(str(vlan_id) + str(3))               
-            self.pushVlanFlow(switch_isp, fid, vlan_id, port_vms_isp, port21, "internal", vlan_id)
+            self.pushVlanFlow(switch_isp, fid, vlan_id, port_vms_isp, port21, vlan_id)
+            Graph().AddFlowrule(self.session_id, graph_id, fid, "external", "node", switch_isp_id, "node", switch_user_id, "complete")
             fid = int(str(vlan_id) + str(4))               
-            self.pushVlanFlow(switch_user, fid, vlan_id, port12, port_vms_user, "internal", vlan_id)
+            self.pushVlanFlow(switch_user, fid, vlan_id, port12, port_vms_user, vlan_id)
+            Graph().AddFlowrule(self.session_id, graph_id, fid, "external", "node", switch_user_id, "node", switch_isp_id, "complete")
         else:
             logging.debug("Cannot find a link between " + switch_user + " and " + switch_isp)
         
@@ -472,18 +461,25 @@ class JolnetAdapter(OrchestratorInterface):
         #        update_flow(flow.id, flow.switch_id, flow.flowtype, flow.user, count)
         pass
     
-    def linkUser(self, cpe, user_port, switch, switch_port, graph_vlan, user_vlan, user_mac = None):
+    #TODO:
+    def linkUser(self, graph_id, cpe, user_port, cpe_id, switch, switch_port, switch_id, graph_vlan, user_vlan, user_mac = None):
         '''
         Link a user with his graph through the SDN network
         Args:
+            graph_id:
+                id of the user's graph
             cpe:
                 OpenDaylight identifier of the cpe where user is connecting (example: openflow:123456789)
             user_port:
                 port on the OpenFlow switch (cpe) where the user is connecting
+            cpe_id:
+                id of the node in the database
             switch:
                 OpenDaylight identifier of the graph switch (example: openflow:987654321)
             switch_port:
                 port on the OpenFlow switch where the user's graph is istantiated (compute node)
+            switch_id:
+                id of the node in the database
             graph_vlan:
                 VLAN id of the graph ingress endpoint
             user_vlan:
@@ -504,12 +500,16 @@ class JolnetAdapter(OrchestratorInterface):
             
             fid = int(str(graph_vlan) + str(1))
             self.pushMACSourceFlow(cpe, fid, user_vlan , user_port, user_mac, port12, graph_vlan)
+            Graph().AddFlowrule(self.session_id, graph_id, fid, "external", "node", cpe_id, "node", switch_id, "complete")
             fid = int(str(graph_vlan) + str(2))
-            self.pushVlanFlow(switch, fid, graph_vlan, port21, switch_port, "edge", user_mac)
+            self.pushVlanFlow(switch, fid, graph_vlan, port21, switch_port, user_mac)
+            Graph().AddFlowrule(self.session_id, graph_id, fid, "external", "node", switch_id, "node", cpe_id, "complete")
             fid = int(str(graph_vlan) + str(3))
-            self.pushVlanFlow(switch, fid, graph_vlan, switch_port, port21, "edge", user_mac)
+            self.pushVlanFlow(switch, fid, graph_vlan, switch_port, port21, user_mac)
+            Graph().AddFlowrule(self.session_id, graph_id, fid, "external", "node", switch_id, "node", cpe_id, "complete")
             fid = int(str(graph_vlan) + str(4))
             self.pushMACDestFlow(cpe, fid, user_vlan , port12, user_mac, user_port, graph_vlan)
+            Graph().AddFlowrule(self.session_id, graph_id, fid, "external", "node", cpe_id, "node", switch_id, "complete")
         else:
             logging.debug("Cannot find a link between " + cpe + " and " + switch)
     
@@ -524,34 +524,12 @@ class JolnetAdapter(OrchestratorInterface):
         #for flow in flows:
         #    ODL().deleteFlow(flow.switch_id, flow.id)
         #    remove_flow(flow.id, flow.switch_id)
-        pass
-            
-    def removeInternalFlows(self):
-        '''
-        Deletes all internal links between graphs (useful while shutting down)
-        '''
-        #flows = get_internal_flows()
-        #for flow in flows:
-        #    ODL().deleteFlow(flow.switch_id, flow.id)
-        #    remove_flow(flow.id, flow.switch_id)
-        pass
-    
-    def removeEdgeFlows(self):
-        '''
-        Deletes all users links with their graphs (useful while shutting down)
-        '''
-        #flows = get_edge_flows()
-        #for flow in flows:
-        #    ODL().deleteFlow(flow.switch_id, flow.id)
-        #    remove_flow(flow.id, flow.switch_id)
-        pass  
+        pass 
     '''
     ######################################################################################################
     ###############################       Manage graphs connection        ################################
     ######################################################################################################
     ''' 
-    
-    #TODO: interface e node da inserire al posto delle sole interface
     
     def connectEndpoints(self, nf_fg):
         '''
@@ -562,28 +540,27 @@ class JolnetAdapter(OrchestratorInterface):
         endpoints = nf_fg.getVlanEgressEndpoints()
         for endpoint in endpoints:
             if endpoint.connection is True:
-                #TODO:
-                # Check if the remote graph exists and the requested endpoint is available
-                #session = get_active_user_session_by_nf_fg_id(endpoint.remote_graph)
-                #if DEBUG_MODE is True:
-                #    logging.debug("session: "+str(session.id))
-                #existing_endpoints = get_available_endpoints_by_id(endpoint.remote_graph, endpoint.id)
-                existing_endpoints = None
-                if existing_endpoints is not None:
+                #Check if the remote graph exists and the requested endpoint is available                
+                session = Session().get_active_user_session_by_nf_fg_id(endpoint.remote_graph).id
+                existing_endpoints = Graph().getEndpoints(session)
+                existing = None
+                for e in existing_endpoints:
+                    if (e.graph_endpoint_id == endpoint.id):
+                        existing = e
+                
+                if existing is not None:
                     switch1 = endpoint.node
                     port1 = endpoint.interface
-                    
-                    #TODO: rimuovi remote node e prendilo dal grafo esistente
-                    switch2 = endpoint.remote_node
-                    port2 = endpoint.remote_interface
-                    
+                    port2 = endpoint.remote_interface                    
                     vlan = endpoint.id
-                    self.linkZones(switch1, port1, switch2, port2, vlan)
-                    #updateEndpointConnection(endpoint.remote_graph, endpoint.remote_id, nf_fg.id, endpoint.id)
+                    
+                    node1_id = Node().getNodeFromDomainID(switch1).id
+                    node2_id = Graph().getNodeID(session)
+                    switch2 = Node().getNodeDomainID(node2_id)                    
+                    
+                    self.linkZones(nf_fg.db_id, switch1, port1, node1_id, switch2, port2, node2_id, vlan)
                 else:
                     logging.error("Remote graph " + endpoint.remote_graph + " has not a " + endpoint.id + " endpoint available!")
-            else:
-                pass
             
         #Get ingress endpoints of the graph (auth graph has the same endpoint but without user_mac)
         endpoints = nf_fg.getVlanIngressEndpoints()
@@ -591,25 +568,17 @@ class JolnetAdapter(OrchestratorInterface):
             if endpoint.attached is True:    
                 graph_vlan = endpoint.remote_id
                 user_vlan = endpoint.id
-                user_mac = endpoint.user_mac
+                user_mac = endpoint.user_mac               
+                cpe = endpoint.node
+                cpe_port = endpoint.interface
+                switch_port = endpoint.remote_interface
+                
+                session = Session().get_active_user_session_by_nf_fg_id(endpoint.remote_graph).id
+                cpe_id = Node().getNodeFromDomainID(cpe).id
+                node_id = Graph().getNodeID(session)
+                switch = Node().getNodeDomainID(node_id) 
                     
-                tmp = endpoint.interface
-                tmpList = tmp.split(":")
-                cpe = tmpList[0] + ":" + tmpList[1]
-                cpe_port = tmpList[2]
-                    
-                tmp = endpoint.remote_interface
-                tmpList = tmp.split(":")
-                switch = tmpList[0] + ":" + tmpList[1]
-                switch_port = tmpList[2]
-                    
-                self.linkUser(cpe, cpe_port, switch, switch_port, graph_vlan, user_vlan, user_mac)
-            else:
-                #TODO: grafi con attached = falsevanno solo inseriti nel db
-                #existing_endpoints = get_available_endpoints_by_id(nf_fg.id, endpoint.id)
-                #if existing_endpoints is None:
-                #    set_endpoint(nf_fg.id, endpoint.id, True, endpoint.name, endpoint.interface, endpoint.type)
-                pass
+                self.linkUser(nf_fg.db_id, cpe, cpe_port, cpe_id, switch, switch_port, node_id, graph_vlan, user_vlan, user_mac)
             
     def updateEndpoints(self, new_nf_fg, old_nf_fg):     
         #Check ingress endpoint of the graph

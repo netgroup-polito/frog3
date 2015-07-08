@@ -1,0 +1,37 @@
+{
+  "profile": {
+    "VNFs": [],
+    "endpoints": [
+         {
+            "name": "EGRESS",
+            "attached": false,
+            "connection": true,
+            "type": "vlan-egress",
+            "id": "288",
+            "node": "openflow:44838630154304",
+            "interface": "5102",
+            "remote_graph": "0",
+            "remote_graph_name": "Jolnet ISP Graph",
+            "remote_id": "288",
+            "remote_node": "openflow:110953238266560",
+            "remote_interface": "5098"           
+         },
+         {
+            "name": "INGRESS",
+            "attached": true,
+            "connection": false,
+            "type": "vlan-ingress",
+            "id": "295",
+            "node": "openflow:968199681216",
+            "interface": "5099",
+            "remote_graph": "5",
+            "remote_graph_name": "Jolnet Test Graph",
+            "remote_id": "295",
+            "remote_node": "openflow:44838630154304",
+            "remote_interface": "5102" 
+         }
+    ],
+    "id": "5",
+    "name": "Jolnet Test Graph"
+  }
+}

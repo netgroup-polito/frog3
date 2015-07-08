@@ -175,13 +175,15 @@ class Port(object):
                 The Id of the VNF associated to that port
         '''
         self.net = None
+        self.vlan = None
         self.name = portTemplate.id
         self.VNFId = VNFId
         self.port_id = None
     
-    def setNetwork(self, net_id):
+    def setNetwork(self, net_id, vlan_id):
         #Network id retrieved through Neutron REST API call
         self.net = net_id
+        self.vlan = vlan_id
     
     def setId(self, port_id):
         #Port id returned after port creation with Neutron API

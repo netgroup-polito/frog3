@@ -165,8 +165,8 @@ file = egress_graph_user.json
 
 [odl]
 # OpenDayLight endpoint
-endpoint = http://odl:8080
-endpoint2 = http://odl:8181
+endpoint = http://jolnet-odl:8080
+endpoint2 = http://jolnet-odl:8181
 
 odl_user = admin
 odl_password = admin

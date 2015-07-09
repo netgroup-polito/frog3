@@ -7,6 +7,7 @@ import collections
 import logging
 import copy
 from Common.config import Configuration
+from Common.SQL.graph import Graph
 
 
 INGRESS_PORT = Configuration().INGRESS_PORT
@@ -27,7 +28,7 @@ class ProfileGraph(object):
     '''
 
 
-    def __init__(self):
+    def __init__(self, num_net = 0):
         '''
         Constructor of the Graph
         '''
@@ -36,7 +37,7 @@ class ProfileGraph(object):
         self.networks = []
         #self.router = Router()
         self.switch = None
-        self.num_net = 0
+        self.num_net = num_net
         self.trashNetwork = None
         
     def addEdge(self, edge):
@@ -231,7 +232,7 @@ class VNF(object):
     '''
 
 
-    def __init__(self, VNFId, vnf, imageName, flavor, availability_zone = None):
+    def __init__(self, VNFId, vnf, imageName, flavor, availability_zone = None, status='new'):
         '''
         Constructor of the VNF data
         '''
@@ -244,10 +245,24 @@ class VNF(object):
         self.flavor = flavor
         #self.vnfType = VNFTemplate["vnfType"]
         self.URIImage = imageName
-        
+        self.status = status
+        if self.status != 'new' and self.status is not None:
+            self.vnf_id = vnf.internal_id
         template_info = VNFTemplate(vnf)
         for port in vnf.listPort:
-            self.ports[port.id] = Port(port, VNFId)
+            if hasattr(port, 'status') and port.status is not None:
+                port_status = port.status
+            else:
+                port_status = 'new'
+            if port.status != 'new' and port.status != None:
+                logging.debug("port.db_id: "+str(port.db_id))
+                net = Net(Graph().getNetwork(port.db_id).name)
+                net.network_id = Graph().getNetwork(port.db_id).id
+            else:
+                net = None
+            logging.debug("port.status: "+str(port.status))
+            logging.debug("port_status: "+str(port_status))
+            self.ports[port.id] = Port(port, VNFId, status = port_status, net = net, internal_id = port.internal_id)
             position = template_info.ports_label[port.id.split(":")[0]] + int(port.id.split(":")[1])
             self.listPort.insert(position,self.ports[port.id])
         
@@ -304,7 +319,7 @@ class Port(object):
     Class that contains the port data for the VNF
     '''        
     
-    def __init__(self, portTemplate, VNFId):
+    def __init__(self, portTemplate, VNFId, status='new', net=None, internal_id=None):
         '''
         Constructor for the port
         params:
@@ -313,14 +328,16 @@ class Port(object):
             VNFId:
                 The Id of the VNF associated to that port
         '''
-        self.net = None
-        self.trash = None
+        self.net = net
+        self.trash = net
         self.fip = None
         self.name = portTemplate.id
         self.network = None
         self.type = None
         self.VNFId = VNFId
         self.archs = []
+        self.status = status
+        self.port_id = internal_id
         
     def getResourceTemplate(self):
         '''

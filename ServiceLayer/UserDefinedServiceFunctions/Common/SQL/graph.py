@@ -39,7 +39,7 @@ class VNFModel(Base):
     Maps the database table node
     '''
     __tablename__ = 'vnf'
-    attributes = ['id', 'internal_id', 'graph_vnf_id','session_id', 'graph_id', 'name','template_location', 'image_location', 'location','type', 'status', 'creation_date','last_update', 'avialability_zone']
+    attributes = ['id', 'internal_id', 'graph_vnf_id','session_id', 'graph_id', 'name','template_location', 'image_location', 'location','type', 'status', 'creation_date','last_update', 'availability_zone']
     id = Column(Integer, primary_key=True)
     internal_id = Column(VARCHAR(64))
     graph_vnf_id = Column(VARCHAR(64))
@@ -53,7 +53,7 @@ class VNFModel(Base):
     status = Column(VARCHAR(64))
     creation_date = Column(VARCHAR(64))
     last_update = Column(VARCHAR(64))
-    avialability_zone = Column(VARCHAR(64))
+    availability_zone = Column(VARCHAR(64))
 
 class PortModel(Base):
     '''
@@ -186,6 +186,38 @@ class Graph(object):
     def __init__(self):
         self.user_session = Session()
 
+    def getUnusedNetworks(self):
+        '''
+        select openstack_network.id
+        from openstack_network
+        where openstack_network.id 
+        not in ( select os_network_id 
+                 from port 
+                 where os_network_id is not NULL )
+        '''
+        session = get_session()
+        used_networks_ref = session.query(PortModel.os_network_id).filter(PortModel.os_network_id != None)
+        query = session.query(OpenstackNetworkModel.id).filter(~OpenstackNetworkModel.id.in_(used_networks_ref))
+        unsed_networks_ref = query.all()
+        return unsed_networks_ref
+
+    def getNetwork(self, port_id):
+        
+        session = get_session()
+        return session.query(OpenstackNetworkModel).\
+                filter(OpenstackNetworkModel.id == PortModel.os_network_id).\
+                filter(PortModel.id == port_id).one()
+                
+    def getHigherNumberOfNet(self, session_id):
+        session = get_session()
+        networks = session.query(OpenstackNetworkModel.name).filter(PortModel.os_network_id == OpenstackNetworkModel.id).filter(PortModel.session_id == session_id).all()
+        net_max = -1
+        for network in networks:
+            net_number = int(network.name.split('fakenet_')[1])
+            if net_max < net_number:
+                net_max = net_number
+        return net_max+1
+    
     def getOArchs(self, session_id):
         session = get_session()
         return session.query(O_ArchModel).filter_by(session_id = session_id).all()
@@ -205,14 +237,22 @@ class Graph(object):
                 filter(OpenstackNetworkModel.id == PortModel.os_network_id).\
                 filter(PortModel.session_id == session_id).all()
     
+    def getSubnet(self, os_network_id):
+        session = get_session()
+        return session.query(OpenstackSubnetModel.id).filter_by(os_network_id=os_network_id).one()
+        
     def getNetworks(self, session_id):
         session = get_session()
         return session.query(OpenstackNetworkModel.id).filter(OpenstackNetworkModel.id == PortModel.os_network_id).filter(PortModel.session_id == session_id).all()
-
-    def setOSNetwork(self, os_network_id, port_name, vnf_id, internal_id, session_id, graph_id, status='complete'):
+    
+    def getAllNetworks(self):
+        session = get_session()
+        return session.query(OpenstackNetworkModel).all()
+    
+    def setOSNetwork(self, os_network_id, port_name, vnf_id, internal_id, session_id, graph_id, vlan_id = None, status='complete'):
         session = get_session()  
         with session.begin():
-            assert (session.query(PortModel).filter_by(name = port_name).filter_by(vnf_id = vnf_id).filter_by(session_id = session_id).filter_by(graph_id = graph_id).update({"os_network_id": os_network_id,"last_update":datetime.datetime.now(), 'status':status})==1)
+            assert (session.query(PortModel).filter_by(name = port_name).filter_by(vnf_id = vnf_id).filter_by(session_id = session_id).filter_by(graph_id = graph_id).update({"os_network_id": os_network_id, 'vlan_id':vlan_id, "last_update":datetime.datetime.now(), 'status':status})==1)
        
     def addOSNetwork(self, os_network_id, name, status='complete', vlan_id = None):
         session = get_session() 
@@ -226,20 +266,32 @@ class Graph(object):
             os_network_ref = OpenstackSubnetModel(id = os_subnet_id, name = name, os_network_id=os_network_id)
             session.add(os_network_ref)
     
-    def setPortInternalID(self, port_name, vnf_id, internal_id, session_id, graph_id, status='complete'):
+    def AddFlowrule(self, session_id, graph_id, internal_id, flow_type, start_node_type, start_node_id, end_node_type, end_node_id, status):
+        session = get_session()
+        with session.begin():  
+            o_arch_db_id = self._get_higher_o_arch_id() + 1
+            o_arch_id = str(start_node_type)+str(start_node_id)+":"+str(end_node_type)+str(end_node_id)
+            o_arch_ref = O_ArchModel(id=o_arch_db_id, internal_id = internal_id, graph_o_arch_id = o_arch_id, session_id=session_id,
+                                    graph_id=graph_id, type = flow_type, start_node_type=start_node_type,
+                                    start_node_id=start_node_id, end_node_type=end_node_type,
+                                    end_node_id=end_node_id, status=status,
+                                    creation_date=datetime.datetime.now(), last_update=datetime.datetime.now())
+            session.add(o_arch_ref)
+    
+    def setPortInternalID(self, port_name, vnf_id, internal_id, session_id, graph_id, port_type = None, status='complete'):
         session = get_session()  
         with session.begin():
-            assert (session.query(PortModel).filter_by(name = port_name).filter_by(vnf_id = vnf_id).filter_by(session_id = session_id).filter_by(graph_id = graph_id).update({"internal_id": internal_id,"last_update":datetime.datetime.now(), 'status':status})==1)
+            assert (session.query(PortModel).filter_by(name = port_name).filter_by(vnf_id = vnf_id).filter_by(session_id = session_id).filter_by(graph_id = graph_id).update({"internal_id": internal_id,"last_update":datetime.datetime.now(), 'status':status, 'type':port_type})==1)
     
     def setVNFInternalID(self, graph_vnf_id, internal_id, session_id, graph_id, status='complete'):
         session = get_session()  
         with session.begin():
-            assert (session.query(VNFModel).filter_by(graph_vnf_id = graph_vnf_id).filter_by(session_id = session_id).filter_by(graph_id = graph_id).update({"internal_id": internal_id,"last_update":datetime.datetime.now(), 'status':status})==1)
+            assert (session.query(VNFModel).filter_by(graph_vnf_id = graph_vnf_id).filter_by(session_id = session_id).filter_by(graph_id = graph_id).update({"internal_id": internal_id, "last_update":datetime.datetime.now(), 'status':status})==1)
   
-    def setOArchInternalID(self, graph_o_arch_id, internal_id, session_id, graph_id, status='complete'):
+    def setOArchInternalID(self, graph_o_arch_id, internal_id, session_id, graph_id, arch_type = None, status='complete'):
         session = get_session()  
         with session.begin():
-            session.query(O_ArchModel).filter_by(graph_o_arch_id = graph_o_arch_id).filter_by(session_id = session_id).filter_by(graph_id = graph_id).update({"internal_id": internal_id,"last_update":datetime.datetime.now(), 'status':status})
+            session.query(O_ArchModel).filter_by(graph_o_arch_id = graph_o_arch_id).filter_by(session_id = session_id).filter_by(graph_id = graph_id).update({"internal_id": internal_id, 'type':arch_type, "last_update":datetime.datetime.now(), 'status':status})
     
     def getGraphConnections(self, service_graph_id, endpoint_name):
         #graph_id = self._getGraphID(service_graph_id)
@@ -276,9 +328,9 @@ class Graph(object):
                 '''
                 attributes = ['id', 'internal_id', 'graph_vnf_id','session_id', 'graph_id',
                                'name','template_location', 'image_location', 'location',
-                               'type', 'status', 'creation_date','last_update', 'avialability_zone']
+                               'type', 'status', 'creation_date','last_update', 'availability_zone']
                 '''
-                
+                logging.debug("VNF db_id: "+str(vnf.db_id))
                 vnf_ref = VNFModel(id=vnf.db_id, graph_vnf_id = vnf.id, session_id=session_id,
                                    graph_id=nffg.db_id, name=vnf.name, template_location=vnf.template,
                                    creation_date=datetime.datetime.now(), last_update=datetime.datetime.now(), status=default_status)
@@ -290,6 +342,7 @@ class Graph(object):
                                  'creation_date','last_update', 'os_network_id','mac_address', 
                                  'ipv4_address', 'vlan_id','gre_key']
                     '''
+                    logging.debug("Ports db_id: "+str(port.db_id))
                     port_ref = PortModel(id=port.db_id, graph_port_id = port.id, session_id=session_id,
                                    graph_id=nffg.db_id, name=port.id, vnf_id=vnf.db_id,
                                    creation_date=datetime.datetime.now(), last_update=datetime.datetime.now(), status=default_status)
@@ -364,16 +417,209 @@ class Graph(object):
                     endpoint2_db_id = self._getEndpointID(endpoint.remote_id, remote_graph_db_id)
                     graph_connection_ref = GraphConnectionModel(endpoint_id_1=endpoint.db_id, endpoint_id_2=endpoint2_db_id)
                     session.add(graph_connection_ref)
+    
+    def updateNFFG(self, nffg, session_id, partial=False, default_status = 'initialization'):
+        session = get_session()  
+        with session.begin():
+            self._id_generator(nffg, session_id, update=True)
+            
+            #graph_ref = GraphModel(id=nffg.db_id, session_id=session_id, partial=partial)
+            #session.add(graph_ref)
+            for vnf in nffg.listVNF:
+                '''
+                attributes = ['id', 'internal_id', 'graph_vnf_id','session_id', 'graph_id',
+                               'name','template_location', 'image_location', 'location',
+                               'type', 'status', 'creation_date','last_update', 'avialability_zone']
+                '''
+                if vnf.status == 'new':
+                    vnf_ref = VNFModel(id=vnf.db_id, graph_vnf_id = vnf.id, session_id=session_id,
+                                       graph_id=nffg.db_id, name=vnf.name, template_location=vnf.template,
+                                       creation_date=datetime.datetime.now(), last_update=datetime.datetime.now(), status=default_status)
+                    session.add(vnf_ref)
+                for port in vnf.listPort:
+                    '''
+                    attributes = ['id', 'internal_id', 'graph_port_id','session_id', 'graph_id',
+                                 'name','vnf_id', 'location','type', 'virtual_switch', 'status', 
+                                 'creation_date','last_update', 'os_network_id','mac_address', 
+                                 'ipv4_address', 'vlan_id','gre_key']
+                    '''
+                    if port.status == 'new' or port.status == None:
+                        port_ref = PortModel(id=port.db_id, graph_port_id = port.id, session_id=session_id,
+                                       graph_id=nffg.db_id, name=port.id, vnf_id=vnf.db_id,
+                                       creation_date=datetime.datetime.now(), last_update=datetime.datetime.now(), status=default_status)
+                        session.add(port_ref)                        
+                            
+                    for o_arch in port.list_outgoing_label:
+                        '''
+                        attributes = ['id', 'internal_id', 'graph_o_arch_id','session_id', 'graph_id',
+                                     'type','start_node_type', 'start_node_id','end_node_type',
+                                      'end_node_id', 'creation_date','last_update']
+                        '''
+                        if o_arch.status == 'new' or o_arch.status == None:        
+                            start_node_id = port.db_id
+                            start_node_type = 'port'
+                            if o_arch.action.endpoint is not None:
+                                end_node_type = 'endpoint'
+                                end_node_id = nffg.getEndpointByID(o_arch.action.endpoint['id']).db_id
+                            elif o_arch.action.vnf is not None:
+                                end_node_type = 'port'
+                                end_node_id = nffg.getVNFByID(o_arch.action.vnf['id']).getPortFromID(o_arch.action.vnf['port']).db_id
+                        
+                                self._add_flowrule(session, session_id, nffg, o_arch, start_node_type, start_node_id, end_node_type, end_node_id, status=default_status)
+                    for o_arch in port.list_ingoing_label:
+                        if o_arch.status == 'new' or o_arch.status == None:        
+                            start_node_id = nffg.getEndpointByID(o_arch.flowspec['ingress_endpoint']).db_id
+                            start_node_type = 'endpoint'                    
+                            end_node_type = 'port'
+                            end_node_id = port.db_id
+
+                            self._add_flowrule(session, session_id, nffg, o_arch, start_node_type, start_node_id, end_node_type, end_node_id, status=default_status)
+
+            for endpoint in nffg.listEndpoint:
+                '''
+                attributes = ['id', 'internal_id', 'graph_endpoint_id','session_id','graph_id',
+                            'type','location']
+                '''
+                if endpoint.status == 'new':        
+                    endpoint_ref = EndpointModel(id=endpoint.db_id, graph_endpoint_id=endpoint.id, session_id=session_id,
+                                                 graph_id=nffg.db_id, type=endpoint.name)
+                    session.add(endpoint_ref)
+                
+                    # Add end-point resources
+                    # End-point attached to something that is not another graph
+                    if endpoint.attached is not None and endpoint.attached is True:
+                        if endpoint.type is not None and endpoint.type == 'physical':
+                            port_ref = PortModel(id=self.port_id, session_id=session_id,
+                                       graph_id=nffg.db_id, internal_id=endpoint.interface, name=endpoint.interface, location=endpoint.node,
+                                       creation_date=datetime.datetime.now(), last_update=datetime.datetime.now())
+                            session.add(port_ref)
+                            endpoint_resource_ref = EndpointResourceModel(endpoint_id=endpoint.db_id,
+                                                  resource_type='port',
+                                                  resource_id=self.port_id,
+                                                  session_id=session_id)
+                            session.add(endpoint_resource_ref)
+                            self.port_id = self.port_id + 1
+                        
+                    # End-point attached to another graph
+                    if endpoint.connection is not None and endpoint.connection is True:
+                        if endpoint.type is not None and endpoint.type == 'physical':
+                            port_ref = PortModel(id=self.port_id, session_id=session_id,
+                                       graph_id=endpoint.remote_graph, internal_id=endpoint.interface, name=endpoint.interface, location=endpoint.node,
+                                       creation_date=datetime.datetime.now(), last_update=datetime.datetime.now())
+                            session.add(port_ref)
+                            endpoint_resource_ref = EndpointResourceModel(endpoint_id=endpoint.db_id,
+                                                                          resource_type='port',
+                                                                          resource_id=self.port_id,
+                                                                          session_id=session_id)
+                            session.add(endpoint_resource_ref)
+                            self.port_id = self.port_id + 1
+                            
+                        
+                        # Add graph connection
+                        remote_graph_db_id =  self._getGraphID(endpoint.remote_graph)
+                        endpoint2_db_id = self._getEndpointID(endpoint.remote_id, remote_graph_db_id)
+                        graph_connection_ref = GraphConnectionModel(endpoint_id_1=endpoint.db_id, endpoint_id_2=endpoint2_db_id)
+                        session.add(graph_connection_ref)
                     
     def getEndpoints(self, session_id):
         session = get_session()  
         return session.query(EndpointModel).filter_by(session_id = session_id).all()
+    
+    def setEndpointLocation(self, session_id, graph_id, graph_endpoint_id, location):
+        session = get_session()
+        with session.begin():
+            assert (session.query(EndpointModel).filter_by(session_id = session_id).filter_by(graph_id = graph_id).filter_by(graph_endpoint_id = graph_endpoint_id).update({"location": location}) == 1)
 
     def get_instantiated_nffg(self, user_id):
-        service_graph_id = self.user_session.get_profile_id_from_active_user_session(user_id)
-        nffg = self.get_nffg(service_graph_id)    
+        session_id = self.user_session.get_active_user_session(user_id)
+        nffg = self.get_nffg(session_id.id)    
         return nffg
     
+    def deleteNetwok(self, network_id):
+        session = get_session()
+        with session.begin():
+            session.query(OpenstackNetworkModel).filter_by(id = network_id).delete()
+    
+    def deleteSubnet(self, os_network_id):
+        session = get_session()
+        with session.begin():
+            session.query(OpenstackSubnetModel).filter_by(os_network_id = os_network_id).delete()
+    
+    def deleteVNF(self, graph_vnf_id, session_id):
+        session = get_session()
+        with session.begin():
+            session.query(VNFModel).filter_by(session_id = session_id).filter_by(graph_vnf_id = graph_vnf_id).delete()
+
+    def deletePort(self, graph_port_id, session_id, vnf_id=None):
+        session = get_session()
+        with session.begin():
+            if vnf_id is None:
+                session.query(PortModel).filter_by(session_id = session_id).filter_by(graph_port_id = graph_port_id).delete()
+            else:
+                session.query(PortModel).filter_by(session_id = session_id).filter_by(vnf_id = vnf_id).delete()
+    
+    def deleteFlowspecFromVNF(self, session_id, vnf_id):
+        session = get_session()
+        with session.begin():
+            o_archs_ref = session.query(O_ArchModel.id).\
+                filter(VNFModel.id == vnf_id).\
+                filter(VNFModel.id == PortModel.vnf_id).\
+                filter(O_ArchModel.start_node_id == PortModel.id).\
+                filter(O_ArchModel.start_node_type == 'port').\
+                filter(VNFModel.session_id == session_id).all()
+            for o_arch_ref in o_archs_ref:
+                session.query(O_ArchModel).filter_by(id = o_arch_ref.id).delete()
+                session.query(FlowspecModel).filter_by(session_id = session_id).filter_by(o_arch_id = o_arch_ref.id).delete()
+            o_archs_ref = session.query(O_ArchModel.id).\
+                filter(VNFModel.id == vnf_id).\
+                filter(VNFModel.id == PortModel.vnf_id).\
+                filter(O_ArchModel.end_node_id == PortModel.id).\
+                filter(O_ArchModel.end_node_type == 'port').\
+                filter(VNFModel.session_id == session_id).all()
+            for o_arch_ref in o_archs_ref:
+                session.query(O_ArchModel).filter_by(id = o_arch_ref.id).delete()
+                session.query(FlowspecModel).filter_by(session_id = session_id).filter_by(o_arch_id = o_arch_ref.id).delete()
+    
+    def deleteFlowspecFromPort(self, session_id, port_id):
+        session = get_session()
+        with session.begin():
+            o_archs_ref = session.query(O_ArchModel.id).\
+                filter(PortModel.id == port_id).\
+                filter(O_ArchModel.start_node_id == PortModel.id).\
+                filter(O_ArchModel.start_node_type == 'port').\
+                filter(PortModel.session_id == session_id).all()
+            for o_arch_ref in o_archs_ref:
+                session.query(O_ArchModel).filter_by(id = o_arch_ref.id).delete()
+                session.query(FlowspecModel).filter_by(session_id = session_id).filter_by(o_arch_id = o_arch_ref.id).delete()
+            o_archs_ref = session.query(O_ArchModel.id).\
+                filter(PortModel.id == port_id).\
+                filter(O_ArchModel.end_node_id == PortModel.id).\
+                filter(O_ArchModel.end_node_type == 'port').\
+                filter(PortModel.session_id == session_id).all()
+            for o_arch_ref in o_archs_ref:
+                session.query(O_ArchModel).filter_by(id = o_arch_ref.id).delete()
+                session.query(FlowspecModel).filter_by(session_id = session_id).filter_by(o_arch_id = o_arch_ref.id).delete()
+    
+    def deleteoOArch(self, o_arch_id, session_id):
+        session = get_session()
+        with session.begin():
+            session.query(O_ArchModel).filter_by(session_id = session_id).filter_by(id = o_arch_id).delete()
+            
+    def deleteFlowspec(self, o_arch_id, session_id):
+        session = get_session()
+        with session.begin():
+            session.query(FlowspecModel).filter_by(session_id = session_id).filter_by(o_arch_id = o_arch_id).delete()
+    
+    def deleteEndpoint(self, graph_endpoint_id, session_id):
+        session = get_session()
+        with session.begin():
+            session.query(EndpointModel).filter_by(session_id = session_id).filter_by(graph_endpoint_id = graph_endpoint_id).delete()
+    
+    def deleteEndpointResource(self, endpoint_id, session_id):
+        session = get_session()
+        with session.begin():
+            session.query(EndpointResourceModel).filter_by(session_id = session_id).filter_by(endpoint_id = endpoint_id).delete()
+            
     def delete_graph(self, session_id):
         session = get_session()
         with session.begin():
@@ -398,16 +644,17 @@ class Graph(object):
         nffg = NF_FG()
         session = get_session()
         graphs_ref = session.query(GraphModel).filter_by(session_id = session_id).all()
+        logging.debug(session_id)
         service_graph_info_ref = Session().get_service_graph_info(session_id)
 
         nffg._id = service_graph_info_ref.service_graph_id
         nffg.name = service_graph_info_ref.service_graph_name
         vnfs_ref = session.query(VNFModel).filter_by(session_id = session_id).all()
         for vnf_ref in vnfs_ref:
-            vnf = nffg.createVNF(vnf_ref.name, vnf_ref.template_location, vnf_ref.graph_vnf_id)
+            vnf = nffg.createVNF(vnf_ref.name, vnf_ref.template_location, vnf_ref.graph_vnf_id, db_id=vnf_ref.id,internal_id=vnf_ref.internal_id)
             ports_ref = session.query(PortModel).filter_by(session_id = session_id).filter_by(vnf_id = str(vnf_ref.id)).all()
             for port_ref in ports_ref:
-                port = vnf.addPort(vnf=vnf,port_id=port_ref.graph_port_id)
+                port = vnf.addPort(vnf=vnf,port_id=port_ref.graph_port_id, db_id=port_ref.id,internal_id=port_ref.internal_id)
                 o_archs_ref = session.query(O_ArchModel).filter_by(session_id = session_id).filter_by(start_node_type = "port").filter_by(start_node_id = port_ref.id).all()
                 for o_arch_ref in o_archs_ref:
                     if o_arch_ref.end_node_type == 'port':
@@ -415,11 +662,11 @@ class Graph(object):
                         connected_vnf_ref = session.query(VNFModel).filter_by(id = connected_port_ref.vnf_id).first()
                         if connected_port_ref is not None:
                             flowspecs_ref = session.query(FlowspecModel).filter_by(o_arch_id= o_arch_ref.id).all()
-                            for flowspec_ref in flowspecs_ref:
-                                flowrule = port.setFlowRuleToVNF(connected_vnf_ref.graph_vnf_id, connected_port_ref.graph_port_id)
+                            for flowspec_ref in flowspecs_ref: 
+                                flowrule = port.setFlowRuleToVNF(connected_vnf_ref.graph_vnf_id, connected_port_ref.graph_port_id, db_id=o_arch_ref.id, internal_id=o_arch_ref.internal_id, flowrule_id=o_arch_ref.graph_o_arch_id)
                                 of_field=self._encode_of_field(flowspec_ref)
                                 matches = []
-                                matches.append(Match(priority= flowspec_ref.priority, match_id=flowspec_ref.id, of_field=of_field))
+                                matches.append(Match(priority= flowspec_ref.priority, match_id=flowspec_ref.match_id, of_field=of_field, db_id=flowspec_ref.id))
                                 flowrule.changeMatches(matches)
                             
                     elif o_arch_ref.end_node_type == 'endpoint':
@@ -427,36 +674,38 @@ class Graph(object):
                         if connected_endpoint_ref is not None:
                             flowspecs_ref = session.query(FlowspecModel).filter_by(o_arch_id= o_arch_ref.id).all()
                             for flowspec_ref in flowspecs_ref:
-                                flowrule = port.setFlowRuleToEndpoint(connected_endpoint_ref.graph_endpoint_id)
+                                flowrule = port.setFlowRuleToEndpoint(connected_endpoint_ref.graph_endpoint_id, db_id=o_arch_ref.id, internal_id=o_arch_ref.internal_id, flowrule_id=o_arch_ref.graph_o_arch_id)
                                 of_field=self._encode_of_field(flowspec_ref)
                                 matches = []
-                                matches.append(Match(priority=flowspec_ref.priority, match_id=flowspec_ref.id, of_field=of_field))
+                                matches.append(Match(priority=flowspec_ref.priority, match_id=flowspec_ref.match_id, of_field=of_field, db_id=flowspec_ref.id))
                                 flowrule.changeMatches(matches)
                         
                         # find arch from endpoint to this port
                         #connection_from_endpoints_ref = session.query(O_ArchModel).filter_by(session_id = session_id).filter_by(start_node_type = "endpoint").filter_by(end_node_type = "port").filter_by(end_node_id = port_ref.id).join(O_ArchModel.start_node_id).join(EndpointModel.id).all()
                         #session.query(O_ArchModel).filter_by(session_id = session_id).filter_by(start_node_type = "endpoint").filter_by(end_node_type = "port").filter_by(end_node_id = port_ref.id).join(O_ArchModel.start_node_id).join(EndpointModel.id).all()
-                        connection_from_endpoints_ref = session.query(EndpointModel,O_ArchModel.id).filter(O_ArchModel.start_node_id == EndpointModel.id).filter(O_ArchModel.session_id == session_id).filter(O_ArchModel.start_node_type == "endpoint").filter(O_ArchModel.end_node_type == "port").filter(O_ArchModel.end_node_id == port_ref.id).all()
+                        connection_from_endpoints_ref = session.query(EndpointModel,O_ArchModel).filter(O_ArchModel.start_node_id == EndpointModel.id).filter(O_ArchModel.session_id == session_id).filter(O_ArchModel.start_node_type == "endpoint").filter(O_ArchModel.end_node_type == "port").filter(O_ArchModel.end_node_id == port_ref.id).all()
                         
                         for connection_from_endpoint_ref, ingress_o_arch_id_from_endpoint in connection_from_endpoints_ref:
-                            flowspecs_ref = session.query(FlowspecModel).filter_by(o_arch_id= ingress_o_arch_id_from_endpoint).all()
+                            flowspecs_ref = session.query(FlowspecModel).filter_by(o_arch_id= ingress_o_arch_id_from_endpoint.id).all()
                             for flowspec_ref in flowspecs_ref:
-                                flowrule = port.setFlowRuleFromEndpoint(vnf.id, connection_from_endpoint_ref.graph_endpoint_id)
+                                flowrule = port.setFlowRuleFromEndpoint(vnf.id, connection_from_endpoint_ref.graph_endpoint_id, db_id=ingress_o_arch_id_from_endpoint.id, internal_id=ingress_o_arch_id_from_endpoint.internal_id, flowrule_id=ingress_o_arch_id_from_endpoint.graph_o_arch_id)
                                 of_field=self._encode_of_field(flowspec_ref)
                                 matches = []
-                                matches.append(Match(priority=flowspec_ref.priority, match_id=flowspec_ref.id, of_field=of_field))
+                                matches.append(Match(priority=flowspec_ref.priority, match_id=flowspec_ref.match_id, of_field=of_field, db_id=flowspec_ref.id))
                                 flowrule.changeMatches(matches)
                         
                             
         endpoints_ref = session.query(EndpointModel).filter_by(session_id = session_id).all()
         for endpoint_ref in endpoints_ref:
-            endpoint = nffg.createEndpoint(endpoint_ref.type, endpoint_id=endpoint_ref.graph_endpoint_id)
+            endpoint = nffg.createEndpoint(endpoint_ref.type, endpoint_id=endpoint_ref.graph_endpoint_id, db_id=endpoint_ref.id)
             # endpoint resource
             endpoint_resorces_ref = session.query(EndpointResourceModel).filter_by(endpoint_id = endpoint_ref.id).filter_by(session_id = session_id).all()
             for endpoint_resorce_ref in endpoint_resorces_ref:
                 if endpoint_resorce_ref.resource_type == 'port':
                     port = self._getPort(endpoint_resorce_ref.resource_id)
-                    nffg.characterizeEndpoint(endpoint, endpoint_type = endpoint_resorce_ref.resource_type, interface = port.graph_port_id, node = port.location)
+                    if endpoint_resorce_ref.resource_type == 'port':
+                        endpoint_type = endpoint_resorce_ref.resource_type
+                    nffg.characterizeEndpoint(endpoint, endpoint_type = endpoint_type, interface = port.name, node = port.location)
                     internal = False
                     for graph_ref in graphs_ref:
                         logging.debug("port.graph_id: "+str(port.graph_id)+" graph_ref.id: "+str(graph_ref.id))
@@ -517,12 +766,12 @@ class Graph(object):
     def _getEndpointID(self, graph_endpoint_id, graph_id):
         session = get_session()  
         try:
-            return session.query(EndpointModel).filter_by(graph_endpoint_id=graph_endpoint_id).filter_by(graph_id=graph_id).one()
+            return session.query(EndpointModel).filter_by(graph_endpoint_id=graph_endpoint_id).filter_by(graph_id=graph_id).one().id
         except Exception as ex:
             logging.error(ex)
             raise EndpointNotFound("Endpoint not found: ")
     
-    def _id_generator(self, nffg, session_id):
+    def _id_generator(self, nffg, session_id, update=False):
         graph_base_id = self._get_higher_graph_id()
         vnf_base_id = self._get_higher_vnf_id()
         port_base_id = self._get_higher_port_id()
@@ -553,28 +802,38 @@ class Graph(object):
             self.flowspec_id = int(flowspec_base_id) + 1
         else:
             self.flowspec_id = 0  
-        nffg.db_id = self.graph_id
+        if update == False:
+            nffg.db_id = self.graph_id
+        else:
+            nffg.db_id = self.graph_id - 1
         for vnf in nffg.listVNF:
-            vnf.db_id = self.vnf_id
-            self.vnf_id = self.vnf_id+1
+            if vnf.status is None or vnf.status == "new":
+                vnf.db_id = self.vnf_id
+                self.vnf_id = self.vnf_id+1
             for port in vnf.listPort:
-                port.db_id = self.port_id
-                self.port_id = self.port_id + 1
-                for o_arch in port.list_outgoing_label:  
-                    o_arch.db_id = self.o_arch_id
-                    self.o_arch_id = self.o_arch_id +1
+                if port.status is None or port.status == "new":
+                    port.db_id = self.port_id
+                    self.port_id = self.port_id + 1
+                for o_arch in port.list_outgoing_label: 
+                    if o_arch.status is None or o_arch.status == "new": 
+                        o_arch.db_id = self.o_arch_id
+                        self.o_arch_id = self.o_arch_id +1
                     for match in o_arch.matches:
-                        match.db_id = self.flowspec_id
-                        self.flowspec_id = self.flowspec_id + 1
-                for o_arch in port.list_ingoing_label:  
-                    o_arch.db_id = self.o_arch_id
-                    self.o_arch_id = self.o_arch_id + 1
+                        if o_arch.status is None or o_arch.status == "new":
+                            match.db_id = self.flowspec_id
+                            self.flowspec_id = self.flowspec_id + 1
+                for o_arch in port.list_ingoing_label:
+                    if o_arch.status is None or o_arch.status == "new":   
+                        o_arch.db_id = self.o_arch_id
+                        self.o_arch_id = self.o_arch_id + 1
                     for match in o_arch.matches:
-                        match.db_id = self.flowspec_id
-                        self.flowspec_id = self.flowspec_id + 1
+                        if o_arch.status is None or o_arch.status == "new":
+                            match.db_id = self.flowspec_id
+                            self.flowspec_id = self.flowspec_id + 1
         for endpoint in nffg.listEndpoint:
-            endpoint.db_id = self.endpoint_id 
-            self.endpoint_id = self.endpoint_id + 1
+            if o_arch.status is None or o_arch.status == "new":   
+                endpoint.db_id = self.endpoint_id 
+                self.endpoint_id = self.endpoint_id + 1
     
     def _get_higher_graph_id(self):  
         session = get_session()  
@@ -601,7 +860,7 @@ class Graph(object):
         return session.query(func.max(FlowspecModel.id).label("max_id")).one().max_id
     
     def _add_flowrule(self, session, session_id, nffg, o_arch, start_node_type, start_node_id, end_node_type, end_node_id, status):
-        o_arch.id = str(start_node_type)+str(start_node_id)+":"+str(end_node_type)+str(end_node_id)
+        #o_arch.id = str(start_node_type)+str(start_node_id)+":"+str(end_node_type)+str(end_node_id)
         o_arch_ref = O_ArchModel(id=o_arch.db_id, graph_o_arch_id = o_arch.id, session_id=session_id,
                                     graph_id=nffg.db_id, start_node_type=start_node_type,
                                     start_node_id=start_node_id, end_node_type=end_node_type,

@@ -24,8 +24,8 @@ class UserSession(object):
         user_session = Session().get_active_session(self.user_id, self.token, self.profile_id)
         if session_status is True:
             
-            response = orchestrator.checkNFFG(nffg_id)
-            if response['status'] != 'ERROR' or response['status'] != 'NOT FOUND':
+            response = json.loads(orchestrator.checkNFFG(nffg_id))
+            if response['status'] != 'error' or response['status'] != 'not_found':
                 # The user profile is really instantiated
                 return True
             else:

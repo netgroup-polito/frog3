@@ -197,7 +197,9 @@ class NF_FG_Management(object):
                                 match.priority = "1000"
                                 match.of_field['sourceMAC'] = mac_address
                                 match._id = uuid.uuid4().hex
-                                new_flowrules.append(copy.deepcopy(ingress_flowrule))
+                                flow_copy = copy.deepcopy(ingress_flowrule)
+                                flow_copy._id = uuid.uuid4().hex
+                                new_flowrules.append(flow_copy)
 
                     port.list_ingoing_label = port.list_ingoing_label + new_flowrules
         logging.debug("NF-FG after devices flows: "+self.nf_fg.getJSON())

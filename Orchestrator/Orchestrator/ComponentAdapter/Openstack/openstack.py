@@ -14,7 +14,7 @@ from Orchestrator.ComponentAdapter.Openstack.rest import Nova, Heat, Glance, ODL
 from Orchestrator.ComponentAdapter.interfaces import OrchestratorInterface
 from Common.NF_FG.nf_fg import NF_FG, Node, Link, Action
 from Common.Manifest.manifest import Manifest
-from Common.NF_FG.nf_fg_managment import NF_FG_Management
+from Orchestrator.ComponentAdapter.Common.nffg_management import NFFG_Management
 from Orchestrator.ComponentAdapter.Openstack.resources import FlowRoute,Net,Port,ProfileGraph,VNF
 from Common.SQL.graph import Graph
 from Common.exception import NoHeatPortTranslationFound, StackError, NodeNotFound, DeletionTimeout
@@ -133,10 +133,106 @@ class HeatOrchestrator(OrchestratorInterface):
             #set_error(self.token.get_userID())  
             raise
   
-    def updateProfile(self, new_nf_fg, old_nf_fg, token, node_endpoint):
-        pass
-
-              
+    def updateProfile(self, new_nf_fg, old_nf_fg, node_endpoint):
+        updated_nffg = NFFG_Management().diff(old_nf_fg, new_nf_fg)
+        token = self.token.get_token()
+        logging.debug("diff: "+updated_nffg.getJSON())
+        
+        self.node_endpoint = node_endpoint   
+        token_id = self.token.get_token()
+        
+        # Delete VNFs
+        for vnf in updated_nffg.listVNF[:]:
+            if vnf.status == 'to_be_deleted':
+                Nova().deleteServer(self.novaEndpoint, token_id, vnf.internal_id)
+                Graph().deleteFlowspecFromVNF(self.session_id, vnf.db_id)
+                Graph().deleteVNF(vnf.id, self.session_id)
+                Graph().deletePort(None, self.session_id, vnf.db_id)
+                
+            else:
+                # Delete ports
+                for port in vnf.listPort[:]:
+                    if port.status == 'to_be_deleted':
+                        Neutron().deletePort(self.neutronEndpoint, token_id, port.internal_id)
+                        Graph().deleteFlowspecFromPort(self.session_id, port.id)
+                        Graph().deletePort(port.id, self.session_id)
+                    else:
+                        # Delete flow-rules
+                        for flowrule in port.list_outgoing_label[:]:
+                            if flowrule.status == 'to_be_deleted':
+                                Neutron().deleteFlowrule(self.neutronEndpoint, token_id, flowrule.internal_id)
+                                Graph().deleteoOArch(flowrule.db_id, self.session_id)
+                                Graph().deleteFlowspec(flowrule.db_id, self.session_id)
+                                port.list_outgoing_label.remove(flowrule)
+                        for flowrule in port.list_ingoing_label[:]:
+                            if flowrule.status == 'to_be_deleted':
+                                Neutron().deleteFlowrule(self.neutronEndpoint, token_id, flowrule.internal_id)
+                                Graph().deleteoOArch(flowrule.db_id, self.session_id)
+                                Graph().deleteFlowspec(flowrule.db_id, self.session_id)
+                                port.list_ingoing_label.remove(flowrule)
+        
+        # TODO: delete endpoint resources
+        
+        # Wait for resource deletion
+        for vnf in updated_nffg.listVNF[:]:
+            if vnf.status == 'to_be_deleted':
+                while True:
+                    status = Nova().getServerStatus(self.novaEndpoint, token_id, vnf.internal_id)
+                    if status != 'ACTIVE':
+                        logging.debug("VNF "+vnf.internal_id+" status "+status)
+                        updated_nffg.listVNF.remove(vnf)
+                        break
+                    if status == 'ERROR':
+                        raise Exception('VNF status ERROR - '+vnf.internal_id)
+                    logging.debug("VNF "+vnf.internal_id+" status "+status)
+            else:
+                for port in vnf.listPort[:]:
+                    if port.status == 'to_be_deleted':
+                        while True:
+                            status = Neutron().getPortStatus(self.neutronEndpoint, token_id, port.internal_id)
+                            if status != 'ACTIVE':
+                                logging.debug("VNF "+vnf.internal_id+" status "+status)
+                                vnf.listPort.remove(port)
+                                break
+                            if status == 'ERROR':
+                                raise Exception('Port status ERROR - '+vnf.internal_id)
+                            logging.debug("Port "+vnf.internal_id+" status "+status)
+                    
+        # Delete unused networks and subnets
+        self.deleteUnusedNetworksAndSubnets(token_id)
+        
+        logging.debug("diff after: "+updated_nffg.getJSON())
+        
+        # Store, in initialize status, the new resources
+        Graph().updateNFFG(updated_nffg, self.session_id)
+        
+        # Create a drop flow that match all packets, to avoid loop
+        # when ODL doesn't set properly the tag vlan
+        self.createIntegrationBridgeDropFlow()
+        
+        # Manage ingress endpoint
+        self.manageIngressEndpoint(updated_nffg)
+        
+        # Manage exit endpoint
+        self.manageExitEndpoint(updated_nffg)
+        
+        graph = ProfileGraph(Graph().getHigherNumberOfNet(self.session_id))
+        for vnf in updated_nffg.listVNF:
+            manifest = Manifest(vnf.manifest)
+            cpuRequirements = manifest.CPUrequirements.socket
+            logging.debug(manifest.uri)                    
+            graph.addEdge(VNF(vnf.id, vnf, Glance().get_image(manifest.uri, token)['id'],
+                               self.findFlavor(int(manifest.memorySize), int(manifest.rootFileSystemSize),
+                                int(manifest.ephemeralFileSystemSize), int(cpuRequirements[0]['coreNumbers']), token),
+                                 vnf.availability_zone, status = vnf.status))
+        
+        for link in NFFG(updated_nffg).getLinks(self):
+            graph.addArch(FlowRoute(link))
+        graph.vistGraph()
+        #self.addPortsToEndpointSwitches(nf_fg, graph)
+        
+        self.openstackResourcesInstantiation(updated_nffg, graph)
+        
     def getStackResourcesStatus(self, token, name):
         '''
         Return the status of the Stack
@@ -199,8 +295,9 @@ class HeatOrchestrator(OrchestratorInterface):
             logging.debug("vnf - "+value)
             if value == 'ACTIVE':
                 num_resources_completed = num_resources_completed + 1
-        for value in resources_status['flowrules'].itervalues():
+        for key, value in resources_status['flowrules'].iteritems():
             logging.debug("flowrule - "+value)
+            logging.debug("flowrule key: "+str(key))
             if value == 'ACTIVE':
                 num_resources_completed = num_resources_completed + 1
         status  = {}
@@ -213,7 +310,16 @@ class HeatOrchestrator(OrchestratorInterface):
             status['status'] = 'in_progress'
             status['percentage_completed'] = num_resources_completed/num_resources*100
         return status
-                            
+    
+    def deleteUnusedNetworksAndSubnets(self, token_id):
+        unused_networks_ref = Graph().getUnusedNetworks()
+        for unused_network_ref in unused_networks_ref:
+            subnet_id = Graph().getSubnet(unused_network_ref.id).id
+            Neutron().deleteSubNet(self.neutronEndpoint, token_id, subnet_id)
+            Graph().deleteSubnet(unused_network_ref.id)
+            Neutron().deleteNetwork(self.neutronEndpoint, token_id, unused_network_ref.id)
+            Graph().deleteNetwok(unused_network_ref.id)
+                
     def openstackResourcesDeletion(self, token_id):
         subnets = Graph().getSubnets(self.session_id)
         networks = Graph().getNetworks(self.session_id)
@@ -226,11 +332,15 @@ class HeatOrchestrator(OrchestratorInterface):
         ports = Graph().getPorts(self.session_id)
         for port in ports:
             Neutron().deletePort(self.neutronEndpoint, token_id, port.internal_id)
+        # TODO: if there are some network and subnet daesn't used, I have to delete them.
         for subnet in subnets:
             Neutron().deleteSubNet(self.neutronEndpoint, token_id, subnet.id)
         for network in networks:
             Neutron().deleteNetwork(self.neutronEndpoint, token_id, network.id)
-            
+    
+    def openstackResourcesUpdate(self, nffg):
+        pass
+        
     def openstackResourcesInstantiation(self, nffg, graph):
         for network in graph.networks:
             logging.debug("Network: "+json.dumps(network.getNetResourceJSON()))
@@ -242,13 +352,19 @@ class HeatOrchestrator(OrchestratorInterface):
             Graph().addOSSubNet(network.subnet_id, network.name, network.network_id)
         for vnf in graph.edges.values():
             for port in vnf.listPort:
-                logging.debug("Port: "+json.dumps(port.getResourceJSON()))
-                port.port_id = Neutron().createPort(self.neutronEndpoint, self.token.get_token(), port.getResourceJSON())['port']['id']
-                Graph().setPortInternalID(port.name, nffg.getVNFByID(vnf.id).db_id, port.port_id, self.session_id, nffg.db_id, port_type='openstack')
-                Graph().setOSNetwork(port.net.network_id, port.name, nffg.getVNFByID(vnf.id).db_id, port.port_id, self.session_id, nffg.db_id)
-            logging.debug("VNF: "+json.dumps(vnf.getResourceJSON()))
-            vnf.vnf_id = Nova().createServer(self.novaEndpoint, self.token.get_token(), vnf.getResourceJSON())['server']['id']
-            Graph().setVNFInternalID(vnf.id, vnf.vnf_id, self.session_id, nffg.db_id)
+                logging.debug("Port: "+json.dumps(port.getResourceJSON())+" Status: "+str(port.status))
+                if port.status == 'new':
+                    if vnf.status == 'new':
+                        port.port_id = Neutron().createPort(self.neutronEndpoint, self.token.get_token(), port.getResourceJSON())['port']['id']
+                    else:
+                        port.port_id = Neutron().createPort(self.neutronEndpoint, self.token.get_token(), port.getResourceJSON())['port']['id']
+                        Nova().attachPort(self.novaEndpoint, self.token.get_token(), port.port_id, vnf.vnf_id)
+                    Graph().setPortInternalID(port.name, nffg.getVNFByID(vnf.id).db_id, port.port_id, self.session_id, nffg.db_id, port_type='openstack')
+                    Graph().setOSNetwork(port.net.network_id, port.name, nffg.getVNFByID(vnf.id).db_id, port.port_id, self.session_id, nffg.db_id)
+            logging.debug("VNF: "+json.dumps(vnf.getResourceJSON())+" Status: "+str(vnf.status))
+            if vnf.status == 'new':
+                vnf.vnf_id = Nova().createServer(self.novaEndpoint, self.token.get_token(), vnf.getResourceJSON())['server']['id']
+                Graph().setVNFInternalID(vnf.id, vnf.vnf_id, self.session_id, nffg.db_id)
         
         thread = Thread(target = self.setFlows, args = (graph, nffg ))
         thread.start()
@@ -271,9 +387,10 @@ class HeatOrchestrator(OrchestratorInterface):
             vect = flow.getResourcesJSON(self.token.get_tenantID(), graph.edges)
             index = 0
             for flowroute in vect:
-                logging.debug("Flowrule: "+json.dumps(flowroute))
-                flowrule_id = Neutron().createFlowrule(self.neutronEndpoint, self.token.get_token(), flowroute)['flowrule']['id']
-                Graph().setOArchInternalID(flow.flowrules[index].id, flowrule_id, self.session_id, nffg.db_id)
+                logging.debug("Flowrule: "+json.dumps(flowroute)+" Status: "+str(flow.flowrules[index].status))
+                if flow.flowrules[index].status == 'new' or flow.flowrules[index].status is None:
+                    flowrule_id = Neutron().createFlowrule(self.neutronEndpoint, self.token.get_token(), flowroute)['flowrule']['id']
+                    Graph().setOArchInternalID(flow.flowrules[index].id, flowrule_id, self.session_id, nffg.db_id)
                 index = index + 1
                 
     def checkProfile(self, session_id, token):

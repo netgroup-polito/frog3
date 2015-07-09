@@ -54,25 +54,16 @@ class NF_FG(object):
         if nf_fg is not None:
             self._id = nf_fg['profile']['id']
             self.name = nf_fg['profile']['name']
-            
-            '''
-            TODO: Added for Jolnet Adapter
-            '''        
-            if 'availability_zone' in nf_fg['profile']:
-                self.zone = nf_fg['profile']['availability_zone']
-            else:
-                self.zone = None
-            
     
             for vnf in nf_fg['profile']['VNFs']:
                 manifest = None
-                avialability_zone = None
-                if 'avialability_zone' in vnf:
-                    avialability_zone = vnf['avialability_zone']
+                availability_zone = None
+                if 'availability_zone' in vnf:
+                    availability_zone = vnf['availability_zone']
                 if 'manifest' in vnf: 
                     manifest = vnf['manifest']
                     
-                self.vnf = VNF(vnf['name'], vnf['vnf_descriptor'], vnf['id'], vnf['ports'], manifest = manifest, avialability_zone=avialability_zone)
+                self.vnf = VNF(vnf['name'], vnf['vnf_descriptor'], vnf['id'], vnf['ports'], manifest = manifest, availability_zone=availability_zone)
                 self.listVNF.append(self.vnf)
             if 'endpoints' in nf_fg['profile']:
                 for endpoint in nf_fg['profile']['endpoints']:
@@ -131,9 +122,9 @@ class NF_FG(object):
                     self.endpoint = Endpoint(endpoint['id'], endpoint['name'], connections = connections,
                                               endpoint_switch = endpoint_switch, attached = attached,
                                                connection=connection, remote_id=remote_id, remote_graph=remote_graph,
-                                               remote_graph_name=remote_graph_name, remote_interface = remote_interface, edge=edge, 
-                                               endpoint_type = endpoint_type, port=port, interface=interface,
-                                               node = node, user_mac = user_mac)
+                                               remote_graph_name=remote_graph_name, remote_interface = remote_interface, 
+                                               edge=edge, endpoint_type = endpoint_type, 
+                                               port=port, interface=interface, node = node, user_mac = user_mac)
                     self.listEndpoint.append(self.endpoint)
                 
         # True when control switch will be created
@@ -163,7 +154,7 @@ class NF_FG(object):
     def addVNF(self, vnf):
         self.listVNF.append(vnf)
         
-    def createEndpoint(self, name, edge = False, endpoint_id=None):
+    def createEndpoint(self, name, edge = False, endpoint_id=None, db_id=None):
         if endpoint_id is None:
             #endpoint_id = uuid.uuid4().hex
             #endpoint_id = uuid.uuid4().int & (1<<32)-1
@@ -178,12 +169,12 @@ class NF_FG(object):
         
         logging.debug("Created endpoint: "+str(endpoint_id))
         endpoint_id = str(endpoint_id)
-        endpoint = Endpoint(endpoint_id, name, edge=edge)
+        endpoint = Endpoint(endpoint_id, name, edge=edge, db_id=db_id)
         self.listEndpoint.append(endpoint)
         return endpoint
     
-    def createVNF(self, name, vnf_descriptor, vnf_id, ports=None, manifest=None):
-        vnf = VNF(name, vnf_descriptor, vnf_id, ports=ports, manifest = manifest)
+    def createVNF(self, name, vnf_descriptor, vnf_id, ports=None, manifest=None, db_id=None, internal_id=None):
+        vnf = VNF(name, vnf_descriptor, vnf_id, ports=ports, manifest = manifest, db_id = db_id, internal_id = internal_id)
         self.listVNF.append(vnf)
         return vnf
         
@@ -511,18 +502,23 @@ class NF_FG(object):
             j_vnf = {}
             j_vnf['id'] = vnf.id
             j_vnf['name'] = vnf.name
-            j_vnf['availability_zone'] = vnf.avialability_zone
+            if vnf.availability_zone is not None:
+                j_vnf['availability_zone'] = vnf.availability_zone
+
             if vnf.manifest is not None:
                 j_vnf['manifest'] = vnf.manifest
                 j_vnf['vnf_descriptor'] = vnf.template
             else:  
                 j_vnf['vnf_descriptor'] = vnf.template
+            if vnf.status is not None:
+                j_vnf['status'] = vnf.status
             
             j_ports = []
             for port in vnf.listPort:
                 j_port = {}
                 j_port['id'] = port.id
-                j_port['internal_id'] = port.internal_id
+                if port.internal_id is not None:
+                    j_port['internal_id'] = port.internal_id
                 
                 j_flowrule = {}
 
@@ -532,7 +528,20 @@ class NF_FG(object):
                 j_port['ingoing_label'] = {}
                 j_port['ingoing_label']['flowrules'] = []
                 
-                for outgoing in port.list_outgoing_label: 
+                if port.status is not None:
+                    j_port['status'] = port.status
+                
+                for outgoing in port.list_outgoing_label:
+                    
+                    if outgoing.id is not None:
+                        j_flowrule['id'] = outgoing.id
+                    
+                    if outgoing.status is not None:
+                        j_flowrule['status'] = outgoing.status
+                        
+                    if outgoing.internal_id is not None:
+                            j_flowrule['internal_id'] = outgoing.internal_id
+                     
                     j_flowrule['action'] = {}
                     j_flowrule['action']['type'] = outgoing.action.type
                     if outgoing.action.vnf is not None:
@@ -566,6 +575,15 @@ class NF_FG(object):
                 j_flowrule = {}
                 if port.list_ingoing_label is not None:
                     for ingoing in port.list_ingoing_label:
+                        
+                        if ingoing.id is not None:
+                            j_flowrule['id'] = ingoing.id
+                        
+                        if ingoing.status is not None:
+                            j_flowrule['status'] = ingoing.status
+                        
+                        if ingoing.internal_id is not None:
+                            j_flowrule['internal_id'] = ingoing.internal_id
                         
                         j_flowrule['action'] = {}
                         j_flowrule['action']['type'] = ingoing.action.type
@@ -853,7 +871,8 @@ class Connection(object):
 class Endpoint(object):
     def __init__(self, endpoint_id, name, connections = [], attached = False, endpoint_switch = None, connection = False,
                   remote_id = None, remote_graph = None, remote_graph_name=None, remote_interface = None, edge = False, endpoint_type = None, port = None,
-                   interface = None, node = None, user_mac = None):
+                   interface = None, node = None, user_mac = None, db_id=None):
+
         self._id = endpoint_id
         self.name = name
         # Indicate that the endpoint should be connected, but not to anther endpoint
@@ -880,6 +899,7 @@ class Endpoint(object):
         self.remote_interface = remote_interface
         
         self.node = node
+        self.db_id = db_id
             
 
     @property
@@ -927,7 +947,8 @@ class Endpoint(object):
              
 class VNF(object):
     
-    def __init__(self, VNFname, template, vnf_id = None, ports = None, manifest = None, avialability_zone=None):
+    def __init__(self, VNFname, template, vnf_id = None, ports = None, manifest = None, availability_zone=None, status = None, db_id = None, internal_id = None):
+
         if vnf_id is not None:
             self._id = vnf_id
         else:
@@ -952,25 +973,30 @@ class VNF(object):
         self.name = VNFname
         self.template = template
         self.manifest = manifest
-        self.avialability_zone = avialability_zone
+        self.availability_zone = availability_zone
+
+        self.status = status
+        self.db_id = db_id
+        self.internal_id = internal_id
+
         
            
     @property
     def id(self):
         return self._id
     
-    def addPort(self, vnf=None, label=None, port_id=None):
+    def addPort(self, vnf=None, label=None, port_id=None, db_id=None, internal_id=None):
         num = 0
         if label is not None:
             for port in self.listPort:
                 if port.id.split(":")[0] == label:
                     num = num + 1
-            port = Port(label+":"+str(num), vnf_id = vnf.id)
+            port = Port(label+":"+str(num), vnf_id = vnf.id, db_id=db_id, internal_id=internal_id)
         elif port_id is not None:
             if vnf is not None:
-                port = Port(port_id, vnf_id = vnf.id)
+                port = Port(port_id, vnf_id = vnf.id, db_id=db_id, internal_id=internal_id)
             else:
-                port = Port(port_id)
+                port = Port(port_id, db_id=db_id, internal_id=internal_id)
         self.listPort.append(port)
         return port
         
@@ -1082,7 +1108,8 @@ class Node(object):
         return False
       
 class Port(object):
-    def __init__(self, port_id, outgoing_label = None, ingoing_label= None, vnf_id = None,  internal_id = None):
+    
+    def __init__(self, port_id, outgoing_label = None, ingoing_label= None, vnf_id = None,  internal_id = None, status = None, db_id=None):
         self._id = port_id
         self.vnf_id = vnf_id
         self.internal_id = internal_id
@@ -1090,16 +1117,18 @@ class Port(object):
         self.list_outgoing_label = []
         self.list_ingoing_label = []
         self.flowrules = []
+        self.status = status
+        self.db_id=db_id
         if outgoing_label is not None:
             flowrules = []
             for flowrule in outgoing_label['flowrules']:
-                flowrules.append(Flowrule(flowrule['action'], flowrule['flowspec']))
+                flowrules.append(Flowrule(flowrule['id'], flowrule['action'], flowrule['flowspec']))
             self.flowrules = copy.deepcopy(flowrules)
             self.list_outgoing_label = copy.deepcopy(flowrules)
         if ingoing_label is not None:
             flowrules = []
             for flowrule in ingoing_label['flowrules']:      
-                flowrules.append(Flowrule(flowrule['action'], flowrule['flowspec']))
+                flowrules.append(Flowrule(flowrule['id'], flowrule['action'], flowrule['flowspec']))
             self.flowrules = copy.deepcopy(flowrules)
             self.list_ingoing_label = copy.deepcopy(flowrules)
            
@@ -1159,46 +1188,54 @@ class Port(object):
                 flowrules.append(flowrule)
         return flowrules
     
-    def setFlowRuleToEndpoint(self, endpoint_id):
+    def setFlowRuleToEndpoint(self, endpoint_id, db_id=None, internal_id=None, flowrule_id=None):
+        if flowrule_id is None:
+            flowrule_id = uuid.uuid4().hex
         matches = []
         matches.append(Match(priority = DEFAULT_PRIORITY, match_id = uuid.uuid4().hex))
         endpoint_pointer  = {}
         endpoint_pointer['port'] = endpoint_id
         action = Action("output", endpoint = endpoint_pointer)
-        flowrule = Flowrule(action, matches = matches)
+        flowrule = Flowrule(flowrule_id, action, matches = matches, db_id=db_id, internal_id=internal_id)
         self.list_outgoing_label.append(flowrule)
         self.flowrules.append(flowrule)
         return flowrule
         
-    def setFlowRuleFromEndpoint(self, vnf_id, endpoint_id):
+    def setFlowRuleFromEndpoint(self, vnf_id, endpoint_id, db_id=None, internal_id=None, flowrule_id=None):
+        if flowrule_id is None:
+            flowrule_id = uuid.uuid4().hex
         matches = []
         matches.append(Match(priority = DEFAULT_PRIORITY, match_id = uuid.uuid4().hex))
         vnf_pointer  = {}
         vnf_pointer['id'] = vnf_id
         vnf_pointer['port'] = self.id
         action = Action("output", vnf = vnf_pointer)
-        flowrule = Flowrule(action, matches = matches, ingress_endpoint = endpoint_id)
+        flowrule = Flowrule(flowrule_id, action, matches = matches, ingress_endpoint = endpoint_id, db_id=db_id, internal_id=internal_id)
         self.list_ingoing_label.append(flowrule)
         self.flowrules.append(flowrule)
         return flowrule
         
-    def setFlowRuleToVNF(self, vnf_id, port_id):
+    def setFlowRuleToVNF(self, vnf_id, port_id, db_id=None, internal_id=None, flowrule_id=None):
+        if flowrule_id is None:
+            flowrule_id = uuid.uuid4().hex
         matches = []
         matches.append(Match(priority = DEFAULT_PRIORITY, match_id = uuid.uuid4().hex))
         vnf_pointer  = {}
         vnf_pointer['id'] = vnf_id
         vnf_pointer['port'] = port_id
         action = Action("output", vnf_pointer)
-        flowrule = Flowrule(action, matches = matches)
+        flowrule = Flowrule(flowrule_id, action, matches = matches, db_id=db_id, internal_id=internal_id)
         self.list_outgoing_label.append(flowrule)
         self.flowrules.append(flowrule)
         return flowrule
         
-    def setDropFlow(self):
+    def setDropFlow(self, flowrule_id=None):
+        if flowrule_id is None:
+            flowrule_id = uuid.uuid4().hex
         matches = []
         matches.append(Match(priority = 1, match_id = uuid.uuid4().hex))
         action = Action("drop")
-        flowrule = Flowrule(action, matches = matches)
+        flowrule = Flowrule(flowrule_id, action, matches = matches)
         self.list_outgoing_label.append(flowrule)
         self.flowrules.append(flowrule)
     
@@ -1210,10 +1247,14 @@ class Port(object):
         return flowrules
                
 class Flowrule(object):
-    def __init__(self, action, flowspec = None, matches = None, ingress_endpoint = None):
+    def __init__(self, flowrule_id, action, flowspec = None, matches = None, ingress_endpoint = None, status = None, db_id=None, internal_id=None):
+        self._id = flowrule_id
         self.flowspec = {}
         self.matches = []
         self.flowspec['matches'] = self.matches 
+        self.status = status
+        self.db_id=db_id
+        self.internal_id=internal_id
         if flowspec is not None and 'ingress_endpoint' in flowspec:
             self.flowspec['ingress_endpoint'] = flowspec['ingress_endpoint']
         if isinstance(action, Action):
@@ -1242,7 +1283,11 @@ class Flowrule(object):
                 self.matches.append(self.match)
         elif matches is not None:
             self.matches = matches
-            
+    
+    @property
+    def id(self):
+        return self._id
+    
     def changeMatches(self, matches):
         if matches:
             self.matches = matches
@@ -1262,7 +1307,8 @@ class Flowrule(object):
     
     def getJSON(self):
         j_flowrule = {}
-        j_flowrule['id'] = self.id
+        if hasattr(self, 'id'): 
+            j_flowrule['id'] = self.id
         j_flowrule['action'] = {}
         j_flowrule['action']['type'] = self.action.type
         if self.action.vnf is not None:
@@ -1323,7 +1369,8 @@ class Match(object):
     def __init__(self, 
                         priority = None,
                         match_id = None,
-                        of_field = None):
+                        of_field = None,
+                        db_id = None):
         
         self.of_field = {}
         if of_field is not None:
@@ -1332,6 +1379,7 @@ class Match(object):
         
         self.priority = priority
         self._id = match_id
+        self.db_id = db_id
         
     @property
     def id(self):

@@ -390,9 +390,16 @@ class Nova(object):
     getAvailabilityZonesPath="/os-availability-zone/detail"
     getHostAggregateListPath="/os-aggregates"
     addComputeNodeToHostAggregatePath = "/os-aggregates/%s/action"
+    attachInterface = "/servers/%s/os-interface"
     addServer = "/servers"
     timeout = Configuration().TIMEOUT_NOVA
     
+    def attachPort(self, novaEndpoint, token, port_id, server_id):
+        data = {"interfaceAttachment": {"port_id": port_id}}
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.post(novaEndpoint + (self.attachInterface % server_id), data=json.dumps(data), headers=headers)
+        resp.raise_for_status()
+        return json.loads(resp.text)
     
     def addComputeNodeToHostAggregate(self, novaEndpoint, token, host_aggregate_id, hostname):
         '''
@@ -561,6 +568,8 @@ class Nova(object):
     def getServerStatus(self, novaEndpoint, token, server_id):
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
         resp = requests.get(novaEndpoint + self.addServer + "/" + server_id, headers=headers)
+        if resp.status_code == 404:
+            return 'not_found'
         resp.raise_for_status()
         data = json.loads(resp.text)
         return data['server']['status']

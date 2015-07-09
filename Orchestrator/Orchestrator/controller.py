@@ -119,21 +119,20 @@ class UpperLayerOrchestratorController(object):
             token = KeystoneAuthentication(self.keystone_server, user_token=self.token, orch_token=self.orchToken)
         
         session = Session().get_active_user_session(token.get_userID()) 
-        Session().updateStatus(session.session_id, 'updating')
+        Session().updateStatus(session.id, 'updating')
         
         # Get profile from session
         logging.debug('Orchestrator - UPDATE - get instantiate profile')
         old_nf_fg = Graph().get_instantiated_nffg(token.get_userID())
-        logging.debug('Orchestrator - UPDATE - Old profile\n'+old_nf_fg)
-        old_nf_fg = json.loads(old_nf_fg)
-        
+        logging.debug('Orchestrator - UPDATE - Old profile\n'+old_nf_fg.getJSON())
+
         nf_fg = self.prepareNF_FG(token, nf_fg)
             
         
         
         # Get the component adapter associated  to the node where the nffg was instantiated
-        node = Node().getNode(Graph().getNodeID(session.session_id))
-        scheduler = Scheduler(session.session_id, token)
+        node = Node().getNode(Graph().getNodeID(session.id))
+        scheduler = Scheduler(session.id, token)
         old_orchestrator_instance, old_node_endpoint = scheduler.getInstance(node)
         orchestrator, new_node_endpoint = scheduler.schedule(nf_fg)
         
@@ -141,20 +140,18 @@ class UpperLayerOrchestratorController(object):
             self.delete(nf_fg.id)
 
         # Update the nffg
-        '''
         try:
-            orchestrator.updateProfile(json.loads(nf_fg.getJSON()), old_nf_fg, token, new_node_endpoint)
+            orchestrator.updateProfile(nf_fg, old_nf_fg, new_node_endpoint)
         except Exception as ex:
             logging.exception(ex)
-            Session().set_error(session.session_id)
+            #Session().set_error(session.id)
             raise ex
-        '''
         
-        Session().updateSession(session.session_id, Node().getNodeID(token.get_userID()), Node().getNodeID(token.get_userID()), 'complete')
+        #Session().updateSession(session.session_id, Node().getNodeID(token.get_userID()), Node().getNodeID(token.get_userID()), 'complete')
 
 
         # TODO: update nffg status
-        return session.session_id
+        return session.id
         
     def put(self, nf_fg):
         """
@@ -238,7 +235,7 @@ class UpperLayerOrchestratorController(object):
             raise GraphError("The graph has encountered a fatal error, contact the administrator")
         # TODO:  If the graph is still under instantiation returns 409
         if status['status'] == 'in_progress':
-            pass
+            raise Exception("Graph busy")
         # If the graph is deleted, return True
         if status['status'] == 'ended' or status['status'] == 'not_found':
             return False

@@ -19,6 +19,7 @@ from Orchestrator.ComponentAdapter.Openstack.resources import FlowRoute,Net,Port
 from Common.SQL.graph import Graph
 from Common.exception import NoHeatPortTranslationFound, StackError, NodeNotFound, DeletionTimeout
 from threading import Thread
+from Orchestrator.ComponentAdapter.Openstack.ovsdb import OVSDB
 
 
 DEBUG_MODE = Configuration().DEBUG_MODE
@@ -54,12 +55,15 @@ class HeatOrchestrator(OrchestratorInterface):
         self.novaEndpoint = token.get_endpoints('compute')[0]['publicURL']
         self.glanceEndpoint = token.get_endpoints('image')[0]['publicURL']
         self.neutronEndpoint = token.get_endpoints('network')[0]['publicURL']
+        self.ovsdb = OVSDB(self.compute_node_address)
+        
     
     @property
     def URI(self):
         return self._URI
     
-    
+    '''
+    '''
     ######################################################################################################
     #########################    Orchestrator interface implementation        ############################
     ######################################################################################################
@@ -72,37 +76,27 @@ class HeatOrchestrator(OrchestratorInterface):
         '''
         Override method of the abstract class for deleting the user Stack
         '''
-        self.node_endpoint = node_endpoint   
+        self.node_endpoint = node_endpoint
 
         token_id = self.token.get_token()
     
         if DEBUG_MODE is not True:
-            self.openstackResourcesDeletion(token_id)               
+            self.openstackResourcesDeletion(token_id, copy.deepcopy(nffg))
+                        
         # Disconnect exit switch from graph
-        self.deleteExitEndpoint(nffg) 
+        self.deleteEndpoints(nffg) 
     
     def instantiateProfile(self, nffg, node_endpoint):
         '''
         Override method of the abstract class for instantiating the user Stack
         '''
         self.node_endpoint = node_endpoint   
-        
-        # TODO: This call should be moved in the SLApp
-        # also save available endpoints
-        #self.deleteEndpointConnection(nf_fg)
-        try:
+        try:            
             # Create a drop flow that match all packets, to avoid loop
             # when ODL doesn't set properly the tag vlan
             self.createIntegrationBridgeDropFlow()
             
-            # Manage ingress endpoint
-            self.manageIngressEndpoint(nffg)
-            
-            # Manage exit endpoint
-            self.manageExitEndpoint(nffg)
-            
-            # Add flows to remote endpoints
-            self.connectEndpoints(nffg, self.token)
+            self.instantiateEndpoints(nffg)
             
             logging.debug("Heat :"+nffg.getJSON())
             
@@ -119,7 +113,7 @@ class HeatOrchestrator(OrchestratorInterface):
                                         int(manifest.ephemeralFileSystemSize), int(cpuRequirements[0]['coreNumbers']), token),
                                          vnf.availability_zone))
                 
-                for link in NFFG(nffg).getLinks(self):
+                for link in self.getLinks(nffg):
                     graph.addArch(FlowRoute(link))
                 graph.vistGraph()
                 #self.addPortsToEndpointSwitches(nf_fg, graph)
@@ -144,59 +138,36 @@ class HeatOrchestrator(OrchestratorInterface):
         # Delete VNFs
         for vnf in updated_nffg.listVNF[:]:
             if vnf.status == 'to_be_deleted':
-                Nova().deleteServer(self.novaEndpoint, token_id, vnf.internal_id)
-                Graph().deleteFlowspecFromVNF(self.session_id, vnf.db_id)
-                Graph().deleteVNF(vnf.id, self.session_id)
-                Graph().deletePort(None, self.session_id, vnf.db_id)
-                
+                self.deleteVNF(token_id, vnf)
             else:
                 # Delete ports
                 for port in vnf.listPort[:]:
                     if port.status == 'to_be_deleted':
-                        Neutron().deletePort(self.neutronEndpoint, token_id, port.internal_id)
-                        Graph().deleteFlowspecFromPort(self.session_id, port.id)
-                        Graph().deletePort(port.id, self.session_id)
+                        self.deletePort(token_id, port)
                     else:
                         # Delete flow-rules
                         for flowrule in port.list_outgoing_label[:]:
                             if flowrule.status == 'to_be_deleted':
-                                Neutron().deleteFlowrule(self.neutronEndpoint, token_id, flowrule.internal_id)
-                                Graph().deleteoOArch(flowrule.db_id, self.session_id)
-                                Graph().deleteFlowspec(flowrule.db_id, self.session_id)
-                                port.list_outgoing_label.remove(flowrule)
+                                self.deleteFlowrule(token_id, port, flowrule)
                         for flowrule in port.list_ingoing_label[:]:
                             if flowrule.status == 'to_be_deleted':
-                                Neutron().deleteFlowrule(self.neutronEndpoint, token_id, flowrule.internal_id)
-                                Graph().deleteoOArch(flowrule.db_id, self.session_id)
-                                Graph().deleteFlowspec(flowrule.db_id, self.session_id)
-                                port.list_ingoing_label.remove(flowrule)
+                                self.deleteFlowrule(token_id, port, flowrule)
         
-        # TODO: delete endpoint resources
-        
+        # Delete end-point resources
+        for endpoint in updated_nffg.listEndpoint[:]:
+            if endpoint.status == 'to_be_deleted':
+                self.deleteEndpoint(endpoint, updated_nffg)
+                Graph().deleteEndpoint(endpoint.id, self.session_id)
+                Graph().deleteEndpointResource(endpoint.id, self.session_id)
+            
         # Wait for resource deletion
         for vnf in updated_nffg.listVNF[:]:
             if vnf.status == 'to_be_deleted':
-                while True:
-                    status = Nova().getServerStatus(self.novaEndpoint, token_id, vnf.internal_id)
-                    if status != 'ACTIVE':
-                        logging.debug("VNF "+vnf.internal_id+" status "+status)
-                        updated_nffg.listVNF.remove(vnf)
-                        break
-                    if status == 'ERROR':
-                        raise Exception('VNF status ERROR - '+vnf.internal_id)
-                    logging.debug("VNF "+vnf.internal_id+" status "+status)
+                self.waitForVNFInstantiation(token_id, updated_nffg, vnf)
             else:
                 for port in vnf.listPort[:]:
                     if port.status == 'to_be_deleted':
-                        while True:
-                            status = Neutron().getPortStatus(self.neutronEndpoint, token_id, port.internal_id)
-                            if status != 'ACTIVE':
-                                logging.debug("VNF "+vnf.internal_id+" status "+status)
-                                vnf.listPort.remove(port)
-                                break
-                            if status == 'ERROR':
-                                raise Exception('Port status ERROR - '+vnf.internal_id)
-                            logging.debug("Port "+vnf.internal_id+" status "+status)
+                        self.waitForPortInstantiation(token_id, vnf, port)
                     
         # Delete unused networks and subnets
         self.deleteUnusedNetworksAndSubnets(token_id)
@@ -210,11 +181,8 @@ class HeatOrchestrator(OrchestratorInterface):
         # when ODL doesn't set properly the tag vlan
         self.createIntegrationBridgeDropFlow()
         
-        # Manage ingress endpoint
-        self.manageIngressEndpoint(updated_nffg)
-        
-        # Manage exit endpoint
-        self.manageExitEndpoint(updated_nffg)
+        # Instantiate end-points
+        self.instantiateEndpoints(updated_nffg)
         
         graph = ProfileGraph(Graph().getHigherNumberOfNet(self.session_id))
         for vnf in updated_nffg.listVNF:
@@ -226,12 +194,85 @@ class HeatOrchestrator(OrchestratorInterface):
                                 int(manifest.ephemeralFileSystemSize), int(cpuRequirements[0]['coreNumbers']), token),
                                  vnf.availability_zone, status = vnf.status))
         
-        for link in NFFG(updated_nffg).getLinks(self):
+        for link in self.getLinks(updated_nffg):
             graph.addArch(FlowRoute(link))
         graph.vistGraph()
         #self.addPortsToEndpointSwitches(nf_fg, graph)
         
+        # Instantiate Resources
         self.openstackResourcesInstantiation(updated_nffg, graph)
+    
+    def instantiateEndpoints(self, nffg):
+        for endpoint in nffg.listEndpoint[:]:
+            if endpoint.status == 'new' or endpoint.status == None or endpoint.status == 'already_deployed':
+                self.instantiateEndpoint(nffg, endpoint)
+    
+    def instantiateEndpoint(self, nffg, endpoint):
+        if endpoint.type == 'ingress_interface':
+            self.manageIngressEndpoint(endpoint)
+        elif endpoint.type == 'egress_interface':
+            self.manageExitEndpoint(nffg, endpoint)
+        elif endpoint.type == 'ingress_interface':
+            raise NotImplementedError()
+        elif endpoint.type == 'ingress_interface':
+            raise NotImplementedError()
+        elif endpoint.type is None:
+            self.deleteEndpointConnection(nffg)
+        else:
+            raise Exception("End point type unknown: "+str(endpoint.type))
+        if endpoint.connection is True:
+            self.connectEndpoints(nffg, self.token)
+    
+    def deleteEndpoints(self, nffg):
+        logging.debug("Deleting endpoints")
+        for endpoint in nffg.listEndpoint[:]:
+            logging.debug("Deleting endpoint named "+str(endpoint.name))
+            self.deleteEndpoint(endpoint, nffg)
+    
+    def deleteEndpoint(self, endpoint, nffg):
+        logging.debug("Deleting endpoint type: "+str(endpoint.type))
+        if endpoint.type == 'egress_interface':
+            logging.debug("Deleting endpoint egress_interface "+str(endpoint.name))
+            self.deleteExitEndpoint(nffg, endpoint)
+    
+    def deleteFlowrule(self, token_id, port, flowrule):
+        Neutron().deleteFlowrule(self.neutronEndpoint, token_id, flowrule.internal_id)
+        Graph().deleteoOArch(flowrule.db_id, self.session_id)
+        Graph().deleteFlowspec(flowrule.db_id, self.session_id)
+        port.list_outgoing_label.remove(flowrule)
+        
+    def deletePort(self, token_id, port):
+        Neutron().deletePort(self.neutronEndpoint, token_id, port.internal_id)
+        Graph().deleteFlowspecFromPort(self.session_id, port.id)
+        Graph().deletePort(port.id, self.session_id)
+    
+    def deleteVNF(self, token_id, vnf):
+        Nova().deleteServer(self.novaEndpoint, token_id, vnf.internal_id)
+        Graph().deleteFlowspecFromVNF(self.session_id, vnf.db_id)
+        Graph().deleteVNF(vnf.id, self.session_id)
+        Graph().deletePort(None, self.session_id, vnf.db_id)
+                
+    def waitForPortInstantiation(self, token_id, vnf, port):
+        while True:
+            status = Neutron().getPortStatus(self.neutronEndpoint, token_id, port.internal_id)
+            if status != 'ACTIVE':
+                logging.debug("VNF "+vnf.internal_id+" status "+status)
+                vnf.listPort.remove(port)
+                break
+            if status == 'ERROR':
+                raise Exception('Port status ERROR - '+vnf.internal_id)
+            logging.debug("Port "+vnf.internal_id+" status "+status)
+            
+    def waitForVNFInstantiation(self, token_id, nffg, vnf):
+        while True:
+            status = Nova().getServerStatus(self.novaEndpoint, token_id, vnf.internal_id)
+            if status != 'ACTIVE':
+                logging.debug("VNF "+vnf.internal_id+" status "+status)
+                nffg.listVNF.remove(vnf)
+                break
+            if status == 'ERROR':
+                raise Exception('VNF status ERROR - '+vnf.internal_id)
+            logging.debug("VNF "+vnf.internal_id+" status "+status)
         
     def getStackResourcesStatus(self, token, name):
         '''
@@ -320,7 +361,7 @@ class HeatOrchestrator(OrchestratorInterface):
             Neutron().deleteNetwork(self.neutronEndpoint, token_id, unused_network_ref.id)
             Graph().deleteNetwok(unused_network_ref.id)
                 
-    def openstackResourcesDeletion(self, token_id):
+    def openstackResourcesDeletion(self, token_id, nffg):
         subnets = Graph().getSubnets(self.session_id)
         networks = Graph().getNetworks(self.session_id)
         flowrules = Graph().getOArchs(self.session_id)
@@ -328,19 +369,20 @@ class HeatOrchestrator(OrchestratorInterface):
             Neutron().deleteFlowrule(self.neutronEndpoint, token_id, flowrule.internal_id)
         vnfs = Graph().getVNFs(self.session_id)
         for vnf in vnfs:
-            Nova().deleteServer(self.novaEndpoint, token_id, vnf.internal_id)
+            Nova().deleteServer(self.novaEndpoint, token_id, vnf.internal_id)   
+        for vnf in nffg.listVNF:
+            self.waitForVNFInstantiation(token_id, nffg, vnf)
         ports = Graph().getPorts(self.session_id)
         for port in ports:
             Neutron().deletePort(self.neutronEndpoint, token_id, port.internal_id)
-        # TODO: if there are some network and subnet daesn't used, I have to delete them.
+        for vnf in nffg.listVNF:
+            for port in vnf.listPort:
+                self.waitForPortInstantiation(token_id, vnf, port)     
         for subnet in subnets:
             Neutron().deleteSubNet(self.neutronEndpoint, token_id, subnet.id)
         for network in networks:
             Neutron().deleteNetwork(self.neutronEndpoint, token_id, network.id)
     
-    def openstackResourcesUpdate(self, nffg):
-        pass
-        
     def openstackResourcesInstantiation(self, nffg, graph):
         for network in graph.networks:
             logging.debug("Network: "+json.dumps(network.getNetResourceJSON()))
@@ -392,54 +434,9 @@ class HeatOrchestrator(OrchestratorInterface):
                     flowrule_id = Neutron().createFlowrule(self.neutronEndpoint, self.token.get_token(), flowroute)['flowrule']['id']
                     Graph().setOArchInternalID(flow.flowrules[index].id, flowrule_id, self.session_id, nffg.db_id)
                 index = index + 1
-                
-    def checkProfile(self, session_id, token):
-        '''
-        Override method of the abstract class for check the user Stack
-        '''
-        '''
-        profile = get_instantiated_profile(token.get_userID())
-        nf_fg = NF_FG(json.loads(profile))
-        try:
-            stack_info = self.getStackStatus(token.get_token(), nf_fg.name)
-            logging.debug("stack info: "+stack_info)
-        except Exception as ex:
-            logging.debug("checkProfile: "+str(ex))
-            return False
-
-        return True    
-        '''
-        pass
     
-    def checkErrorStatus(self, token, graph_name):
-        try:
-            stack_info = self.getStackStatus(token.get_token(), graph_name)
-            logging.debug("stack info: "+stack_info)
-        except Exception as ex:
-            logging.debug("checkErrorStatus: "+str(ex))
-            return True
-    
-        if stack_info in self.WRONG_STATUS:
-            return True
-
-        return False
-      
-    def deleteGraphResorces(self, profile_id, token):
-        '''
-        self.token = token
-        token = token.get_token()
-        profile = get_profile_by_id(profile_id)
-        nf_fg = NF_FG(json.loads(profile))
-        
-        # Delete endpoint from db
-        delete_endpoint_connections(nf_fg._id) 
-                
-        # Disconnect exit switch from graph
-        self.deleteExitEndpoint(nf_fg) 
-        logging.debug("resource of graph "+nf_fg.name+" of user "+self.token.get_username()+" deleted.")
-        '''
-        pass
-
+    '''
+    '''
     ######################################################################################################
     ###############################       Manage graphs connection        ################################
     ######################################################################################################
@@ -472,7 +469,9 @@ class HeatOrchestrator(OrchestratorInterface):
                         break
                 if match is False:
                     raise NoHeatPortTranslationFound("No traslation found for remote graph's port "+str(endpoint.remote_id))
-           '''      
+        '''      
+        pass
+    
     def deleteEndpointConnection(self, nf_fg):
         '''
         Delete connection to endpoints those are not connected to any interface or other graph
@@ -535,40 +534,8 @@ class HeatOrchestrator(OrchestratorInterface):
                         graph.edges[endpoint_switch.id].network[port.id] = newNet.name
                         '''
 
-    ######################################################################################################
-    ##########################    Find right flavor for virtual machine        ###########################
-    ######################################################################################################
-                        
-    def findFlavor(self, memorySize, rootFileSystemSize, ephemeralFileSystemSize, CPUrequirements, token):
-        '''
-        Find the best nova flavor from the given requirements of the machine
-        params:
-            memorySize:
-                Minimum RAM memory required
-            rootFileSystemSize:
-                Minimum size of the root file system required
-            ephemeralFileSystemSize:
-                Minimum size of the ephemeral file system required (not used yet)
-            CPUrequirements:
-                Minimum number of vCore required
-            token:
-                Keystone token for the authentication
-        '''
-        #return "m1.small"
-        flavors = Nova().get_flavors(self.novaEndpoint, token, memorySize, rootFileSystemSize+ephemeralFileSystemSize)['flavors']
-        findFlavor = None
-        minData = 0
-        for flavor in flavors:
-            if flavor['vcpus'] >= CPUrequirements:
-                if findFlavor == None:
-                    findFlavor = flavor['id']
-                    minData = flavor['vcpus'] - CPUrequirements + (flavor['ram'] - memorySize)/1024 + flavor['disk'] - rootFileSystemSize - int(ephemeralFileSystemSize or 0)
-                elif (flavor['vcpus'] - CPUrequirements + (flavor['ram'] - memorySize)/1024 + flavor['disk'] - rootFileSystemSize - int(ephemeralFileSystemSize or 0)) < minData:
-                    findFlavor = flavor['id']
-                    minData = flavor['vcpus'] - CPUrequirements + (flavor['ram'] - memorySize)/1024 + flavor['disk'] - rootFileSystemSize - int(ephemeralFileSystemSize or 0)
-        assert (findFlavor != None), "No flavor found.  memorySize: "+str(memorySize)+" rootFileSystemSize: "+str(rootFileSystemSize)+" ephemeralFileSystemSize: "+str(ephemeralFileSystemSize)+" CPUrequirements: "+str(CPUrequirements) 
-        return findFlavor
-
+    '''
+    '''
     ######################################################################################################
     #########################    Manage external connection in the nodes        ##########################
     ######################################################################################################
@@ -576,205 +543,89 @@ class HeatOrchestrator(OrchestratorInterface):
     def createVirtualIngressNetwork(self, ip_address):
         ingress_patch_port = "to-br-int"
         
-        node_ip, ovsdb_port = self.getOvsdbNodeEndpoint(ip_address)
-        self.createBridge(INGRESS_SWITCH, node_ip, ovsdb_port)
+        self.ovsdb.createBridge(INGRESS_SWITCH)
         
         
-        ingress_bridge_uuid = self.getBridgeUUID(INGRESS_SWITCH, node_ip, ovsdb_port)
-        self.createPort(ingress_patch_port, ingress_bridge_uuid, node_ip, ovsdb_port)
+        ingress_bridge_uuid = self.ovsdb.getBridgeUUID(INGRESS_SWITCH)
+        self.ovsdb.createPort(ingress_patch_port, ingress_bridge_uuid)
         
-        integration_bridge_uuid = self.getBridgeUUID(INTEGRATION_BRIDGE, node_ip, ovsdb_port)
-        self.createPort(INGRESS_PORT, integration_bridge_uuid, node_ip, ovsdb_port)
+        integration_bridge_uuid = self.ovsdb.getBridgeUUID(INTEGRATION_BRIDGE)
+        self.ovsdb.createPort(INGRESS_PORT, integration_bridge_uuid)
         
-        interface_id = self.getInterfaceUUID(self.getPortUUID(ingress_patch_port, node_ip, ovsdb_port), ingress_patch_port, node_ip, ovsdb_port)
-        ODL().setPatchPort(interface_id, INGRESS_PORT, ingress_bridge_uuid, node_ip, ovsdb_port)
-        interface_id = self.getInterfaceUUID(self.getPortUUID(INGRESS_PORT, node_ip, ovsdb_port), INGRESS_PORT, node_ip, ovsdb_port)
-        ODL().setPatchPort(interface_id, ingress_patch_port, integration_bridge_uuid, node_ip, ovsdb_port)
+        interface_id = self.ovsdb.getInterfaceUUID(self.ovsdb.getPortUUID(ingress_patch_port), ingress_patch_port)
+        ODL().setPatchPort(interface_id, INGRESS_PORT, ingress_bridge_uuid, self.ovsdb.node_ip, self.ovsdb.ovsdb_port)
+        interface_id = self.ovsdb.getInterfaceUUID(self.ovsdb.getPortUUID(INGRESS_PORT), INGRESS_PORT)
+        ODL().setPatchPort(interface_id, ingress_patch_port, integration_bridge_uuid, self.ovsdb.node_ip, self.ovsdb.ovsdb_port)
 
     def createVirtualExitNetwork(self, nf_fg, exit_endpoint, ip_address):
         br_name = EXIT_SWITCH
         #Heat().createBridge(OVS_ENDPOINT, br_name)
-        node_ip, ovsdb_port = self.getOvsdbNodeEndpoint(ip_address)
-        logging.debug("Creating exit network on node: "+node_ip+":"+ovsdb_port)
-        self.createBridge(br_name, node_ip, ovsdb_port)
-        bridge_id_1 = self.getBridgeUUID(br_name, node_ip, ovsdb_port)
-        bridge_id_2 = self.getBridgeUUID(INTEGRATION_BRIDGE, node_ip, ovsdb_port)
+        logging.debug("Creating exit network on node: "+self.ovsdb.node_ip+":"+self.ovsdb.ovsdb_port)
+        self.ovsdb.createBridge(br_name)
+        bridge_id_1 = self.ovsdb.getBridgeUUID(br_name)
+        bridge_id_2 = self.ovsdb.getBridgeUUID(INTEGRATION_BRIDGE)
         # Connect exit interface on egress bridge
         '''
         node_id = get_node_id(ip_address)
         Disabled because the orchestrator dont't know the phisical ports of node 
-        self.createPort(getEgressInterface(node_id), bridge_id_1)
+        self.ovsdb.createPort(getEgressInterface(node_id), bridge_id_1)
         '''
-        #self.createPort(EGRESS_PORT, bridge_id_1)
+        #self.ovsdb.createPort(EGRESS_PORT, bridge_id_1)
         
         # Create port that will be connected
         port1 = "port_"+exit_endpoint.id+"_"+nf_fg.name+"_"+self.token.get_userID()+"_to_"+INTEGRATION_BRIDGE
         port1 = str(hashlib.md5(port1).hexdigest())[0:14]
         logging.debug("port1: "+port1)
-        self.createPort(port1, bridge_id_1, node_ip, ovsdb_port)
+        self.ovsdb.createPort(port1, bridge_id_1)
         port2 = "port_"+exit_endpoint.id+"_"+nf_fg.name+"_"+self.token.get_userID()+"_to_"+br_name
         port2 = str(hashlib.md5(port2).hexdigest())[0:14]
         logging.debug("port2: "+port2)
-        self.createPort(port2, bridge_id_2, node_ip, ovsdb_port)
+        self.ovsdb.createPort(port2, bridge_id_2)
         
         # Set the two port as patch port
-        interface_id = self.getInterfaceUUID(self.getPortUUID(port1, node_ip, ovsdb_port), port1, node_ip, ovsdb_port)
-        ODL().setPatchPort(interface_id, port2, bridge_id_1, node_ip, ovsdb_port)
-        interface_id = self.getInterfaceUUID(self.getPortUUID(port2, node_ip, ovsdb_port), port2, node_ip, ovsdb_port)
-        ODL().setPatchPort(interface_id, port1, bridge_id_2, node_ip, ovsdb_port)
+        interface_id = self.ovsdb.getInterfaceUUID(self.ovsdb.getPortUUID(port1), port1)
+        ODL().setPatchPort(interface_id, port2, bridge_id_1, self.ovsdb.node_ip, self.ovsdb.ovsdb_port)
+        interface_id = self.ovsdb.getInterfaceUUID(self.ovsdb.getPortUUID(port2), port2)
+        ODL().setPatchPort(interface_id, port1, bridge_id_2, self.ovsdb.node_ip, self.ovsdb.ovsdb_port)
         return port2
             
     def deleteVirtualExitNetwork(self, nf_fg, port1, port2, ip_address):
-        node_ip, ovsdb_port = self.getOvsdbNodeEndpoint(ip_address)
-        logging.debug("Deleting exit network on node: "+node_ip+":"+ovsdb_port)
-        self.deletePort(port1, node_ip, ovsdb_port)
-        self.deletePort(port2, node_ip, ovsdb_port)
+        logging.debug("Deleting exit network on node: "+self.ovsdb.node_ip+":"+self.ovsdb.ovsdb_port)
+        self.ovsdb.deletePort(port1)
+        self.ovsdb.deletePort(port2)
     
-    def manageIngressEndpoint(self, nf_fg):
-        if nf_fg.getStatusIngressInterface() is True:
-            ingress_endpoints = nf_fg.getIngressEndpoint()
-        
-            for ingress_endpoint in ingress_endpoints:
-                ingress_endpoint.type = "physical"
-                ingress_endpoint.interface = "INGRESS_"+ingress_endpoint.interface
-                nf_fg.characterizeEndpoint(ingress_endpoint, endpoint_type = ingress_endpoint.type, interface = ingress_endpoint.interface)
-
-
+    def manageIngressEndpoint(self, ingress_endpoint):    
+        ingress_endpoint.interface = "INGRESS_"+ingress_endpoint.interface
         self.createVirtualIngressNetwork(self.compute_node_address)
-    def manageExitEndpoint(self, nf_fg):
+        
+    def manageExitEndpoint(self, nf_fg, exit_endpoint):
         '''
         Characterize exit endpoint with virtual interface that bring the traffic
         to a switch that is used to forward packets on the right graph
         '''
-        logging.debug("Check if Managing exit endpoints")
-        if nf_fg.getStatusExitInterface() is True:
-            logging.debug("Managing exit endpoints")
-            exit_endpoints = nf_fg.getExitEndpoint()
-            for exit_endpoint in exit_endpoints:
-                logging.debug("Managing single exit endpoint : "+exit_endpoint.id)
-                
-                
-                '''
-                create connection to the WAN on the node where the user is connected
-                '''
-                graph_exit_port = self.createVirtualExitNetwork(nf_fg, exit_endpoint, self.compute_node_address)
-                
-                exit_endpoint.type = "physical"
-                exit_endpoint.interface = "INGRESS_"+graph_exit_port
-                nf_fg.characterizeEndpoint(exit_endpoint, endpoint_type = exit_endpoint.type, interface = exit_endpoint.interface)
+        logging.debug("Managing single exit endpoint : "+exit_endpoint.id)
+        graph_exit_port = self.createVirtualExitNetwork(nf_fg, exit_endpoint, self.compute_node_address)
+        exit_endpoint.interface = "INGRESS_"+graph_exit_port
 
     def deleteIngressEndpoint(self, nf_fg):
         self.deleteVirtualIngressNetwork(nf_fg, self.compute_node_address)
 
-    def deleteExitEndpoint(self, nf_fg):
+    def deleteExitEndpoint(self, nf_fg, exit_endpoint):
         '''
         Delete the connection between the switch where the VNFs are connected and the switch used to
         connect graphs to Internet
         '''
-        
-        if nf_fg.getStatusExitInterface() is True:
-            logging.debug("Deleting exit endpoints reconciliation")
-            exit_endpoints = nf_fg.getExitEndpoint()
-            for exit_endpoint in exit_endpoints:
-                logging.debug("Managing single exit endpoint : "+exit_endpoint.id)
-                br_name = EXIT_SWITCH
-                port1 = "port_"+exit_endpoint.id+"_"+nf_fg.name+"_"+self.token.get_userID()+"_to_"+INTEGRATION_BRIDGE
-                port1 = str(hashlib.md5(port1).hexdigest())[0:14]
-                port2 = "port_"+exit_endpoint.id+"_"+nf_fg.name+"_"+self.token.get_userID()+"_to_"+br_name
-                port2 = str(hashlib.md5(port2).hexdigest())[0:14]
-                
-                '''
-                deleting connection to the WAN on the node where the user is connected
-                '''
-                self.deleteVirtualExitNetwork(nf_fg, port1, port2, self.compute_node_address)
-    
-    ######################################################################################################
-    ####################################        OVSDB CALL        ########################################
-    ######################################################################################################
-    
-    def getOvsdbNodeEndpoint(self, ip_address = None): 
-        nodes = json.loads(ODL().getNodes())['node']
-        node_id = None
-        for node in nodes:
-            if node['type'] == "OVS":
-                if ip_address is not None and ip_address == node['id'].split(':')[0]:
-                    node_id = node['id']
-        if node_id is None:
-            raise NodeNotFound("Node "+str(ip_address)+" not found.")
-        node_ip = node_id.split(":")[0]
-        ovsdb_port = node_id.split(":")[1]
-        return node_ip,  ovsdb_port
-    
-    def getBridgeDatapath_id(self, port_name, node_ip, ovsdb_port):
-        logging.debug("datapath id - portname - "+str(port_name))
-        portUUID = self.getPortUUID(port_name, node_ip, ovsdb_port)
-        logging.debug("datapath id - portUUID - "+str(portUUID))
-        datapath_id = self._getBridgeDatapath_id(portUUID, node_ip, ovsdb_port)
-        logging.debug("datapath id - datapath_id - "+str(datapath_id))
-        return datapath_id
-        
-    def _getBridgeDatapath_id(self, portUUID, node_ip, ovsdb_port):
-        bridges = ODL().getBridges(node_ip, ovsdb_port)
-        json_object = json.loads(bridges)['rows']
-        for attribute, value in json_object.iteritems():
-            for ports in value['ports'][1]:
-                if ports[1] == portUUID:               
-                    return value['datapath_id'][1][0]
-            
-    def getBridgeUUID(self, bridge_name, node_ip, ovsdb_port):
-        bridges = ODL().getBridges(node_ip, ovsdb_port)
-        json_object = json.loads(bridges)['rows']
-        for attribute, value in json_object.iteritems():
-            if value['name'] == bridge_name:
-                return attribute     
-            
-    def getBridgeDPID(self, bridge_name, node_ip, ovsdb_port):
-        bridges = ODL().getBridges(node_ip, ovsdb_port)
-        json_object = json.loads(bridges)['rows']
-        for attribute, value in json_object.iteritems():
-            if value['name'] == bridge_name:
-                return value['datapath_id'][1][0]  
-        
-    def getPortUUID(self, port_name, node_ip, ovsdb_port): 
-        ports = ODL().getPorts(node_ip, ovsdb_port)
-        ports = json.loads(ports)['rows']
-        for attribute, value in ports.iteritems():    
-            if value['name'] == port_name:
-                return attribute
 
-    def getInterfaceUUID(self, port_id, port_name, node_ip, ovsdb_port):
-        interfaces = ODL().getInterfaces(port_id,node_ip, ovsdb_port)
-        interfaces = json.loads(interfaces)['rows']
-        for attribute, value in interfaces.iteritems():  
-            if value['name'] == port_name:
-                return attribute
-            
-    def createPort(self, port_name, bridge_id, node_ip, ovsdb_port):
-        if self.getPortUUID(port_name, node_ip, ovsdb_port) is None:
-            ODL().createPort(port_name, bridge_id, node_ip, ovsdb_port)
-    
-    def createBridge(self, bridge_name, node_ip, ovsdb_port):
-        if self.getBridgeUUID(bridge_name, node_ip, ovsdb_port) is None:
-            ODL().createBridge(bridge_name, node_ip, ovsdb_port)
-        
-    def deletePort(self, port_name, node_ip, ovsdb_port):
-        port_id = self.getPortUUID(port_name, node_ip, ovsdb_port)
-        if port_id is not None:
-            ODL().deletePort(port_id, node_ip, ovsdb_port)
-            
-    def deleteBridge(self, bridge_name, node_ip, ovsdb_port):
-        bridge_id = self.getBridgeUUID(bridge_name)
-        if bridge_id is not None:
-            ODL().deleteBridge(bridge_id, node_ip, ovsdb_port)
-            
-    '''
-    
-    '''
-    def deleteIntegrationBridgeDropFlow(self):
-        
-        pass
-    
-
+        logging.debug("Managing single exit endpoint : "+exit_endpoint.id)
+        br_name = EXIT_SWITCH
+        port1 = "port_"+exit_endpoint.id+"_"+nf_fg.name+"_"+self.token.get_userID()+"_to_"+INTEGRATION_BRIDGE
+        port1 = str(hashlib.md5(port1).hexdigest())[0:14]
+        port2 = "port_"+exit_endpoint.id+"_"+nf_fg.name+"_"+self.token.get_userID()+"_to_"+br_name
+        port2 = str(hashlib.md5(port2).hexdigest())[0:14]
+        '''
+        deleting connection to the WAN on the node where the user is connected
+        '''
+        self.deleteVirtualExitNetwork(nf_fg, port1, port2, self.compute_node_address)
             
     def getNodeIPAddressFromNova(self, node_name):
         '''
@@ -807,12 +658,8 @@ class HeatOrchestrator(OrchestratorInterface):
         host_aggregate_id = self.get_host_aggregate_id_from_availability_zone(availability_zone)
         Nova().addComputeNodeToHostAggregate(admin_token.get_endpoints("compute").pop()['publicURL'], self.token.get_admin_token(), host_aggregate_id, node_name)
         
-    
     def createIntegrationBridgeDropFlow(self):
-        node_ip, ovsdb_port = self.getOvsdbNodeEndpoint(self.compute_node_address)
-        self.node_ip = node_ip
-        self.ovsdb_port = ovsdb_port
-        integration_bridge_dpid = self.getBridgeDPID(INTEGRATION_BRIDGE, node_ip, ovsdb_port)
+        integration_bridge_dpid = self.ovsdb.getBridgeDPID(INTEGRATION_BRIDGE)
         self.createDropFlow("STATIC_drop_"+str(integration_bridge_dpid),
                             integration_bridge_dpid,
                             "1")
@@ -846,19 +693,12 @@ class HeatOrchestrator(OrchestratorInterface):
                   }
         ODL().createFlowmod(flowmod, name, DPID)
       
-
-
-class NFFG(object):
-
-    def __init__(self, nffg):
-        self.nffg = nffg
-    
-    def getLinks(self, heat_orchestrator):
+    def getLinks(self, nffg):
         links = []
         j_links = {}
         j_links['links'] = []
         visited_link = False
-        for vnf in self.nffg.listVNF:
+        for vnf in nffg.listVNF:
             if vnf.name == "Endpoint_Switch":
                 
                 for port in vnf.listPort:
@@ -885,7 +725,7 @@ class NFFG(object):
                         for flowrule in flowrules:
                             flowrule.addIngressPort(node1)
                             
-                        flowrules1 = self.nffg.getVNFByID(flowrule.action.vnf['id']).getPortFromID(flowrule.action.vnf['port']).getVNFPortsFlowruleSendingTrafficToVNFPort(vnf.id, port.id)
+                        flowrules1 = nffg.getVNFByID(flowrule.action.vnf['id']).getPortFromID(flowrule.action.vnf['port']).getVNFPortsFlowruleSendingTrafficToVNFPort(vnf.id, port.id)
                         for flowrule in flowrules1:
                             flowrule.addIngressPort(node2)
                         
@@ -910,15 +750,15 @@ class NFFG(object):
                         
                         
                     if flowrule.action.endpoint is not None:
-                        if self.nffg.getEndpointMap()[flowrule.action.endpoint['id']].type is not None:
-                            if self.nffg.getEndpointMap()[flowrule.action.endpoint['id']].type == "physical":
-                                interface = self.nffg.getEndpointMap()[flowrule.action.endpoint['id']].interface
+                        if nffg.getEndpointMap()[flowrule.action.endpoint['id']].type is not None:
+                            if "interface" in nffg.getEndpointMap()[flowrule.action.endpoint['id']].type:
+                                interface = nffg.getEndpointMap()[flowrule.action.endpoint['id']].interface
                                 
                         else:
                             interface = flowrule.action.endpoint['id']
 
                         if("INGRESS_" in interface):
-                            bridge_datapath_id = heat_orchestrator.getBridgeDatapath_id(interface.split("INGRESS_")[1], heat_orchestrator.node_ip, heat_orchestrator.ovsdb_port)
+                            bridge_datapath_id = self.ovsdb.getBridgeDatapath_id(interface.split("INGRESS_")[1])
                             interface = "INGRESS_"+bridge_datapath_id+":"+interface.split("INGRESS_")[1]
                             logging.debug("port with datapath id of his router: "+str(interface))
                             node2 = Node(endpoint = interface)
@@ -933,7 +773,7 @@ class NFFG(object):
                                 endpoint = {}
                                 endpoint['port'] = flowrule.action.endpoint['id']
                                 endpoint['interface'] = interface
-                                endpoint['type'] = "physical"
+                                endpoint['type'] = nffg.getEndpointMap()[flowrule.action.endpoint['id']].type
                                 flowrule.changeAction(Action("output", endpoint = endpoint))
 
                             
@@ -961,19 +801,44 @@ class NFFG(object):
                     # TODO:
                     pass
 
-                        
-                    
-
                     #if flowrule.action.vnf is not None and flowrule.action.vnf['id'] == vnf_id and flowrule.action.vnf['port'] == port_id:
                         #connected_vnfs.append(vnf) 
         logging.debug("links: \n"+json.dumps(j_links))
         logging.debug("")
         return links
-
     
-
-
-
-
-
-
+    '''
+    '''
+    ######################################################################################################
+    ##########################    Find right flavor for virtual machine        ###########################
+    ######################################################################################################
+                        
+    def findFlavor(self, memorySize, rootFileSystemSize, ephemeralFileSystemSize, CPUrequirements, token):
+        '''
+        Find the best nova flavor from the given requirements of the machine
+        params:
+            memorySize:
+                Minimum RAM memory required
+            rootFileSystemSize:
+                Minimum size of the root file system required
+            ephemeralFileSystemSize:
+                Minimum size of the ephemeral file system required (not used yet)
+            CPUrequirements:
+                Minimum number of vCore required
+            token:
+                Keystone token for the authentication
+        '''
+        #return "m1.small"
+        flavors = Nova().get_flavors(self.novaEndpoint, token, memorySize, rootFileSystemSize+ephemeralFileSystemSize)['flavors']
+        findFlavor = None
+        minData = 0
+        for flavor in flavors:
+            if flavor['vcpus'] >= CPUrequirements:
+                if findFlavor == None:
+                    findFlavor = flavor['id']
+                    minData = flavor['vcpus'] - CPUrequirements + (flavor['ram'] - memorySize)/1024 + flavor['disk'] - rootFileSystemSize - int(ephemeralFileSystemSize or 0)
+                elif (flavor['vcpus'] - CPUrequirements + (flavor['ram'] - memorySize)/1024 + flavor['disk'] - rootFileSystemSize - int(ephemeralFileSystemSize or 0)) < minData:
+                    findFlavor = flavor['id']
+                    minData = flavor['vcpus'] - CPUrequirements + (flavor['ram'] - memorySize)/1024 + flavor['disk'] - rootFileSystemSize - int(ephemeralFileSystemSize or 0)
+        assert (findFlavor != None), "No flavor found.  memorySize: "+str(memorySize)+" rootFileSystemSize: "+str(rootFileSystemSize)+" ephemeralFileSystemSize: "+str(ephemeralFileSystemSize)+" CPUrequirements: "+str(CPUrequirements) 
+        return findFlavor

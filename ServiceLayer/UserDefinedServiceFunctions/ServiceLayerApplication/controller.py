@@ -155,12 +155,11 @@ class OrchestratorController():
         else:
             logging.debug('Delete access for specific device')
             # Get profile from session
-            old_profile = Session().get_instantiated_nffg(token.get_userID())
-            logging.debug('old_profile :'+old_profile)
-            old_profile = json.loads(old_profile)
+            old_profile = Graph().get_instantiated_nffg(token.get_userID())
+            logging.debug('old_profile :'+old_profile.getJSON())
             
             #profile_analisis = ProfileAnalisis()
-            manage = NF_FG_Management(NF_FG(old_profile))
+            manage = NF_FG_Management(old_profile)
             new_nf_fg = manage.deleteMacAddressInFlows(self.user_mac, USER_INGRESS)
             logging.debug('new_nf_fg :'+new_nf_fg.getJSON())
             
@@ -244,6 +243,7 @@ class OrchestratorController():
             logging.debug('ServiceLayerApplication - PUT - Instantiate profile')
         
             # Manage profile
+            logging.debug("before"+json.dumps(self.graph))
             self.nf_fg, isp_nf_fg = self.prepareProfile(token)  
               
             

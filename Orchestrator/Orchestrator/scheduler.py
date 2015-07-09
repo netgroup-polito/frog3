@@ -49,9 +49,9 @@ class Scheduler(object):
             raise
         return orchestratorCA_instance, node_endpoint
 
-    def changeAvialabilityZone(self, nffg, avialability_zone):
+    def changeAvialabilityZone(self, nffg, availability_zone):
         for vnf in nffg.listVNF:
-            vnf.availability_zone = avialability_zone
+            vnf.availability_zone = availability_zone
     
     def checkEndpointLocation(self, nffg):
         '''

@@ -62,7 +62,7 @@ class Session(object):
     def updateStatus(self, session_id, status):
         session = get_session()  
         with session.begin():
-            session.query(SessionModel).filter_by(session_id = session_id).filter_by(ended = None).filter_by(error = None).update({"last_update":datetime.datetime.now(), 'status':status})
+            session.query(SessionModel).filter_by(id = session_id).filter_by(ended = None).filter_by(error = None).update({"last_update":datetime.datetime.now(), 'status':status})
 
     
     def updateSession(self, session_id, ingress_node, egress_node, status):

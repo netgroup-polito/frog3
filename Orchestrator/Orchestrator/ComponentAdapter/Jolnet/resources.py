@@ -175,28 +175,19 @@ class Port(object):
                 The Id of the VNF associated to that port
         '''
         self.net = None
+        self.vlan = None
         self.name = portTemplate.id
         self.VNFId = VNFId
         self.port_id = None
     
-    def setNetwork(self, net_id):
+    def setNetwork(self, net_id, vlan_id):
         #Network id retrieved through Neutron REST API call
         self.net = net_id
+        self.vlan = vlan_id
     
     def setId(self, port_id):
         #Port id returned after port creation with Neutron API
         self.port_id = port_id
-    
-    def getResourceTemplate(self):
-        '''
-        Return the Resource template of the port
-        '''
-        resource = {}
-        resource["type"] = "OS::Neutron::Port"
-        resource['properties'] = {}
-        resource['properties']['name'] = self.VNFId+self.name
-        resource['properties']['network_id'] = self.net        
-        return resource
     
     def getResourceJSON(self):
         resource = {}
@@ -236,23 +227,6 @@ class VNF(object):
     def OSid(self, value):
         self._OSid = value
     
-    def getResourceTemplate(self):
-        '''
-        Return the Resource template of the VNF
-        '''
-        resource = {}
-        resource["type"] = "OS::Nova::Server"
-        resource['properties'] = {}
-        resource['properties']['flavor'] = self.flavor['name']
-        resource['properties']['image'] = self.URIImage['name']
-        resource['properties']['name'] = self.id
-        resource['properties']['availability_zone'] = self.availability_zone
-        resource['properties']['networks'] = []
-        
-        for port in self.listPort:
-            resource['properties']['networks'].append({ "port": { "Ref": self.id+port.name}})
-        return resource
-    
     def getResourceJSON(self):
         resource = {}
         resource['server'] = {}
@@ -287,19 +261,3 @@ class ProfileGraph(object):
         Add a new edge to the graph: it is a VNF object
         '''
         self.functions[vnf.id] = vnf
-    
-    def getStackTemplate(self):
-        '''
-        Return the Heat template of the graph
-        '''
-        stackTemplate = {}
-        stackTemplate["heat_template_version"] = "2013-05-23"
-        stackTemplate['resources'] = {}
-        
-        for vnf in self.functions.values():
-            stackTemplate['resources'][vnf.id] = vnf.getResourceTemplate()
-            for port in vnf.listPort:
-                if port.net is not None:
-                    stackTemplate['resources'][vnf.id+port.name] = port.getResourceTemplate()
-                
-        return stackTemplate

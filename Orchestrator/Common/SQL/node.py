@@ -78,7 +78,7 @@ class Node(object):
             return session.query(NodeModel).filter_by(domain_id = domain_id).one()
         except Exception as ex:
             logging.error(ex)
-            raise NodeNotFound("Node not found for domani id: "+str(domain_id))
+            raise NodeNotFound("Node not found for domain id: "+str(domain_id))
     
     def getAvailabilityZone(self, node_id):
         session = get_session()

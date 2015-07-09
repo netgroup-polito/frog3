@@ -4,9 +4,15 @@
 ####  Not delete any field, if you want delete debug level for log, set it to false  #####
 #### 	                                                             			     #####
 ##########################################################################################
+[service_layer_application]
+port = 8000
 
 [orchestrator]
-port = 8000
+port = 9000
+ip = 127.0.0.1
+
+# Timeout after that the connection with the orchestrator have to be closed
+timeout = 3600000
 
 # Modality in which must be a service graph available to connect other service layer.
 # The isp graph will be instantiated at the startup of the orchestrator.
@@ -29,33 +35,26 @@ log_file=FrogOrchestrator.log
 verbose=true
 debug=true
 
-[orchestration]
-# orchestration_layer = Heat, Frog
-orchestration_layer = Frog
-# user_authentication = basic, token
-user_authentication = basic
-
 [drivers]
-# Currently only one driver at a time is supported;  HeatCA, UnifiedNode or Jolnet.
-# HeatCA identifies the OpenStack based prototype, otherwise UnifiedNode represents the 
+# Currently only one driver at a time is supported;  HeatCA, UniversalNodeCA or JolnetCA.
+# HeatCA identifies the OpenStack based prototype, otherwise UniversalNodeCA represents the 
 # universal node realised in the european project UNIFY.
-# example: drivers = HeatCA, UnifiedNode
-drivers = Jolnet
-#drivers = UnifiedNode
+# example: drivers = HeatCA, UniversalNodeCA, JolnetCA
+drivers = JolnetCA
 
 [authentication]
 # Identify the Keystone endpoint. It is used, both to authenticate the requests towards 
 # the orchestrator and OpenStack ant to obtain the service graph associated to a user. 
-server = http://controller:35357
-
+server = http://jolnet-controller:35357
 
 # An OpenStack (keystone) admin user is needed to create new users
 orch_username = AdminPoliTO
 orch_password = AdminPoliTO
 orch_tenant = PoliTO_chain1
-admin_tenant_name = PoliTO_chain1
+
 admin_user = AdminPoliTO
 admin_password = AdminPoliTO
+admin_tenant_name = PoliTO_chain1
 
 [nobody]
 # Info of the user associated to the authentication graph
@@ -81,10 +80,10 @@ description = isp_user
 # Mysql DB
 connection = mysql://orchestrator:stack@130.192.225.181/orchestrator
 
-[jolnet]
-isp_availability_zone = AZ_TI
+[JolnetCA]
+# Section dedicated to the Jolnet network
 
-[unify]
+[UniversalNodeCA]
 # Section dedicated to the Universal node (UNIFY)
 # example: endpoints $endpoint
 endpoints = http://192.168.1.110:8080
@@ -166,8 +165,8 @@ file = egress_graph_user.json
 
 [odl]
 # OpenDayLight endpoint
-endpoint = http://odl:8080
-endpoint2 = http://odl:8181
+endpoint = http://jolnet-odl:8080
+endpoint2 = http://jolnet-odl:8181
 
 odl_user = admin
 odl_password = admin

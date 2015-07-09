@@ -26,7 +26,7 @@ class Scheduler(object):
         
         
         node = Node().getNodeFromDomainID(self.checkEndpointLocation(nffg))
-        self.changeAvialabilityZone(nffg, Node().getAvailabilityZone(node.id))
+        self.changeAvailabilityZone(nffg, Node().getAvailabilityZone(node.id))
         
         orchestratorCA_instance, node_endpoint = self.getInstance(node)
         
@@ -39,17 +39,17 @@ class Scheduler(object):
             node_endpoint = self.findNode("HeatCA", node)
             orchestratorCA_instance = HeatOrchestrator(self.session_id, node.domain_id, self.token)
         elif node.type == "JolnetCA":
-            node_endpoint = node.ip_ddress
+            node_endpoint = node.domain_id
             orchestratorCA_instance = JolnetAdapter(self.session_id, node.domain_id, self.token)
         elif node.type == "UniversalNodeCA":
-            node_endpoint = node.ip_ddress
+            node_endpoint = node.domain_id
             orchestratorCA_instance = UnifyCA(self.session_id);
         else:
             logging.error("Driver not supported: "+node.type)
             raise
         return orchestratorCA_instance, node_endpoint
 
-    def changeAvialabilityZone(self, nffg, availability_zone):
+    def changeAvailabilityZone(self, nffg, availability_zone):
         for vnf in nffg.listVNF:
             vnf.availability_zone = availability_zone
     

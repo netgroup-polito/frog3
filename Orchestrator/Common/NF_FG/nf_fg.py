@@ -54,15 +54,6 @@ class NF_FG(object):
         if nf_fg is not None:
             self._id = nf_fg['profile']['id']
             self.name = nf_fg['profile']['name']
-            
-            '''
-            TODO: Added for Jolnet Adapter
-            '''        
-            if 'availability_zone' in nf_fg['profile']:
-                self.zone = nf_fg['profile']['availability_zone']
-            else:
-                self.zone = None
-            
     
             for vnf in nf_fg['profile']['VNFs']:
                 manifest = None
@@ -131,9 +122,9 @@ class NF_FG(object):
                     self.endpoint = Endpoint(endpoint['id'], endpoint['name'], connections = connections,
                                               endpoint_switch = endpoint_switch, attached = attached,
                                                connection=connection, remote_id=remote_id, remote_graph=remote_graph,
-                                               remote_graph_name=remote_graph_name, remote_interface = remote_interface, edge=edge, 
-                                               endpoint_type = endpoint_type, port=port, interface=interface,
-                                               node = node, user_mac = user_mac)
+                                               remote_graph_name=remote_graph_name, remote_interface = remote_interface, 
+                                               edge=edge, endpoint_type = endpoint_type, 
+                                               port=port, interface=interface, node = node, user_mac = user_mac)
                     self.listEndpoint.append(self.endpoint)
                 
         # True when control switch will be created
@@ -513,6 +504,7 @@ class NF_FG(object):
             j_vnf['name'] = vnf.name
             if vnf.availability_zone is not None:
                 j_vnf['availability_zone'] = vnf.availability_zone
+
             if vnf.manifest is not None:
                 j_vnf['manifest'] = vnf.manifest
                 j_vnf['vnf_descriptor'] = vnf.template
@@ -880,6 +872,7 @@ class Endpoint(object):
     def __init__(self, endpoint_id, name, connections = [], attached = False, endpoint_switch = None, connection = False,
                   remote_id = None, remote_graph = None, remote_graph_name=None, remote_interface = None, edge = False, endpoint_type = None, port = None,
                    interface = None, node = None, user_mac = None, db_id=None):
+
         self._id = endpoint_id
         self.name = name
         # Indicate that the endpoint should be connected, but not to anther endpoint
@@ -955,6 +948,7 @@ class Endpoint(object):
 class VNF(object):
     
     def __init__(self, VNFname, template, vnf_id = None, ports = None, manifest = None, availability_zone=None, status = None, db_id = None, internal_id = None):
+
         if vnf_id is not None:
             self._id = vnf_id
         else:
@@ -980,9 +974,11 @@ class VNF(object):
         self.template = template
         self.manifest = manifest
         self.availability_zone = availability_zone
+
         self.status = status
         self.db_id = db_id
         self.internal_id = internal_id
+
         
            
     @property

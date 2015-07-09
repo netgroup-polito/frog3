@@ -7,7 +7,6 @@ import logging
 import json
 
 from Common.config import Configuration
-from Common.NF_FG.nf_fg import NF_FG
 from Common.Manifest.manifest import Manifest
 from Common.exception import StackError
 from Common.SQL.graph import Graph
@@ -15,7 +14,7 @@ from Common.SQL.session import Session
 from Common.SQL.node import Node
 
 from Orchestrator.ComponentAdapter.interfaces import OrchestratorInterface
-from Orchestrator.ComponentAdapter.Jolnet.rest import ODL, Glance, Nova, Neutron, Heat
+from Orchestrator.ComponentAdapter.Jolnet.rest import ODL, Glance, Nova, Neutron
 from Orchestrator.ComponentAdapter.Jolnet.resources import Action, Match, Flow, ProfileGraph, VNF
 
 
@@ -80,32 +79,27 @@ class JolnetAdapter(OrchestratorInterface):
             
         except Exception as err:
             logging.error(err.message)
-            logging.exception(err)
-            #set_error(self.token.get_userID())  
+            logging.exception(err) 
             raise
     
     def updateProfile(self, new_nf_fg, old_nf_fg, token, node_endpoint):
         pass
         
-    def deinstantiateProfile(self, nffg, node_endpoint):
+    def deinstantiateProfile(self, nf_fg, node_endpoint):
         '''
         Override method of the abstract class for deleting the user Stack
         '''
-        self.node_endpoint = node_endpoint 
+        self.node_endpoint = node_endpoint
+        
+        if DEBUG_MODE is True:
+            logging.debug("Forwarding graph: " + nf_fg.getJSON())
         
         try:
-            nf_fg = NF_FG(json.loads(nffg))  
-            
-            if DEBUG_MODE is True:
-                logging.debug(nffg)
-                       
-            self.openstackResourcesDeletion(nf_fg)
-            logging.debug("Graph " + nffg.id + "correctly deleted!")
-            
+            self.openstackResourcesDeletion()
+            logging.debug("Graph " + nf_fg.id + "correctly deleted!") 
         except Exception as err:
             logging.error(err.message)
-            logging.exception(err)
-            #set_error(self.token.get_userID())  
+            logging.exception(err) 
             raise
     
     def buildProfileGraph(self, nf_fg):
@@ -144,10 +138,7 @@ class JolnetAdapter(OrchestratorInterface):
                         if flowrule.matches is not None:
                             #TODO: attach the port to the right management network
                             pass
-                    
-                for flowrule in port.list_ingoing_label:
-                    pass
-                
+                                   
         return profile_graph
     
     def openstackResourcesInstantiation(self, profile_graph, nf_fg):
@@ -155,17 +146,16 @@ class JolnetAdapter(OrchestratorInterface):
         for vnf in profile_graph.functions.values():
             for port in vnf.listPort:
                 if port.net is None:
-                    #TODO: create an Openstack network and set the id into port.net instead of exception
+                    #TODO: create an Openstack network and subnet and set the id into port.net instead of exception
                     raise StackError("No network found for this port")
                         
                 resp = Neutron().createPort(self.neutronEndpoint, self.token.get_token(), port.getResourceJSON())
                 if resp['port']['status'] == "DOWN":
                     port_id = resp['port']['id']
                     port.setId(port_id)
-                    #TODO: mac address and other info missing
+                    #TODO: mac address and other port info missing in the db
                     Graph().setPortInternalID(port.name, nf_fg.getVNFByID(vnf.id).db_id, port_id, self.session_id, nf_fg.db_id, port_type='openstack')
                     Graph().setOSNetwork(port.net, port.name, nf_fg.getVNFByID(vnf.id).db_id, port_id, self.session_id, nf_fg.db_id,  vlan_id = port.vlan)
-                    #TODO: Graph().setOArchInternalID(graph_o_arch_id, port.net, self.session_id, nf_fg.db_id, arch_type = "neutron-network")
                            
             resp = Nova().createServer(self.novaEndpoint, self.token.get_token(), vnf.getResourceJSON())
             vnf.OSid = resp['server']['id']
@@ -175,19 +165,15 @@ class JolnetAdapter(OrchestratorInterface):
         # Add flows on the SDN network to connect endpoints
         self.connectEndpoints(nf_fg)
     
-    def openstackResourcesDeletion(self, nf_fg):
-        #TODO:
-            #Delete every resource one by one
-            #profile_resources = get_profile_resources(profile_id)
-            #for res in profile_resources:
-            #    if res.resource_type == "OS::Nova::Server":
-            #        Nova().deleteServer(self.novaEndpoint, token, res.id)
-            #        remove_resource(res.id)
-        pass
-            #Delete also networks if previously created
+    def openstackResourcesDeletion(self):       
+        #Delete every resource one by one
+        self.disconnectEndpoints()
+        
+        vnfs = Graph().getVNFs(self.session_id)
+        for vnf in vnfs:
+            Nova().deleteServer(self.novaEndpoint, self.token.get_token(), vnf.internal_id)
             
-        #Delete flows on SDN network
-        self.disconnectEndpoints(nf_fg)
+        #TODO: Delete also networks and subnets if previously created
     
     '''
     ######################################################################################################
@@ -210,7 +196,6 @@ class JolnetAdapter(OrchestratorInterface):
             token:
                 Keystone token for the authentication
         '''
-        #return "m1.small"
         flavors = Nova().get_flavors(self.novaEndpoint, token, memorySize, rootFileSystemSize+ephemeralFileSystemSize)['flavors']
         findFlavor = None
         minData = 0
@@ -442,26 +427,7 @@ class JolnetAdapter(OrchestratorInterface):
             Graph().AddFlowrule(self.session_id, graph_id, fid, "external", "node", switch_user_id, "node", switch_isp_id, "complete")
         else:
             logging.debug("Cannot find a link between " + switch_user + " and " + switch_isp)
-        
-    def unlinkZones(self, vlan_id):
-        '''
-        Unlink two graphs which where linked through the SDN network
-        Args:
-            vlan_id:
-                VLAN id of the OpenStack network which links the graphs
-        '''
-        #flows = get_internal_link_flows(vlan_id)
-        #for flow in flows:
-        #    count = flow.users_count
-        #    if (count == 1):
-        #        ODL().deleteFlow(flow.switch_id, flow.id)
-        #        remove_flow(flow.id, flow.switch_id)
-        #    else:
-        #        count = count - 1
-        #        update_flow(flow.id, flow.switch_id, flow.flowtype, flow.user, count)
-        pass
     
-    #TODO:
     def linkUser(self, graph_id, cpe, user_port, cpe_id, switch, switch_port, switch_id, graph_vlan, user_vlan, user_mac = None):
         '''
         Link a user with his graph through the SDN network
@@ -513,18 +479,6 @@ class JolnetAdapter(OrchestratorInterface):
         else:
             logging.debug("Cannot find a link between " + cpe + " and " + switch)
     
-    def unlinkUser(self, user_mac):
-        '''
-        Unlink a user after his logout and graph deletion
-        Args:
-            user_mac:
-                MAC address of the user's device
-        '''
-        #flows = get_user_flows(user_mac)
-        #for flow in flows:
-        #    ODL().deleteFlow(flow.switch_id, flow.id)
-        #    remove_flow(flow.id, flow.switch_id)
-        pass 
     '''
     ######################################################################################################
     ###############################       Manage graphs connection        ################################
@@ -591,76 +545,17 @@ class JolnetAdapter(OrchestratorInterface):
             
             #Insert location info into the database
             Graph().setEndpointLocation(self.session_id, nf_fg.db_id, endpoint.id, endpoint.interface)
-            
-    def updateEndpoints(self, new_nf_fg, old_nf_fg):     
-        #Check ingress endpoint of the graph
-        new_endpoints = new_nf_fg.getVlanEgressEndpoints()
-        old_endpoints = old_nf_fg.getVlanEgressEndpoints()
         
-        if self.checkEquality(new_endpoints, old_endpoints) == False:
-            self.disconnectEndpoints(old_nf_fg)
-            self.connectEndpoints(new_nf_fg)
-            return
-        
-        #Check egress endpoints of the graph
-        new_endpoints = new_nf_fg.getVlanIngressEndpoints()
-        old_endpoints = old_nf_fg.getVlanIngressEndpoints()
-        
-        if self.checkEquality(new_endpoints, old_endpoints) == False:
-            self.disconnectEndpoints(old_nf_fg)
-            self.connectEndpoints(new_nf_fg)
-            return
-        
-    def disconnectEndpoints(self, nf_fg):
+    def disconnectEndpoints(self):
         '''
-        Deletes flows after a profile deletion
+        Deletes flows on the SDN network after a profile deletion
         Args:
             nf_fg:
                 JSON Object for the user profile graph (forwarding graph)
         '''
-        endpoints = nf_fg.getVlanEgressEndpoints()
-        for endpoint in endpoints:           
-            vlan = endpoint.id            
-            self.unlinkZones(vlan)
-        
-        endpoints = nf_fg.getVlanIngressEndpoints()
-        for endpoint in endpoints:
-            user_mac = endpoint.user_mac
-            self.unlinkUser(user_mac)
-        
-        #delete_endpoint_connections(nf_fg.id)
-        
-    def checkEquality(self, new_endpoints, old_endpoints):
-        '''
-        Check if two endpoints are equivalent or not
-        '''
-        #Actually supports only one endpoint for every vector
-        if len(new_endpoints) != len(old_endpoints):
-            return False
-        
-        if len(new_endpoints) == 0:
-            return True
-        
-        new_end = new_endpoints[0]
-        old_end = old_endpoints[0]
-        
-        new_id = new_end.id
-        new_interface = new_end.interface
-        new_remote_id = new_end.remote_id
-        new_remote_int = new_end.remote_interface
-        new_remote_graph = new_end.remote_graph
-        
-        old_id = old_end.id                                
-        old_interface = old_end.interface
-        old_remote_id = old_end.remote_id
-        old_remote_int = old_end.remote_interface
-        old_remote_graph = old_end.remote_graph
-                                        
-        if new_id != old_id or new_interface != old_interface or new_remote_id != old_remote_id or new_remote_int != old_remote_int or new_remote_graph != old_remote_graph:
-            return False
-        
-        if new_end.user_mac is not None:
-            if new_end.user_mac != old_end.user_mac:
-                return False
-        
-        return True
+        flows = Graph().getOArchs(self.session_id)
+        for flow in flows:
+            if flow.type == "external" and flow.status == "complete":
+                switch_id = Node().getNodeDomainID(flow.start_node_id)
+                ODL().deleteFlow(switch_id, flow.internal_id)
+    

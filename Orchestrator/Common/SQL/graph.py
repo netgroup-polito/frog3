@@ -384,6 +384,11 @@ class Graph(object):
     def getEndpoints(self, session_id):
         session = get_session()  
         return session.query(EndpointModel).filter_by(session_id = session_id).all()
+    
+    def setEndpointLocation(self, session_id, graph_id, graph_endpoint_id, location):
+        session = get_session()
+        with session.begin():
+            assert (session.query(EndpointModel).filter_by(session_id = session_id).filter_by(graph_id = graph_id).filter_by(graph_endpoint_id = graph_endpoint_id).update({"location": location}) == 1)
 
     def get_instantiated_nffg(self, user_id):
         service_graph_id = self.user_session.get_profile_id_from_active_user_session(user_id)

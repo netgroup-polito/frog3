@@ -4,32 +4,10 @@
       {
         "vnf_descriptor": "jolnet_switch.json",
         "ports": [
-            {
-            "ingoing_label": {
-              "flowrules": [
-                {
-                  "action": {
-                    "VNF": {
-                      "id": "Switch_prova1",
-                      "port": "L2Port:0"
-                    },
-                    "type": "output"
-                  },
-                  "flowspec": {
-                    "matches": [
-                      {
-                        "priority": "100",
-                        "id": "exp295"
-                      }
-                    ],
-                    "ingress_endpoint": "295"
-                  }
-                }
-              ]
-            },
+        	{
             "id": "L2Port:0",
-                  "outgoing_label":{
-                     "flowrules":[
+            "outgoing_label":{
+              "flowrules":[
                         {
                            "action":{
                               "endpoint":{
@@ -41,13 +19,13 @@
                               "matches":[
                                  {
                                     "priority":"100",
-                                    "id":"exp295"
+                                    "id":"295"
                                  }
                               ]
                            }
                         }
-                     ]
-                  }
+              ]
+            }
           },
           {
             "id": "L2Port:1",
@@ -65,7 +43,7 @@
                     "matches": [
                       {
                         "priority": "100",
-                        "id": "exp293"
+                        "id": "293"
                       }
                     ]
                   }
@@ -96,7 +74,7 @@
                     "matches": [
                       {
                         "priority": "100",
-                        "id": "exp293"
+                        "id": "293"
                       }
                     ]
                   }
@@ -105,28 +83,6 @@
             }
           },
           {
-	    "ingoing_label": {
-              "flowrules": [
-                {
-                  "action": {
-                    "VNF": {
-                      "id": "Switch_prova2",
-                      "port": "L2Port:1"
-                    },
-                    "type": "output"
-                  },
-                  "flowspec": {
-                    "matches": [
-                      {
-                        "priority": "100",
-                        "id": "exp288"
-                      }
-                    ],
-                    "ingress_endpoint": "288"
-                  }
-                }
-              ]
-            },
             "id": "L2Port:1",
             "outgoing_label": {
               "flowrules": [
@@ -141,7 +97,7 @@
                     "matches": [
                       {
                         "priority": "100",
-                        "id": "exp288"
+                        "id": "288"
                       }
                     ]
                   }
@@ -155,18 +111,14 @@
       }
     ],
     "endpoints": [
-      {
+    	{
             "name": "INGRESS",
-            "attached": true,
+            "attached": false,
             "connection": false,
             "type": "vlan-ingress",
-            "id": "299",
-            "user_mac_address": "00:1e:33:a6:77:e1",
-            "interface": "openflow:110953238267072:5100",
-            "remote_graph":"10",
-            "remote_graph_name": "Jolnet Test Graph",
-            "remote_id":"295",
-            "remote_interface": "openflow:110953238267840:5097" 
+            "id": "295",
+            "node": "openflow:44838630154304",
+            "interface": "5102"
          },
          {
             "name": "EGRESS",
@@ -174,15 +126,14 @@
             "connection": true,
             "type": "vlan-egress",
             "id": "288",
-            "interface": "openflow:110953238267840:5097",
+            "node": "openflow:44838630154304",
+            "interface": "5102",
             "remote_graph": "0",
             "remote_graph_name": "Jolnet ISP Graph",
-            "remote_id": "288",
-            "remote_interface": "openflow:110953238268480:5102"
+            "remote_id": "288"          
          }
     ],
-    "id": "10",
-    "name": "Jolnet Test Graph",
-    "availability_zone": "AZ_MI"
+    "id": "5",
+    "name": "Jolnet Test Graph"
   }
 }

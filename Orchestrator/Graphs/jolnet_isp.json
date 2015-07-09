@@ -5,28 +5,6 @@
         "vnf_descriptor": "jolnet_switch.json",
         "ports": [
             {
-	    "ingoing_label": {
-              "flowrules": [
-                {
-                  "action": {
-                    "VNF": {
-                      "id": "endpoint_switch",
-                      "port": "L2Port:0"
-                    },
-                    "type": "output"
-                  },
-                  "flowspec": {
-                    "matches": [
-                      {
-                        "priority": "100",
-                        "id": "297"
-                      }
-                    ],
-                    "ingress_endpoint": "297"
-                  }
-                }
-              ]
-            },
             "id": "L2Port:0",
             "outgoing_label": {
               "flowrules": [
@@ -50,28 +28,6 @@
             }
           },
           {
-	    "ingoing_label": {
-              "flowrules": [
-                {
-                  "action": {
-                    "VNF": {
-                      "id": "endpoint_switch",
-                      "port": "L2Port:1"
-                    },
-                    "type": "output"
-                  },
-                  "flowspec": {
-                    "matches": [
-                      {
-                        "priority": "100",
-                        "id": "288"
-                      }
-                    ],
-                    "ingress_endpoint": "288"
-                  }
-                }
-              ]
-            },
             "id": "L2Port:1",
             "outgoing_label": {
               "flowrules": [
@@ -156,7 +112,7 @@
     ],
     "endpoints": [
       {
-        "name": "ISP_INGRESS",
+        "name": "INGRESS",
         "attached": false,
         "connection": false,
         "type": "vlan-ingress",
@@ -165,7 +121,7 @@
         "interface": "5098" 
      },
      {
-        "name": "ISP_INGRESS",
+        "name": "INGRESS",
         "attached": false,
         "connection": false,
         "type": "vlan-ingress",

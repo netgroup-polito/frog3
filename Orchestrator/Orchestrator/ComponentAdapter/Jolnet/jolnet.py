@@ -545,40 +545,52 @@ class JolnetAdapter(OrchestratorInterface):
                 existing_endpoints = Graph().getEndpoints(session)
                 existing = None
                 for e in existing_endpoints:
-                    if (e.graph_endpoint_id == endpoint.id):
+                    if (e.graph_endpoint_id == endpoint.remote_id):
                         existing = e
                 
                 if existing is not None:
-                    switch1 = endpoint.node
-                    port1 = endpoint.interface
-                    port2 = endpoint.remote_interface                    
                     vlan = endpoint.id
-                    
+                    switch1 = endpoint.node
+                    port1 = endpoint.interface                                       
+                                       
                     node1_id = Node().getNodeFromDomainID(switch1).id
                     node2_id = Graph().getNodeID(session)
-                    switch2 = Node().getNodeDomainID(node2_id)                    
+                    switch2 = Node().getNodeDomainID(node2_id)     
+                    port2 = existing.location         
                     
                     self.linkZones(nf_fg.db_id, switch1, port1, node1_id, switch2, port2, node2_id, vlan)
                 else:
                     logging.error("Remote graph " + endpoint.remote_graph + " has not a " + endpoint.id + " endpoint available!")
             
+            #Insert location info into the database
+            Graph().setEndpointLocation(self.session_id, nf_fg.db_id, endpoint.id, endpoint.interface)
+            
         #Get ingress endpoints of the graph (auth graph has the same endpoint but without user_mac)
         endpoints = nf_fg.getVlanIngressEndpoints()
         for endpoint in endpoints:
-            if endpoint.attached is True:    
-                graph_vlan = endpoint.remote_id
+            if endpoint.attached is True:
+                session = Session().get_active_user_session_by_nf_fg_id(endpoint.remote_graph).id
+                existing_endpoints = Graph().getEndpoints(session)
+                existing = None
+                for e in existing_endpoints:
+                    if (e.graph_endpoint_id == endpoint.remote_id):
+                        existing = e
+                    
                 user_vlan = endpoint.id
-                user_mac = endpoint.user_mac               
+                user_mac = endpoint.user_mac
+                graph_vlan = endpoint.remote_id               
                 cpe = endpoint.node
                 cpe_port = endpoint.interface
-                switch_port = endpoint.remote_interface
-                
-                session = Session().get_active_user_session_by_nf_fg_id(endpoint.remote_graph).id
+                                
                 cpe_id = Node().getNodeFromDomainID(cpe).id
                 node_id = Graph().getNodeID(session)
-                switch = Node().getNodeDomainID(node_id) 
+                switch = Node().getNodeDomainID(node_id)
+                switch_port = existing.location 
                     
                 self.linkUser(nf_fg.db_id, cpe, cpe_port, cpe_id, switch, switch_port, node_id, graph_vlan, user_vlan, user_mac)
+            
+            #Insert location info into the database
+            Graph().setEndpointLocation(self.session_id, nf_fg.db_id, endpoint.id, endpoint.interface)
             
     def updateEndpoints(self, new_nf_fg, old_nf_fg):     
         #Check ingress endpoint of the graph

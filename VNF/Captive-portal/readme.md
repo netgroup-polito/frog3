@@ -1,8 +1,10 @@
-Captive portal readme
-=====================
+FROG3 Captive Portal
+====================
 
 This folder contains the files needed to create the captive portal that is used to authenticate users on the FROG3 network.
-In order to deplooy this software in a dedicated virtual machine, you have to follow the above steps.
+
+This folder assumes that you have a dedicated virtual machine with 'Tomcat' and 'ant' installed.
+In order to deploy this software in your virtual machine, you have to follow the above steps.
 
 1) Check the content of the following file and update the relevant information:
 

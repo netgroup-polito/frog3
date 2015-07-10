@@ -14,9 +14,9 @@ from Common.SQL.session import Session
 from Common.SQL.node import Node
 
 from Orchestrator.ComponentAdapter.interfaces import OrchestratorInterface
+from Orchestrator.ComponentAdapter.Common.nffg_management import NFFG_Management
 from Orchestrator.ComponentAdapter.Jolnet.rest import ODL, Glance, Nova, Neutron
-from Orchestrator.ComponentAdapter.Jolnet.resources import Action, Match, Flow, ProfileGraph, VNF
-
+from Orchestrator.ComponentAdapter.Jolnet.resources import Action, Match, Flow, ProfileGraph, VNF, Endpoint
 
 DEBUG_MODE = Configuration().DEBUG_MODE
 
@@ -60,12 +60,12 @@ class JolnetAdapter(OrchestratorInterface):
     ######################################################################################################
     '''
     def getStatus(self, session_id, node_endpoint):
-        #TODO:
-        pass
+        self.node_endpoint = node_endpoint
+        return self.openstackResourcesStatus(self.token.get_token())
     
     def instantiateProfile(self, nf_fg, node_endpoint):
         '''
-        Override method of the abstract class for instantiating the user Stack
+        Override method of the abstract class for instantiating the user graph
         '''
         self.node_endpoint = node_endpoint
         
@@ -83,11 +83,31 @@ class JolnetAdapter(OrchestratorInterface):
             raise
     
     def updateProfile(self, new_nf_fg, old_nf_fg, token, node_endpoint):
-        pass
+        '''
+        Override method of the abstract class for updating the user graph
+        '''        
+        self.node_endpoint = node_endpoint
+        
+        try:
+            updated_nffg = NFFG_Management().diff(old_nf_fg, new_nf_fg)
+            
+            if DEBUG_MODE is True:
+                logging.debug("diff: " + updated_nffg.getJSON()) 
+                
+            self.openstackResourcesControlledDeletion(updated_nffg, self.token.get_token())
+            Graph().updateNFFG(updated_nffg, self.session_id)
+            profile_graph = self.buildProfileGraph(updated_nffg)
+            self.openstackResourcesInstantiation(profile_graph, updated_nffg)
+            logging.debug("Graph " + old_nf_fg.id + "correctly updated!")
+            
+        except Exception as err:
+            logging.error(err.message)
+            logging.exception(err) 
+            raise
         
     def deinstantiateProfile(self, nf_fg, node_endpoint):
         '''
-        Override method of the abstract class for deleting the user Stack
+        Override method of the abstract class for deleting the user graph
         '''
         self.node_endpoint = node_endpoint
         
@@ -101,73 +121,157 @@ class JolnetAdapter(OrchestratorInterface):
             logging.error(err.message)
             logging.exception(err) 
             raise
-    
+ 
+    '''
+    ######################################################################################################
+    #############################    Resources preparation phase        ##################################
+    ######################################################################################################
+    '''      
     def buildProfileGraph(self, nf_fg):
         profile_graph = ProfileGraph()
         profile_graph.setId(nf_fg.id)
-                
-        #Get the necessary info (glance URI and Nova flavor) and create a VNF object
-        for vnf in nf_fg.listVNF:
-            manifest = Manifest(vnf.manifest)
-            cpuRequirements = manifest.CPUrequirements.socket
-            if DEBUG_MODE is True:
-                logging.debug(manifest.uri)
-            image = Glance().getImage(manifest.uri, self.token.get_token())
-            flavor = self.findFlavor(int(manifest.memorySize), int(manifest.rootFileSystemSize),
-                    int(manifest.ephemeralFileSystemSize), int(cpuRequirements[0]['coreNumbers']), self.token.get_token())
-            nf = VNF(vnf.id, vnf, image, flavor, vnf.availability_zone)
+        
+        for vnf in nf_fg.listVNF[:]:
+            nf = self.buildVNF(vnf)
             profile_graph.addVNF(nf)
-                
+        
+        for vnf in nf_fg.listVNF[:]:
+            nf = profile_graph.functions[vnf.id]
+            self.setVNFNetwork(vnf, nf)
+        
+        for endpoint in nf_fg.listEndpoint:
+            if endpoint.type == "vlan-egress" or endpoint.type == "vlan-ingress":
+                ep = self.buildEndpoint(endpoint)
+                profile_graph.addEndpoint(ep)
+                             
+        return profile_graph                        
+    
+    def buildVNF(self, vnf):
+        #Get the necessary info (glance URI and Nova flavor) and create a VNF object
+        manifest = Manifest(vnf.manifest)
+        cpuRequirements = manifest.CPUrequirements.socket
+        if DEBUG_MODE is True:
+            logging.debug(manifest.uri)
+        image = Glance().getImage(manifest.uri, self.token.get_token())
+        flavor = self.findFlavor(int(manifest.memorySize), int(manifest.rootFileSystemSize),
+            int(manifest.ephemeralFileSystemSize), int(cpuRequirements[0]['coreNumbers']), self.token.get_token())
+        if vnf.status is None:
+            status = "new"
+        else:
+            status = vnf.status
+        return VNF(vnf.id, vnf, image, flavor, vnf.availability_zone, status)
+    
+    def setVNFNetwork(self, vnf, nf):
         #Complete all ports with the right Neutron network id and add them to the VNF
         #This is necessary because the network are already present (create them on the fly would be better)
-        #This should be changed with a creation call in case networks would be created on the fly   
-        for vnf in nf_fg.listVNF:
-            nf = profile_graph.functions[vnf.id]
-            for port in vnf.listPort:
-                p = nf.ports[port.id]
-                for flowrule in port.list_outgoing_label:
-                    #TODO: errore se i grafi contengono primitive non valide (es: splitter)
-                    if flowrule.action.type == "output" or flowrule.action.type == "endpoint":
-                        if flowrule.matches is not None:
-                            #TODO: flowspecs with vlan_id and ip_addresses (mgmt network)
-                            net_vlan = flowrule.matches[0].id
-                            net_id = self.getNetworkIdfromVlan(net_vlan)
-                            p.setNetwork(net_id, net_vlan)
+        #This should be changed with a creation call in case networks would be created on the fly
+        for port in vnf.listPort[:]:
+            p = nf.ports[port.id]
+            
+            if len(port.list_outgoing_label) > 1:
+                raise StackError("Traffic splitting and merging not supported!")
+            
+            for flowrule in port.list_outgoing_label:
+                if flowrule.action.type == "output" or flowrule.action.type == "endpoint":
+                    if flowrule.matches is not None:
+                        #net_vlan = flowrule.matches[0].id
+                        net_vlan = flowrule.matches[0].vlan_id
+                        net_id = self.getNetworkIdfromVlan(net_vlan)
+                        p.setNetwork(net_id, net_vlan)
                     
-                    if flowrule.action.type == "control":
-                        if flowrule.matches is not None:
-                            #TODO: attach the port to the right management network
-                            pass
-                                   
-        return profile_graph
+                if flowrule.action.type == "control":
+                    if flowrule.matches is not None:
+                        #TODO: attach the port to the right management network
+                        pass
     
+    def buildEndpoint(self, endpoint):
+        if endpoint.status is None:
+            status = "new"
+        else:
+            status = endpoint.status
+        if endpoint.connection is True:
+            return Endpoint(endpoint.id, endpoint.name, endpoint.connection, endpoint.type, endpoint.node, endpoint.interface, status, endpoint.remote_graph, endpoint.remote_id)
+        else:
+            return Endpoint(endpoint.id, endpoint.name, endpoint.connection, endpoint.type, endpoint.node, endpoint.interface, status)
+    
+    '''
+    ######################################################################################################
+    ##########################    Resources instantiation and deletion        ############################
+    ######################################################################################################
+    ''' 
     def openstackResourcesInstantiation(self, profile_graph, nf_fg):
         #Instantiate ports and servers directly interacting with Neutron and Nova
         for vnf in profile_graph.functions.values():
-            for port in vnf.listPort:
-                if port.net is None:
-                    #TODO: create an Openstack network and subnet and set the id into port.net instead of exception
-                    raise StackError("No network found for this port")
-                        
-                resp = Neutron().createPort(self.neutronEndpoint, self.token.get_token(), port.getResourceJSON())
-                if resp['port']['status'] == "DOWN":
-                    port_id = resp['port']['id']
-                    port.setId(port_id)
-                    #TODO: mac address and other port info missing in the db
-                    Graph().setPortInternalID(port.name, nf_fg.getVNFByID(vnf.id).db_id, port_id, self.session_id, nf_fg.db_id, port_type='openstack')
-                    Graph().setOSNetwork(port.net, port.name, nf_fg.getVNFByID(vnf.id).db_id, port_id, self.session_id, nf_fg.db_id,  vlan_id = port.vlan)
-                           
-            resp = Nova().createServer(self.novaEndpoint, self.token.get_token(), vnf.getResourceJSON())
-            vnf.OSid = resp['server']['id']
-            #TODO: image location, location, type and availability_zone missing
-            Graph().setVNFInternalID(vnf.id, vnf.OSid, self.session_id, nf_fg.db_id)
+            if vnf.status == "new":           
+                self.createServer(vnf, nf_fg)
+            else:
+                for port in vnf.listPort[:]:
+                    if port.status == "new":
+                        self.createPort(port, vnf, nf_fg)
                     
-        # Add flows on the SDN network to connect endpoints
-        self.connectEndpoints(nf_fg)
+        #Create flow on the SDN network for graphs interconnection
+        for endpoint in profile_graph.getVlanEgressEndpoints():
+            if endpoint.status == "new":
+                if endpoint.connection is True:
+                    #Check if the remote graph exists and the requested endpoint is available                
+                    session = Session().get_active_user_session_by_nf_fg_id(endpoint.remote_graph).id
+                    existing_endpoints = Graph().getEndpoints(session)
+                    remote_endpoint = None
+                    for e in existing_endpoints:
+                        if (e.graph_endpoint_id == endpoint.remote_id):
+                            remote_endpoint = e
+                    
+                    if remote_endpoint is not None:
+                        vlan = endpoint.id
+                        switch1 = endpoint.node
+                        port1 = endpoint.interface                                       
+                                           
+                        node1_id = Node().getNodeFromDomainID(switch1).id
+                        node2_id = Graph().getNodeID(session)
+                        switch2 = Node().getNodeDomainID(node2_id)     
+                        port2 = remote_endpoint.location         
+                        
+                        self.linkZones(nf_fg.db_id, switch1, port1, node1_id, switch2, port2, node2_id, vlan)
+                    else:
+                        logging.error("Remote graph " + endpoint.remote_graph + " has not a " + endpoint.id + " endpoint available!")
+                
+                #Insert location info into the database
+                Graph().setEndpointLocation(self.session_id, nf_fg.db_id, endpoint.id, endpoint.interface)
+            
+        #Create flow on the SDN network for users connection (auth graph has the same endpoint but without user_mac)
+        for endpoint in profile_graph.getVlanIngressEndpoints():
+            if endpoint.status == "new":
+                if endpoint.connection is True:
+                    session = Session().get_active_user_session_by_nf_fg_id(endpoint.remote_graph).id
+                    existing_endpoints = Graph().getEndpoints(session)
+                    remote_endpoint = None
+                    for e in existing_endpoints:
+                        if (e.graph_endpoint_id == endpoint.remote_id):
+                            remote_endpoint = e
+                        
+                    user_vlan = endpoint.id
+                    user_mac = endpoint.user_mac
+                    graph_vlan = endpoint.remote_id               
+                    cpe = endpoint.node
+                    cpe_port = endpoint.interface
+                                    
+                    cpe_id = Node().getNodeFromDomainID(cpe).id
+                    node_id = Graph().getNodeID(session)
+                    switch = Node().getNodeDomainID(node_id)
+                    switch_port = remote_endpoint.location 
+                        
+                    self.linkUser(nf_fg.db_id, cpe, cpe_port, cpe_id, switch, switch_port, node_id, graph_vlan, user_vlan, user_mac)
+                
+                #Insert location info into the database
+                Graph().setEndpointLocation(self.session_id, nf_fg.db_id, endpoint.id, endpoint.interface)                      
     
     def openstackResourcesDeletion(self):       
         #Delete every resource one by one
-        self.disconnectEndpoints()
+        flows = Graph().getOArchs(self.session_id)
+        for flow in flows:
+            if flow.type == "external" and flow.status == "complete":
+                switch_id = Node().getNodeDomainID(flow.start_node_id)
+                ODL().deleteFlow(switch_id, flow.internal_id)
         
         vnfs = Graph().getVNFs(self.session_id)
         for vnf in vnfs:
@@ -175,12 +279,148 @@ class JolnetAdapter(OrchestratorInterface):
             
         #TODO: Delete also networks and subnets if previously created
     
+    def openstackResourcesControlledDeletion(self, updated_nffg, token_id):
+        # Delete VNFs
+        for vnf in updated_nffg.listVNF[:]:
+            if vnf.status == 'to_be_deleted':
+                self.deleteServer(vnf)              
+            else:
+                # Delete ports
+                for port in vnf.listPort[:]:
+                    self.deletePort(port)
+        
+        for endpoint in updated_nffg.listEndpoint[:]:
+            if endpoint.status == 'to_be_deleted':
+                flows = Graph().getOArchs(self.session_id)
+                for flow in flows:
+                    if flow.type == "external" and flow.status == "complete" and flow.internal_id.contains(endpoint.id):
+                        switch_id = Node().getNodeDomainID(flow.start_node_id)
+                        ODL().deleteFlow(switch_id, flow.internal_id)
+        
+        # Wait for resource deletion
+        for vnf in updated_nffg.listVNF[:]:
+            if vnf.status == 'to_be_deleted':
+                while True:
+                    status = Nova().getServerStatus(self.novaEndpoint, token_id, vnf.internal_id)
+                    if status != 'ACTIVE':
+                        logging.debug("VNF "+vnf.internal_id+" status "+status)
+                        updated_nffg.listVNF.remove(vnf)
+                        break
+                    if status == 'ERROR':
+                        raise Exception('VNF status ERROR - '+vnf.internal_id)
+                    logging.debug("VNF "+vnf.internal_id+" status "+status)
+            else:
+                for port in vnf.listPort[:]:
+                    if port.status == 'to_be_deleted':
+                        while True:
+                            status = Neutron().getPortStatus(self.neutronEndpoint, token_id, port.internal_id)
+                            if status != 'ACTIVE':
+                                logging.debug("VNF "+vnf.internal_id+" status "+status)
+                                vnf.listPort.remove(port)
+                                break
+                            if status == 'ERROR':
+                                raise Exception('Port status ERROR - '+vnf.internal_id)
+                            logging.debug("Port "+vnf.internal_id+" status "+status)
+    
+    def openstackResourcesStatus(self, token_id):
+        resources_status = {}
+        resources_status['ports'] = {}
+        ports = Graph().getPorts(self.session_id)
+        for port in ports:
+            if port.type == 'openstack':
+                resources_status['ports'][port.id] = Neutron().getPortStatus(self.neutronEndpoint, token_id, port.internal_id)
+        resources_status['vnfs'] = {}
+        vnfs = Graph().getVNFs(self.session_id)
+        for vnf in vnfs:
+            resources_status['vnfs'][vnf.id] = Nova().getServerStatus(self.novaEndpoint, token_id, vnf.internal_id)
+        
+        num_resources = len(resources_status['ports']) + len(resources_status['vnfs'])                
+        num_resources_completed = 0
+        
+        for value in resources_status['ports'].itervalues():
+            logging.debug("port - "+value)
+            if value == 'ACTIVE':
+                num_resources_completed = num_resources_completed + 1
+        for value in resources_status['vnfs'].itervalues():
+            logging.debug("vnf - "+value)
+            if value == 'ACTIVE':
+                num_resources_completed = num_resources_completed + 1
+        
+        status  = {}
+        if DEBUG_MODE is True:
+            logging.debug("num_resources_completed "+str(num_resources_completed))
+            logging.debug("num_resources "+str(num_resources))
+            
+        if num_resources_completed == num_resources:
+            status['status'] = 'complete'
+            status['percentage_completed'] = num_resources_completed/num_resources*100
+        else:
+            status['status'] = 'in_progress'
+            status['percentage_completed'] = num_resources_completed/num_resources*100
+        
+        return status
+    
     '''
     ######################################################################################################
-    ##########################    Find right flavor for virtual machine        ###########################
+    ###############################    Interactions with OpenStack       #################################
     ######################################################################################################
-    '''    
+    '''
+    def createServer(self, vnf, nf_fg):
+        for port in vnf.listPort[:]:
+            self.createPort(port, vnf, nf_fg) 
+        
+        resp = Nova().createServer(self.novaEndpoint, self.token.get_token(), vnf.getResourceJSON())
+        vnf.OSid = resp['server']['id']
+        #TODO: image location, location, type and availability_zone missing
+        Graph().setVNFInternalID(vnf.id, vnf.OSid, self.session_id, nf_fg.db_id)
+    
+    def deleteServer(self, vnf):
+        Nova().deleteServer(self.novaEndpoint, self.token.get_token(), vnf.internal_id)
+        Graph().deleteFlowspecFromVNF(self.session_id, vnf.db_id)        
+        Graph().deletePort(None, self.session_id, vnf.db_id)
+        Graph().deleteVNF(vnf.id, self.session_id) 
+    
+    def createPort(self, port, vnf, nf_fg):
+        if port.net is None:
+            #TODO: create an Openstack network and subnet and set the id into port.net instead of exception
+            raise StackError("No network found for this port")
                         
+        resp = Neutron().createPort(self.neutronEndpoint, self.token.get_token(), port.getResourceJSON())
+        if resp['port']['status'] == "DOWN":
+            port_id = resp['port']['id']
+            port.setId(port_id)
+            #TODO: mac address and other port info missing in the db
+            Graph().setPortInternalID(port.name, nf_fg.getVNFByID(vnf.id).db_id, port_id, self.session_id, nf_fg.db_id, port_type='openstack')
+            Graph().setOSNetwork(port.net, port.name, nf_fg.getVNFByID(vnf.id).db_id, port_id, self.session_id, nf_fg.db_id,  vlan_id = port.vlan)
+    
+    def deletePort(self, port): 
+        if port.status == 'to_be_deleted':
+            Neutron().deletePort(self.neutronEndpoint, self.token.get_token(), port.internal_id)
+            Graph().deleteFlowspecFromPort(self.session_id, port.id)
+            Graph().deletePort(port.id, self.session_id)
+        else:
+            # Delete flow-rules
+            for flowrule in port.list_outgoing_label[:]:
+                if flowrule.status == 'to_be_deleted':
+                    Neutron().deletePort(self.neutronEndpoint, self.token.get_token(), port.internal_id)                                
+                    Graph().deleteoOArch(flowrule.db_id, self.session_id)
+                    Graph().deleteFlowspec(flowrule.db_id, self.session_id)
+                    Graph().deletePort(port.id, self.session_id)
+                    port.list_outgoing_label.remove(flowrule)
+        
+    def getNetworkIdfromVlan(self, vlan_id):
+        '''
+        Get the Neutron network id from the database
+        Args:
+            vlan_id:
+                id of the vlan
+        '''
+        networks = Graph().getAllNetworks()
+        for net in networks:
+            if net.vlan_id == vlan_id:
+                return net.id
+        return None
+    
     def findFlavor(self, memorySize, rootFileSystemSize, ephemeralFileSystemSize, CPUrequirements, token):
         '''
         Find the best nova flavor from the given requirements of the machine
@@ -207,30 +447,11 @@ class JolnetAdapter(OrchestratorInterface):
                 elif (flavor['vcpus'] - CPUrequirements + (flavor['ram'] - memorySize)/1024 + flavor['disk'] - rootFileSystemSize - int(ephemeralFileSystemSize or 0)) < minData:
                     findFlavor = flavor
                     minData = flavor['vcpus'] - CPUrequirements + (flavor['ram'] - memorySize)/1024 + flavor['disk'] - rootFileSystemSize - int(ephemeralFileSystemSize or 0)
-        return findFlavor
-    
-    '''
-    ######################################################################################################
-    #########################    Manage internal connection in the nodes        ##########################
-    ######################################################################################################
-    '''
-    
-    def getNetworkIdfromVlan(self, vlan_id):
-        '''
-        Get the Neutron network id from the database
-        Args:
-            vlan_id:
-                id of the vlan
-        '''
-        networks = Graph().getAllNetworks()
-        for net in networks:
-            if net.vlan_id == vlan_id:
-                return net.id
-        return None       
+        return findFlavor      
      
     '''
     ######################################################################################################
-    #########################    Manage external connection among nodes        ###########################
+    #########################    Interactions with OpenDaylight Helium       #############################
     ######################################################################################################
     ''' 
     '''
@@ -478,84 +699,4 @@ class JolnetAdapter(OrchestratorInterface):
             Graph().AddFlowrule(self.session_id, graph_id, fid, "external", "node", cpe_id, "node", switch_id, "complete")
         else:
             logging.debug("Cannot find a link between " + cpe + " and " + switch)
-    
-    '''
-    ######################################################################################################
-    ###############################       Manage graphs connection        ################################
-    ######################################################################################################
-    ''' 
-    
-    def connectEndpoints(self, nf_fg):
-        '''
-        Read nf_fg endpoints and create corrisponding flows on the SDN network
-        Expecting some precise endpoint descriptions which reflect Orchestration layer scheduling choices
-        '''
-        #Get egress endpoints of the graph        
-        endpoints = nf_fg.getVlanEgressEndpoints()
-        for endpoint in endpoints:
-            if endpoint.connection is True:
-                #Check if the remote graph exists and the requested endpoint is available                
-                session = Session().get_active_user_session_by_nf_fg_id(endpoint.remote_graph).id
-                existing_endpoints = Graph().getEndpoints(session)
-                existing = None
-                for e in existing_endpoints:
-                    if (e.graph_endpoint_id == endpoint.remote_id):
-                        existing = e
-                
-                if existing is not None:
-                    vlan = endpoint.id
-                    switch1 = endpoint.node
-                    port1 = endpoint.interface                                       
-                                       
-                    node1_id = Node().getNodeFromDomainID(switch1).id
-                    node2_id = Graph().getNodeID(session)
-                    switch2 = Node().getNodeDomainID(node2_id)     
-                    port2 = existing.location         
-                    
-                    self.linkZones(nf_fg.db_id, switch1, port1, node1_id, switch2, port2, node2_id, vlan)
-                else:
-                    logging.error("Remote graph " + endpoint.remote_graph + " has not a " + endpoint.id + " endpoint available!")
-            
-            #Insert location info into the database
-            Graph().setEndpointLocation(self.session_id, nf_fg.db_id, endpoint.id, endpoint.interface)
-            
-        #Get ingress endpoints of the graph (auth graph has the same endpoint but without user_mac)
-        endpoints = nf_fg.getVlanIngressEndpoints()
-        for endpoint in endpoints:
-            if endpoint.attached is True:
-                session = Session().get_active_user_session_by_nf_fg_id(endpoint.remote_graph).id
-                existing_endpoints = Graph().getEndpoints(session)
-                existing = None
-                for e in existing_endpoints:
-                    if (e.graph_endpoint_id == endpoint.remote_id):
-                        existing = e
-                    
-                user_vlan = endpoint.id
-                user_mac = endpoint.user_mac
-                graph_vlan = endpoint.remote_id               
-                cpe = endpoint.node
-                cpe_port = endpoint.interface
-                                
-                cpe_id = Node().getNodeFromDomainID(cpe).id
-                node_id = Graph().getNodeID(session)
-                switch = Node().getNodeDomainID(node_id)
-                switch_port = existing.location 
-                    
-                self.linkUser(nf_fg.db_id, cpe, cpe_port, cpe_id, switch, switch_port, node_id, graph_vlan, user_vlan, user_mac)
-            
-            #Insert location info into the database
-            Graph().setEndpointLocation(self.session_id, nf_fg.db_id, endpoint.id, endpoint.interface)
-        
-    def disconnectEndpoints(self):
-        '''
-        Deletes flows on the SDN network after a profile deletion
-        Args:
-            nf_fg:
-                JSON Object for the user profile graph (forwarding graph)
-        '''
-        flows = Graph().getOArchs(self.session_id)
-        for flow in flows:
-            if flow.type == "external" and flow.status == "complete":
-                switch_id = Node().getNodeDomainID(flow.start_node_id)
-                ODL().deleteFlow(switch_id, flow.internal_id)
     

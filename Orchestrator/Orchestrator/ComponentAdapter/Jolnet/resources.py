@@ -165,7 +165,7 @@ class Port(object):
     '''
     Class that contains the port data for the VNF
     '''    
-    def __init__(self, portTemplate, VNFId):
+    def __init__(self, portTemplate, VNFId, status='new'):
         '''
         Constructor for the port
         params:
@@ -173,12 +173,15 @@ class Port(object):
                 The template of the port from the user profile graph
             VNFId:
                 The Id of the VNF associated to that port
+            status:
+                useful when updating graphs, can be new, already_present or to_be_deleted
         '''
         self.net = None
         self.vlan = None
         self.name = portTemplate.id
         self.VNFId = VNFId
         self.port_id = None
+        self.status = status
     
     def setNetwork(self, net_id, vlan_id):
         #Network id retrieved through Neutron REST API call
@@ -200,7 +203,23 @@ class VNF(object):
     '''
     Class that contains the VNF data that will be used on the profile generation
     '''
-    def __init__(self, VNFId, vnf, image, flavor, availability_zone):
+    def __init__(self, VNFId, vnf, image, flavor, availability_zone, status='new'):
+        '''
+        Constructor for the vnf
+        params:
+            VNFId:
+                The Id of the VNF
+            vnf:
+                the VNF object extracted from the nf_fg
+            image:
+                the URI of the image (taken from the Template)
+            flavor:
+                the flavor which best suits this VNF
+            availability_zone:
+                the zone where to place it
+            status:
+                useful when updating graphs, can be new, already_present or to_be_deleted
+        '''
         self.availability_zone = availability_zone
         self._id = VNFId
         self.ports = {}
@@ -208,10 +227,15 @@ class VNF(object):
         self.flavor = flavor
         self.URIImage = image
         self._OSid = None
+        self.status = status
         
         template_info = VNFTemplate(vnf)
         for port in vnf.listPort:
-            self.ports[port.id] = Port(port, VNFId)
+            if port.status is None:
+                status = "new"
+            else:
+                status = port.status
+            self.ports[port.id] = Port(port, VNFId, status)
             position = template_info.ports_label[port.id.split(":")[0]] + int(port.id.split(":")[1])
             self.listPort.insert(position,self.ports[port.id])
         
@@ -240,6 +264,21 @@ class VNF(object):
             if port.port_id is not None:
                 resource['server']['networks'].append({ "port": port.port_id})
         return resource
+
+class Endpoint(object):
+    '''
+    Class that contains the VNF data that will be used on the profile generation
+    '''
+    def __init__(self, end_id, name, connection, end_type, node, interface, status = 'new', remote_graph = None, remote_id = None):
+        self.id = end_id
+        self.name = name
+        self.connection = connection
+        self.type = end_type
+        self.node = node
+        self.interface = interface
+        self.status = status
+        self.remote_graph = remote_graph
+        self.remote_id = remote_id
     
 class ProfileGraph(object):
     '''
@@ -248,6 +287,7 @@ class ProfileGraph(object):
     def __init__(self):
         self._id = None
         self.functions = {}
+        self.endpoints = {}
     
     @property
     def id(self):
@@ -258,6 +298,27 @@ class ProfileGraph(object):
     
     def addVNF(self, vnf):
         '''
-        Add a new edge to the graph: it is a VNF object
+        Add a new vnf to the graph
         '''
         self.functions[vnf.id] = vnf
+    
+    def addEndpoint(self, endpoint):
+        '''
+        Add a new endpoint to the graph
+        '''
+        self.endpoints[endpoint.id] = endpoint
+    
+    def getVlanEgressEndpoints(self):
+        endpoints = []
+        for endpoint in self.endpoints.values():
+            if endpoint.type == "vlan-egress":   
+                endpoints.append(endpoint)
+        return endpoints
+    
+    def getVlanIngressEndpoints(self):
+        endpoints = []
+        for endpoint in self.endpoints.values():
+            if endpoint.type == "vlan-ingress":   
+                endpoints.append(endpoint)
+        return endpoints
+    

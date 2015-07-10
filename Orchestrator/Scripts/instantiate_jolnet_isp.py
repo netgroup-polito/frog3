@@ -18,7 +18,7 @@ tenant = "PoliTO_chain1"
 password = "AdminPoliTO"
 keystone_server = conf.AUTH_SERVER;
 
-keystoneAuth = KeystoneAuthentication(keystone_server, tenant, username, password)
+#keystoneAuth = KeystoneAuthentication(keystone_server, tenant, username, password)
 controller = UpperLayerOrchestratorController(keystone_server, method = "ServiceLayerApplication", username = username, password = password, tenant = tenant)
 
 with open('Graphs/jolnet_isp.json') as data_file:    

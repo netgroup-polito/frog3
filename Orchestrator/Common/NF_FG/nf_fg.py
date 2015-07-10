@@ -843,23 +843,6 @@ class NF_FG(object):
             for endpoint in self.listEndpoint:
                 self.endpoint_map[endpoint.id] = endpoint
         return self.endpoint_map
-    
-    '''
-    Added for Jolnet adapter
-    '''
-    def getVlanIngressEndpoints(self):
-        endpoints = []
-        for endpoint in self.listEndpoint:
-            if endpoint.type == "vlan-ingress":   
-                endpoints.append(endpoint)
-        return endpoints
-    
-    def getVlanEgressEndpoints(self):
-        endpoints = []
-        for endpoint in self.listEndpoint:
-            if endpoint.type == "vlan-egress":   
-                endpoints.append(endpoint)
-        return endpoints
 
 class Connection(object):
     def __init__(self, ext_nf_fg_id, ext_edge_endpoint):

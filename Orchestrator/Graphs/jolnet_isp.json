@@ -19,7 +19,8 @@
                     "matches": [
                       {
                         "priority": "100",
-                        "id": "297"
+                        "id": "297",
+                        "vlan-id":"297"
                       }
                     ]
                   }
@@ -42,7 +43,8 @@
                     "matches": [
                       {
                         "priority": "100",
-                        "id": "288"
+                        "id": "288",
+                        "vlan-id":"288"
                       }
                     ]
                   }
@@ -66,7 +68,8 @@
                     "matches": [
                       {
                         "priority": "100",
-                        "id": "296"
+                        "id": "296",
+                        "vlan-id":"296"
                       }
                     ]
                   }
@@ -97,7 +100,8 @@
                               "matches":[
                                  {
                                     "priority":"100",
-                                    "id":"297"
+                                    "id":"297",
+                                    "vlan-id":"297"
                                  }
                               ]
                            }
@@ -113,7 +117,6 @@
     "endpoints": [
       {
         "name": "INGRESS",
-        "attached": false,
         "connection": false,
         "type": "vlan-ingress",
         "id": "288",
@@ -122,7 +125,6 @@
      },
      {
         "name": "INGRESS",
-        "attached": false,
         "connection": false,
         "type": "vlan-ingress",
         "id": "297",

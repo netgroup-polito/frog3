@@ -4,7 +4,6 @@
     "endpoints": [
          {
             "name": "EGRESS",
-            "attached": false,
             "connection": true,
             "type": "vlan-egress",
             "id": "288",
@@ -16,8 +15,7 @@
          },
          {
             "name": "INGRESS",
-            "attached": true,
-            "connection": false,
+            "connection": true,
             "type": "vlan-ingress",
             "id": "299",
             "node": "openflow:968199681216",

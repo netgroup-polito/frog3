@@ -35,22 +35,18 @@ class Endpoint(object):
         for endpoint in self.nf_fg.listEndpoint:
             # Connects directly vnf with endpoint_switch, that means get rid of egress_endpoint           
             if endpoint.name == ISP_EGRESS:
-                # Case in witch there isn't Endpoint Switch
-                if INGRESS_TYPE == "physical":
-                    endpoint.type = EGRESS_TYPE
-                    endpoint.interface = EGRESS_PORT
-                    logging.debug("NF-FG name: "+self.nf_fg.name)
-                    logging.debug("endpoint name: "+endpoint.name)
-                    self.nf_fg.characterizeEndpoint(endpoint, endpoint_type = endpoint.type, interface = endpoint.interface)
+                endpoint.type = EGRESS_TYPE
+                endpoint.interface = EGRESS_PORT
+                logging.debug("NF-FG name: "+self.nf_fg.name)
+                logging.debug("endpoint name: "+endpoint.name)
+                self.nf_fg.characterizeEndpoint(endpoint, endpoint_type = endpoint.type, interface = endpoint.interface)
                 endpoint.attached = True
             if endpoint.name == USER_INGRESS:
-                # Case in witch there isn't Endpoint Switch
-                if INGRESS_TYPE == "physical":
-                    endpoint.type = INGRESS_TYPE
-                    endpoint.interface = INGRESS_PORT
-                    if user_id is not None:
-                        endpoint.node = Node().getNodeDomainID(Node().getUserLocation(user_id))
-                    logging.debug("NF-FG name: "+self.nf_fg.name)
-                    logging.debug("endpoint name: "+endpoint.name)
-                    self.nf_fg.characterizeEndpoint(endpoint, endpoint_type = endpoint.type, interface = endpoint.interface)
+                endpoint.type = INGRESS_TYPE
+                endpoint.interface = INGRESS_PORT
+                if user_id is not None:
+                    endpoint.node = Node().getNodeDomainID(Node().getUserLocation(user_id))
+                logging.debug("NF-FG name: "+self.nf_fg.name)
+                logging.debug("endpoint name: "+endpoint.name)
+                self.nf_fg.characterizeEndpoint(endpoint, endpoint_type = endpoint.type, interface = endpoint.interface)
                 endpoint.attached = True

@@ -86,12 +86,13 @@ class EndpointModel(Base):
     Maps the database table endpoint
     '''
     __tablename__ = 'endpoint'
-    attributes = ['id', 'internal_id', 'graph_endpoint_id','session_id','graph_id','type','location']
+    attributes = ['id', 'internal_id', 'graph_endpoint_id','session_id','graph_id','name', 'type','location']
     id = Column(Integer, primary_key=True)
     internal_id = Column(VARCHAR(64))
     graph_endpoint_id = Column(VARCHAR(64))
     session_id = Column(VARCHAR(64))
     graph_id = Column(VARCHAR(64))
+    name = Column(VARCHAR(64))
     type = Column(VARCHAR(64))
     location = Column(VARCHAR(64))
     
@@ -379,13 +380,13 @@ class Graph(object):
                             'type','location']
                 '''
                 endpoint_ref = EndpointModel(id=endpoint.db_id, graph_endpoint_id=endpoint.id, session_id=session_id,
-                                             graph_id=nffg.db_id, type=endpoint.name)
+                                             graph_id=nffg.db_id, name = endpoint.name, type=endpoint.type)
                 session.add(endpoint_ref)
                 
                 # Add end-point resources
                 # End-point attached to something that is not another graph
                 if endpoint.attached is not None and endpoint.attached is True:
-                    if endpoint.type is not None and endpoint.type == 'physical':
+                    if endpoint.type is not None and  "interface" in endpoint.type:
                         port_ref = PortModel(id=self.port_id, session_id=session_id,
                                    graph_id=nffg.db_id, internal_id=endpoint.interface, name=endpoint.interface, location=endpoint.node,
                                    creation_date=datetime.datetime.now(), last_update=datetime.datetime.now())
@@ -399,7 +400,7 @@ class Graph(object):
                     
                 # End-point attached to another graph
                 if endpoint.connection is not None and endpoint.connection is True:
-                    if endpoint.type is not None and endpoint.type == 'physical':
+                    if endpoint.type is not None and "interface" in endpoint.type:
                         port_ref = PortModel(id=self.port_id, session_id=session_id,
                                    graph_id=endpoint.remote_graph, internal_id=endpoint.interface, name=endpoint.interface, location=endpoint.node,
                                    creation_date=datetime.datetime.now(), last_update=datetime.datetime.now())
@@ -482,19 +483,19 @@ class Graph(object):
                 '''
                 if endpoint.status == 'new':        
                     endpoint_ref = EndpointModel(id=endpoint.db_id, graph_endpoint_id=endpoint.id, session_id=session_id,
-                                                 graph_id=nffg.db_id, type=endpoint.name)
+                                                 graph_id=nffg.db_id, name = endpoint.name, type=endpoint.type)
                     session.add(endpoint_ref)
                 
                     # Add end-point resources
                     # End-point attached to something that is not another graph
                     if endpoint.attached is not None and endpoint.attached is True:
-                        if endpoint.type is not None and endpoint.type == 'physical':
+                        if endpoint.type is not None and "interface" in endpoint.type:
                             port_ref = PortModel(id=self.port_id, session_id=session_id,
                                        graph_id=nffg.db_id, internal_id=endpoint.interface, name=endpoint.interface, location=endpoint.node,
                                        creation_date=datetime.datetime.now(), last_update=datetime.datetime.now())
                             session.add(port_ref)
                             endpoint_resource_ref = EndpointResourceModel(endpoint_id=endpoint.db_id,
-                                                  resource_type='port',
+                                                  resource_type=endpoint.type,
                                                   resource_id=self.port_id,
                                                   session_id=session_id)
                             session.add(endpoint_resource_ref)
@@ -502,7 +503,7 @@ class Graph(object):
                         
                     # End-point attached to another graph
                     if endpoint.connection is not None and endpoint.connection is True:
-                        if endpoint.type is not None and endpoint.type == 'physical':
+                        if endpoint.type is not None and "interface" in endpoint.type:
                             port_ref = PortModel(id=self.port_id, session_id=session_id,
                                        graph_id=endpoint.remote_graph, internal_id=endpoint.interface, name=endpoint.interface, location=endpoint.node,
                                        creation_date=datetime.datetime.now(), last_update=datetime.datetime.now())
@@ -697,20 +698,20 @@ class Graph(object):
                             
         endpoints_ref = session.query(EndpointModel).filter_by(session_id = session_id).all()
         for endpoint_ref in endpoints_ref:
-            endpoint = nffg.createEndpoint(endpoint_ref.type, endpoint_id=endpoint_ref.graph_endpoint_id, db_id=endpoint_ref.id)
+            endpoint = nffg.createEndpoint(endpoint_ref.name, endpoint_id=endpoint_ref.graph_endpoint_id, db_id=endpoint_ref.id)
             # endpoint resource
             endpoint_resorces_ref = session.query(EndpointResourceModel).filter_by(endpoint_id = endpoint_ref.id).filter_by(session_id = session_id).all()
             for endpoint_resorce_ref in endpoint_resorces_ref:
                 if endpoint_resorce_ref.resource_type == 'port':
                     port = self._getPort(endpoint_resorce_ref.resource_id)
-                    if endpoint_resorce_ref.resource_type == 'port':
-                        endpoint_type = endpoint_resorce_ref.resource_type
+                    endpoint_type = endpoint_ref.type
                     nffg.characterizeEndpoint(endpoint, endpoint_type = endpoint_type, interface = port.name, node = port.location)
                     internal = False
                     for graph_ref in graphs_ref:
                         logging.debug("port.graph_id: "+str(port.graph_id)+" graph_ref.id: "+str(graph_ref.id))
                         if str(port.graph_id) == str(graph_ref.id):
                             internal=True
+                            endpoint.attached = True
                             break
                     if internal is False:
                         service_graph_info_ref =  Session().get_service_graph_info(port.session_id)

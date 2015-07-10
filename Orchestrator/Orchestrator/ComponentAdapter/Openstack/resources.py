@@ -439,7 +439,7 @@ class FlowRoute(object):
                     action['outputPort'] = {"Ref": flowspec['action']['VNF']['id']+flowspec['action']['VNF']['port']}
                 else:
                     if "type" in flowspec['action']['endpoint']:
-                        if flowspec['action']['endpoint']['type'] == "physical":
+                        if "interface" in flowspec['action']['endpoint']['type']:
                             action['outputPort'] = flowspec['action']['endpoint']['interface']                
             for match in flow['matches']:
                 flowrule = {}
@@ -486,7 +486,7 @@ class FlowRoute(object):
                     action['outputPort'] = edges[flowspec['action']['VNF']['id']].ports[flowspec['action']['VNF']['port']].port_id
                 else:
                     if "type" in flowspec['action']['endpoint']:
-                        if flowspec['action']['endpoint']['type'] == "physical":
+                        if "interface" in flowspec['action']['endpoint']['type']:
                             action['outputPort'] = flowspec['action']['endpoint']['interface']
                 resource['flowrule']['actions']='OUTPUT='+str(action['outputPort'])
             for match in flow['matches']:

@@ -627,6 +627,8 @@ class NF_FG(object):
             j_endpoint['id'] = endpoint.id
             j_endpoint['name'] = endpoint.name
             
+            if endpoint.status is not None:
+                j_endpoint['status'] = endpoint.status
             if endpoint.edge is not False:
                 j_endpoint['edge'] = endpoint.edge
             if endpoint.remote_graph_name is not None:
@@ -758,7 +760,7 @@ class NF_FG(object):
                         visited_link = False
                     if flowrule.action.endpoint is not None:
                         if self.getEndpointMap()[flowrule.action.endpoint].type is not None:
-                            if self.getEndpointMap()[flowrule.action.endpoint].type == "physical":
+                            if "interface" in self.getEndpointMap()[flowrule.action.endpoint].type:
                                 node2 = Node(endpoint = self.getEndpointMap()[getEndpointID(flowrule.action.endpoint)].interface)
                         else:
                             node2 = Node(endpoint = flowrule.action.endpoint['id'])
@@ -854,7 +856,7 @@ class Connection(object):
 class Endpoint(object):
     def __init__(self, endpoint_id, name, connections = [], attached = False, endpoint_switch = None, connection = False,
                   remote_id = None, remote_graph = None, remote_graph_name=None, remote_interface = None, edge = False, endpoint_type = None, port = None,
-                   interface = None, node = None, user_mac = None, db_id=None):
+                   interface = None, node = None, user_mac = None, db_id=None, status=None):
 
         self._id = endpoint_id
         self.name = name
@@ -883,6 +885,7 @@ class Endpoint(object):
         
         self.node = node
         self.db_id = db_id
+        self.status = status
             
 
     @property

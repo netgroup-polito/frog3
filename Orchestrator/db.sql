@@ -3,7 +3,7 @@
 -- http://www.phpmyadmin.net
 --
 -- Host: localhost
--- Generato il: Lug 03, 2015 alle 15:52
+-- Generato il: Lug 09, 2015 alle 20:12
 -- Versione del server: 5.5.41-0ubuntu0.14.04.1
 -- Versione PHP: 5.5.9-1ubuntu4.7
 
@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS `endpoint` (
   `graph_endpoint_id` varchar(64) NOT NULL,
   `session_id` varchar(64) NOT NULL,
   `graph_id` varchar(64) NOT NULL,
+  `name` varchar(64) DEFAULT NULL,
   `type` varchar(64) NOT NULL,
   `location` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`id`)
@@ -150,7 +151,7 @@ CREATE TABLE IF NOT EXISTS `openstack_subnet` (
 
 CREATE TABLE IF NOT EXISTS `o_arch` (
   `id` int(64) NOT NULL,
-  `internal_id` varchar(64) DEFAULT NULL,
+  `internal_id` varchar(255) DEFAULT NULL,
   `graph_o_arch_id` varchar(64) NOT NULL,
   `session_id` varchar(64) NOT NULL,
   `graph_id` varchar(64) NOT NULL,

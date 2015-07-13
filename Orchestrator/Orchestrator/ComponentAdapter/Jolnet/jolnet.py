@@ -101,11 +101,7 @@ class JolnetAdapter(OrchestratorInterface):
                 
                 #Stay blocked until the stack is completed or failed    
                 while self.getStackStatus(token, nf_fg.name) == 'CREATE_IN_PROGRESS':
-                    time.sleep(1)
-                    
-                if self.checkErrorStatus(self.token, nf_fg.name) is True:
-                    logging.debug("Stack error, check HEAT logs.")
-                    raise StackError("Stack error, check HEAT logs.")   
+                    time.sleep(1)  
                             
                 resources = json.dumps(self.getStackResourcesStatus(token, nf_fg.name))
                 set_extra_info(self.session_id, resources)

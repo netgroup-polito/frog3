@@ -141,7 +141,8 @@ class Heat(object):
         '''
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
         stack_data = {'stack_name': stackName, 'template': jsonStackTemplate, 'parameters': jsonParameters, 'timeout_mins': 60}
-        resp = requests.post(heatEndpoint+self.createStackPath, data=json.dumps(stack_data), headers=headers)
+        jsondata = json.dumps(stack_data)
+        resp = requests.post(heatEndpoint+self.createStackPath, data=jsondata, headers=headers)
         resp.raise_for_status()
         return resp.text
     

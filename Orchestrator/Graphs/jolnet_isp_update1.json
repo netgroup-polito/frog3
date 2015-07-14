@@ -124,16 +124,16 @@
         "connection": false,
         "type": "vlan-ingress",
         "id": "288",
-        "node": "openflow:110953238266560",
-        "interface": "5098" 
+        "node": "openflow:110953238267840",
+        "interface": "5097" 
      },
      {
         "name": "INGRESS",
         "connection": false,
         "type": "vlan-ingress",
         "id": "297",
-        "node": "openflow:110953238266560",
-        "interface": "5098" 
+        "node": "openflow:110953238267840",
+        "interface": "5097" 
      }
     ],
     "id": "0",

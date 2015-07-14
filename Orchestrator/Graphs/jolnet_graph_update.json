@@ -134,7 +134,7 @@
             "name": "INGRESS",
             "connection": true,
             "type": "vlan-ingress",
-            "id": "299",
+            "id": "298",
             "node": "openflow:968199681216",
             "interface": "5099",
             "remote_graph": "5",

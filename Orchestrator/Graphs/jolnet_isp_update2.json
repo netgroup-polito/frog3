@@ -85,7 +85,7 @@
         "id": "endpoint_switch"
       },
       {
-            "vnf_descriptor":"jolnet_dhcp.json",
+            "vnf_descriptor":"jolnet_nat.json",
             "ports":[
                {
                   "id":"inout:0",
@@ -114,8 +114,8 @@
                   }
                }
             ],
-            "name":"dhcp_isp",
-            "id":"dhcp_ISP"
+            "name":"nat_isp",
+            "id":"nat_ISP"
          }
     ],
     "endpoints": [

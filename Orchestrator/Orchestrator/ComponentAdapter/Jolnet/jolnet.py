@@ -82,7 +82,7 @@ class JolnetAdapter(OrchestratorInterface):
             logging.exception(err) 
             raise
     
-    def updateProfile(self, new_nf_fg, old_nf_fg, token, node_endpoint):
+    def updateProfile(self, new_nf_fg, old_nf_fg, node_endpoint):
         '''
         Override method of the abstract class for updating the user graph
         '''        
@@ -174,10 +174,18 @@ class JolnetAdapter(OrchestratorInterface):
             for flowrule in port.list_outgoing_label:
                 if flowrule.action.type == "output" or flowrule.action.type == "endpoint":
                     if flowrule.matches is not None:
-                        #net_vlan = flowrule.matches[0].id
-                        net_vlan = flowrule.matches[0].vlan_id
-                        net_id = self.getNetworkIdfromVlan(net_vlan)
-                        p.setNetwork(net_id, net_vlan)
+                        #Check if the network required already exists in Neutron
+                        net_vlan = flowrule.match.of_field['vlan-id']
+                        name = "exp" + str(net_vlan)
+                        net_id = self.getNetworkIdfromName(name)
+                        p.setNetwork(net_id, net_vlan)                        
+                        networks = Graph().getAllNetworks()
+                        found = False
+                        for net in networks:
+                            if net.vlan_id == net_vlan:
+                                found = True
+                        if found is False:
+                            Graph().addOSNetwork(net_id, name, 'complete', net_vlan)
                     
                 if flowrule.action.type == "control":
                     if flowrule.matches is not None:
@@ -383,6 +391,7 @@ class JolnetAdapter(OrchestratorInterface):
     def createPort(self, port, vnf, nf_fg):
         if port.net is None:
             #TODO: create an Openstack network and subnet and set the id into port.net instead of exception
+            #You need to set its vlan-id as the one passed in the flowrule (you cannot do it from OpenStack)
             raise StackError("No network found for this port")
                         
         resp = Neutron().createPort(self.neutronEndpoint, self.token.get_token(), port.getResourceJSON())
@@ -408,17 +417,14 @@ class JolnetAdapter(OrchestratorInterface):
                     Graph().deletePort(port.id, self.session_id)
                     port.list_outgoing_label.remove(flowrule)
         
-    def getNetworkIdfromVlan(self, vlan_id):
-        '''
-        Get the Neutron network id from the database
-        Args:
-            vlan_id:
-                id of the vlan
-        '''
-        networks = Graph().getAllNetworks()
+    def getNetworkIdfromName(self, network_name):
+        #Since we need to control explicitly the vlan id of OpenStack networks, we need to use this trick
+        #No way to find vlan id from OpenStack REST APIs
+        json_data = Neutron().getNetworks(self.neutronEndpoint, self.token.get_token())
+        networks = json.loads(json_data)['networks']
         for net in networks:
-            if net.vlan_id == vlan_id:
-                return net.id
+            if net['name'] == network_name:
+                return net['id']
         return None
     
     def findFlavor(self, memorySize, rootFileSystemSize, ephemeralFileSystemSize, CPUrequirements, token):

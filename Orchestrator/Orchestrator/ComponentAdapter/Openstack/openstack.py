@@ -149,9 +149,11 @@ class HeatOrchestrator(OrchestratorInterface):
                         for flowrule in port.list_outgoing_label[:]:
                             if flowrule.status == 'to_be_deleted':
                                 self.deleteFlowrule(token_id, port, flowrule)
+                                port.list_outgoing_label.remove(flowrule)
                         for flowrule in port.list_ingoing_label[:]:
                             if flowrule.status == 'to_be_deleted':
                                 self.deleteFlowrule(token_id, port, flowrule)
+                                port.list_ingoing_label.remove(flowrule)
         
         # Delete end-point resources
         for endpoint in updated_nffg.listEndpoint[:]:
@@ -212,16 +214,14 @@ class HeatOrchestrator(OrchestratorInterface):
             self.manageIngressEndpoint(endpoint)
         elif endpoint.type == 'egress_interface':
             self.manageExitEndpoint(nffg, endpoint)
-        elif endpoint.type == 'ingress_interface':
+        elif endpoint.type == 'ingress_gre_interface':
             raise NotImplementedError()
-        elif endpoint.type == 'ingress_interface':
+        elif endpoint.type == 'egress_gre_interface':
             raise NotImplementedError()
-        elif endpoint.type is None:
-            self.deleteEndpointConnection(nffg)
-        else:
-            raise Exception("End point type unknown: "+str(endpoint.type))
+        elif endpoint.type is None and endpoint.connection is not True:
+            self.deleteEndpointConnection(nffg, endpoint)
         if endpoint.connection is True:
-            self.connectEndpoints(nffg, self.token)
+            self.connectEndpoints(nffg, endpoint)
     
     def deleteEndpoints(self, nffg):
         logging.debug("Deleting endpoints")
@@ -234,12 +234,13 @@ class HeatOrchestrator(OrchestratorInterface):
         if endpoint.type == 'egress_interface':
             logging.debug("Deleting endpoint egress_interface "+str(endpoint.name))
             self.deleteExitEndpoint(nffg, endpoint)
+        if endpoint.connection is True:
+            self.disconnectEndpoint(endpoint, nffg)
     
     def deleteFlowrule(self, token_id, port, flowrule):
         Neutron().deleteFlowrule(self.neutronEndpoint, token_id, flowrule.internal_id)
         Graph().deleteoOArch(flowrule.db_id, self.session_id)
         Graph().deleteFlowspec(flowrule.db_id, self.session_id)
-        port.list_outgoing_label.remove(flowrule)
         
     def deletePort(self, token_id, port):
         Neutron().deletePort(self.neutronEndpoint, token_id, port.internal_id)
@@ -311,9 +312,13 @@ class HeatOrchestrator(OrchestratorInterface):
             resources_status['vnfs'][vnf.id] = Nova().getServerStatus(self.novaEndpoint, token_id, vnf.internal_id)
         resources_status['flowrules'] = {}
         flowrules = Graph().getOArchs(self.session_id)
+        
+        # TODO: if the flowrule involve an endpoint that have no type, the status should not be checked in OS
         for flowrule in flowrules:
             if flowrule.internal_id is not None:
                 resources_status['flowrules'][flowrule.id] = Neutron().getFlowruleStatus(self.neutronEndpoint, token_id, flowrule.internal_id)
+            elif flowrule.status == 'complete':
+                resources_status['flowrules'][flowrule.id] = 'ACTIVE'
             else:
                 resources_status['flowrules'][flowrule.id] = 'not_found'
         
@@ -434,6 +439,7 @@ class HeatOrchestrator(OrchestratorInterface):
                     flowrule_id = Neutron().createFlowrule(self.neutronEndpoint, self.token.get_token(), flowroute)['flowrule']['id']
                     Graph().setOArchInternalID(flow.flowrules[index].id, flowrule_id, self.session_id, nffg.db_id)
                 index = index + 1
+        logging.debug("Instantiation of graph "+nffg.id+" completed")
     
     '''
     '''
@@ -441,71 +447,51 @@ class HeatOrchestrator(OrchestratorInterface):
     ###############################       Manage graphs connection        ################################
     ######################################################################################################
                   
-    def connectEndpoints(self, nf_fg, token):
+    def connectEndpoints(self, nf_fg, endpoint):
         '''
         characterize the endpoints that should be connected to another graph
         '''
-        '''
-        endpoints = nf_fg.getEndpointThatShouldBeConnected()
-
-        for endpoint in endpoints:
-            if endpoint.connection is True:
-                # Getting remote graph's session
-                session = get_active_user_session_by_nf_fg_id(endpoint.remote_graph)
-                logging.debug("session: "+str(session.id))
-                extra = get_extra_info(session.id)
-                logging.debug("extra: "+str(extra))
-                resources = json.loads(extra)['resources']
-                
-                # For every endpoints that should be connected we convert the heat port id to the right port id
-                match = False
-                for resource in resources:
-                    if resource['resource_name'] == endpoint.remote_id:
-                        endpoint.type = "physical"
-                        logging.debug("id porta fisica: "+str(resource['physical_resource_id']))
-                        endpoint.interface = "INGRESS_tap"+str(resource['physical_resource_id'])[:11]
-                        nf_fg.characterizeEndpoint(endpoint, endpoint_type=endpoint.type, interface=endpoint.interface)
-                        match = True
-                        break
-                if match is False:
-                    raise NoHeatPortTranslationFound("No traslation found for remote graph's port "+str(endpoint.remote_id))
-        '''      
-        pass
+        # Getting remote graph's session
+        if endpoint.type == 'openstack':
+            remote_interface = endpoint.interface
+            endpoint.interface = "INGRESS_tap"+str(endpoint.interface)[:11]
+            endpoint.type = "remote_interface"
+            nf_fg.characterizeEndpoint(endpoint, endpoint_type=endpoint.type, interface=endpoint.interface)
+            # Add the connection in the database?
+            Graph().updateEndpointType(endpoint.id, self.session_id, endpoint.type)
+            # Update endpoint with new information
+            remote_interface_id = Graph().getPortFromInternalID(remote_interface).id
+            Graph().addEndpointResource(endpoint.db_id, endpoint.type, remote_interface_id, self.session_id)
+        
     
-    def deleteEndpointConnection(self, nf_fg):
+    def disconnectEndpoint(self, endpoint, nffg):
+        if endpoint.type == 'openstack':
+            # TODO: delete flows
+            pass
+    
+    def deleteEndpointConnection(self, nf_fg, endpoint):
         '''
         Delete connection to endpoints those are not connected to any interface or other graph
         '''        
-        for endpoint in nf_fg.listEndpoint:
-            if endpoint.connection is False and endpoint.attached is False and endpoint.edge is False:
-                logging.debug("Deleting flow to endoints not characterized: "+str(endpoint.name))   
-                
-                edge_endpoints = nf_fg.getEdgeEndpoint(endpoint.name, True)  
-                if len(edge_endpoints) == 0:
-                    ports = nf_fg.getVNFPortsConnectedToEndpoint(endpoint.id)
-                    logging.debug("NF-FG name: "+nf_fg.name)
-                    logging.debug("Endpoint - endpoint.name: "+endpoint.name)
-                    
-                    logging.debug("DELETING flows to not connected endpoint")
-                    nf_fg.deleteEndpointConnections(endpoint)
-                    # Add drop flows to avoid that that packets match normal flows
-                    for connected_port in ports:
-                        connected_port.setDropFlow()
-                else:    
-                    endpoint_switch = nf_fg.getEndpointSwitchByEdgeEndpoints(edge_endpoints[0])
-                    ports = endpoint_switch.getPortConnectedToEndpoints()
-                    logging.debug("NF-FG name: "+nf_fg.name)
-                    logging.debug("Endpoint - endpoint.name: "+endpoint.name)
-                    
-                    # Delete flows from endpoint switch to endpoints
-                    
-                    for edge_endpoint in edge_endpoints:  
-                        logging.debug("DELETING flows to not connected endpoint")
-                        connected_ports = nf_fg.getVNFPortsConnectedToEndpoint(edge_endpoint.id)
-                        nf_fg.deleteEndpointConnections(edge_endpoint)
-                        # Add drop flows to avoid that that packets match normal flows
-                        for connected_port in connected_ports:
-                            connected_port.setDropFlow()
+        logging.debug("Deleting flow to endoints not characterized: "+str(endpoint.name))   
+        
+        ports = nf_fg.getVNFPortsConnectedToEndpoint(endpoint.id)
+        logging.debug("NF-FG name: "+nf_fg.name)
+        logging.debug("Endpoint - endpoint.name: "+endpoint.name)
+        
+        logging.debug("DELETING flows to not connected endpoint")
+        deleted_flowrules = nf_fg.deleteEndpointConnections(endpoint)
+        logging.debug("Flows deleted: "+str(deleted_flowrules))
+        
+        # Set the flowrules that connects end-points to complete status
+        for deleted_flowrule in deleted_flowrules:
+            Graph().updateOArch(deleted_flowrule)
+            
+        # Add drop flows to avoid that that packets match normal flows
+        for connected_port in ports:
+            connected_port.setDropFlow()
+        pass
+        
                                        
     def addPortsToEndpointSwitches(self, nf_fg, graph):    
         ''' 
@@ -699,22 +685,20 @@ class HeatOrchestrator(OrchestratorInterface):
         j_links['links'] = []
         visited_link = False
         for vnf in nffg.listVNF:
-            if vnf.name == "Endpoint_Switch":
+            for port in vnf.listPort:
+                node1 = Node(vnf.id, port.id)
                 
-                for port in vnf.listPort:
-                    
-                    flowrules = port.getDropFlows()
-                    if len(flowrules) == 0:
-                        continue
-                    node1 = Node(vnf.id, port.id)
+                ########### Manage drop flows ############
+                flowrules = port.getDropFlows()
+                if len(flowrules) != 0:
                     for flowrule in flowrules:
                         flowrule.addIngressPort(node1)
                     link = Link(node1, None, flowrules)
                     links.append(link)  
                     j_links['links'].append(link.getJSON())  
+                ###########################################
                 
-            for port in vnf.listPort:
-                node1 = Node(vnf.id, port.id)
+                
                 #flowrules = port.getVNFPortsFlowruleSendingTrafficToVNFPort() 
                 for flowrule in port.list_outgoing_label:
                     if flowrule.action.vnf is not None:
@@ -786,7 +770,7 @@ class HeatOrchestrator(OrchestratorInterface):
                         
                         visited  = False
                         for link in links:
-                            if link.node2.isEqual(node1) and link.node1.isEqual(node2):
+                            if link.node2 is not None and link.node2.isEqual(node1) and link.node1.isEqual(node2):
                                 visited_link = True
                         if visited is not True and visited_link is not True: 
                             link = Link(node1, node2, flowrules)

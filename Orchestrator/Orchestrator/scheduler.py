@@ -58,9 +58,14 @@ class Scheduler(object):
         Define the node where to instantiate the nffg.
         Returns the ip address of the node
         '''
+        node = None
         for endpoint in nffg.listEndpoint:
             if endpoint.node is not None:
-                return endpoint.node
+                node = endpoint.node
+                break
+        if node is None:
+            node = Node().getInstantiationNode().domain_id
+        return node
     
     def findNode(self, component_adapter, node = None):
         #  In this research the openstack compute nodes do not should be taken in account

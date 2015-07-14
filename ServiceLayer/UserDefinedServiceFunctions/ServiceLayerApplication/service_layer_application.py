@@ -30,7 +30,6 @@ class Orchestrator(object):
         self.password=orch_PW; 
         self.tenant=orch_tenant;
         self.keystone_server = AUTH_SERVER;
-        self.keystoneAuth = None;
     
     def authenticateOrch(self):
         '''
@@ -48,7 +47,7 @@ class Orchestrator(object):
             logging.debug('Authenticating the Orchestrator')
             self.authenticateOrch()
             # Now, it initialize a new controller instance to handle the request
-            controller = OrchestratorController(self.keystone_server,self.keystoneAuth.get_admin_token(), "DELETE", response, request, self.keystoneAuth, mac_address = mac_address)
+            controller = OrchestratorController(self.keystone_server,self.keystoneAuth.get_admin_token(), "DELETE", response, request, mac_address = mac_address)
 
             #controller = controller.OrchestratorController(self.keystone_server,self.keystoneAuth.get_admin_token(), response, request)
             controller.delete()
@@ -133,7 +132,7 @@ class Orchestrator(object):
             logging.info('Authenticating the Orchestrator')
             self.authenticateOrch()
             # Now, it initialize a new controller instance to handle the request
-            controller = OrchestratorController(self.keystone_server,self.keystoneAuth.get_admin_token(), "PUT",response, request, self.keystoneAuth)
+            controller = OrchestratorController(self.keystone_server,self.keystoneAuth.get_admin_token(), "PUT",response, request)
             controller.put()
             response.status = falcon.HTTP_202
 
@@ -194,7 +193,7 @@ class Orchestrator(object):
             logging.debug('Authenticating the Orchestrator')
             self.authenticateOrch()
             # Now, it initialize a new controller instance to handle the request
-            controller = OrchestratorController(self.keystone_server,self.keystoneAuth.get_admin_token(), "GET",response, request, self.keystoneAuth)
+            controller = OrchestratorController(self.keystone_server,self.keystoneAuth.get_admin_token(), "GET",response, request)
             controller.get()
         except ValueError:
             logging.exception("Malformed JSON")

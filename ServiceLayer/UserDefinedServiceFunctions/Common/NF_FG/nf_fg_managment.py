@@ -13,7 +13,7 @@ import os
 from Common.Manifest.manifest import Manifest
 from Common.Manifest.validator import ValidateManifest
 from Common.NF_FG.validator import ValidateNF_FG
-from Common.NF_FG.nf_fg import NF_FG, Match, Flowrule, VNF
+from Common.NF_FG.nf_fg import NF_FG, Match, Flowrule, VNF, Action
 from Common.config import Configuration
 #from Common.SQL.session import checkSession
 from Common.exception import connectionsError, NoPreviousDeviceFound
@@ -81,16 +81,7 @@ class NF_FG_Management(object):
         return new_ng_fg
         """
         
-    def connectEndpointSwitchToVNF(self, endpoint):
-        logging.debug("NF_FG_Management - connectEndpointSwitchToVNF -NF-FG name: "+self.nf_fg.name)
-        logging.debug("NF_FG_Management - connectEndpointSwitchToVNF -endpoint name: "+endpoint.name)
-        logging.debug("NF_FG_Management - connectEndpointSwitchToVNF -endpoint id: "+endpoint.id)
-        endpoint_switch = self.nf_fg.getEndpointSwithConnectedToEndpoint(endpoint.id)
-        if endpoint_switch is None:
-            logging.warning("NF_FG_Management - connectEndpointSwitchToVNF - EndpointSwitch not found")
-            return
-            #raise connectionsError("EndpointSwitch not found")
-               
+    def connectEndpointSwitchToVNF(self, endpoint, endpoint_switch, switch_port):
         # Add connections from EndpointSwitch to VNFs
         ports = self.nf_fg.getVNFPortsSendingTrafficToEndpoint(endpoint.id)
         vnfs_ingoing_flowrules = []
@@ -98,10 +89,11 @@ class NF_FG_Management(object):
             if port.vnf_id != endpoint_switch.id:
                 vnfs_ingoing_flowrules = vnfs_ingoing_flowrules + port.getIngoingFlowruleToSpecificEndpoint(endpoint.id)
     
-        for port in ports:
-            if port.vnf_id == endpoint_switch.id:
-                switch_outgoing_flowrules = port.getVNFPortsFlowruleSendingTrafficToEndpoint(endpoint.id)
-                port.list_outgoing_label = self.mergeFlowrules(switch_outgoing_flowrules, vnfs_ingoing_flowrules) 
+        
+        flowrules = []
+        for vnf_ingoing_flowrules in vnfs_ingoing_flowrules:
+            flowrules.append(Flowrule(uuid.uuid4().hex, vnf_ingoing_flowrules.action, matches = vnf_ingoing_flowrules.matches))
+        switch_port.list_outgoing_label = flowrules
         
         
         # Add connections from VNFs to EndpointSwitch
@@ -109,15 +101,21 @@ class NF_FG_Management(object):
         for port in ports:
             if port.vnf_id == endpoint_switch.id:
                 switch_ingoing_flowrules = switch_ingoing_flowrules + port.getIngoingFlowruleToSpecificEndpoint(endpoint.id)
-    
+        
+        flowrules = []
         for port in ports:
             if port.vnf_id != endpoint_switch.id:
                 vnfs_outgoing_flowrules = port.getVNFPortsFlowruleSendingTrafficToEndpoint(endpoint.id)
-                port.list_outgoing_label = self.mergeFlowrules(vnfs_outgoing_flowrules, switch_ingoing_flowrules) 
+                for vnf_outgoing_flowrules in vnfs_outgoing_flowrules[:]:
+                    flowrules.append(Flowrule(uuid.uuid4().hex, Action('output', vnf={'id':endpoint_switch.id,'port':switch_port.id}), matches = vnf_outgoing_flowrules.matches))
+                    port.list_outgoing_label.remove(vnf_outgoing_flowrules)
+                port.list_outgoing_label = port.list_outgoing_label + flowrules
+                 
         
-        # delete ingoing rules
+        # delete in-going rules
         for port in ports:
-            port.deleteIngoingRule(endpoint.id)
+            if port.vnf_id != endpoint_switch.id:
+                port.deleteIngoingRule(endpoint.id)
     
     def getMacAddressFlows(self):
         """
@@ -679,7 +677,7 @@ class NF_FG_Management(object):
         for first_flowrule in first_flowrules:
             for second_flowrule in second_flowrules:
                 final_matches = self.mergeMatches(first_flowrule.matches, second_flowrule.matches)
-                flowrules.append(Flowrule(second_flowrule.action, matches = final_matches))
+                flowrules.append(Flowrule(uuid.uuid4().hex,second_flowrule.action, matches = final_matches))
                 
                 #first_flowrule.changeMatches(final_matches)
                 #first_flowrule.changeAction(second_flowrule.action)

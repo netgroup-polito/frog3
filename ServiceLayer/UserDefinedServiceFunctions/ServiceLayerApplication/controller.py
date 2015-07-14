@@ -34,22 +34,22 @@ ISP_TENANT = Configuration().ISP_TENANT
 USER_EGRESS = Configuration().USER_EGRESS
 CONTROL_EGRESS = Configuration().CONTROL_EGRESS
 ISP_INGRESS = Configuration().ISP_INGRESS
+ISP_EGRESS = Configuration().ISP_EGRESS
 CONTROL_INGRESS = Configuration().CONTROL_INGRESS
 
 INGRESS_PORT = Configuration().INGRESS_PORT
 INGRESS_TYPE = Configuration().INGRESS_TYPE
 EGRESS_PORT = Configuration().EGRESS_PORT
 EGRESS_TYPE = Configuration().EGRESS_TYPE
-ISP_EGRESS = Configuration().ISP_EGRESS
 USER_INGRESS = Configuration().USER_INGRESS
 
 
 class OrchestratorController():
 
-    def __init__(self, keystone_server, OrchestratorToken, method, response, request, keystone, mac_address = None):
+    def __init__(self, keystone_server, OrchestratorToken, method, response = None, request = None, mac_address = None, token = None):
         #logging.debug('OrchestratorController - init - begin')
         
-        self.keystone = keystone
+        self.user_mac = None
         self.keystone_server = keystone_server
         self.response = response
         self.orchToken = OrchestratorToken
@@ -82,12 +82,13 @@ class OrchestratorController():
             
         # Get token from header 
         #if request is not None:
-        token = request.get_header("X-Auth-Token")
         if token is None:
-            description = "{\"error\":{\"message\":\"Please provide an auth token\",\"code\":\"401\",\"title\":\"Unauthorized\"}}"            
-            raise falcon.HTTPUnauthorized('Auth token required',
-                                          description,
-                                          href='http://docs.example.com/auth')
+            token = request.get_header("X-Auth-Token")
+            if token is None:
+                description = "{\"error\":{\"message\":\"Please provide an auth token\",\"code\":\"401\",\"title\":\"Unauthorized\"}}"            
+                raise falcon.HTTPUnauthorized('Auth token required',
+                                              description,
+                                              href='http://docs.example.com/auth')
         self.token = token
         
         self.orchestrator = GlobalOrchestrator(self.token, self.orchestrator_ip, self.orchestrator_port)
@@ -324,14 +325,26 @@ class OrchestratorController():
             #logging.info("Control port")
             if need_control_net is True:
                 #logging.info(port.id)
-                manage.addToControlNet(vnf, port)
+                if ISP is True:
+                    control_switch = manage.addToControlNet(vnf, port, CONTROL_EGRESS)
+                else:
+                    control_switch = manage.addToControlNet(vnf, port, ISP_EGRESS)
+                    
+                if nf_fg.name == 'ISP_graph':
+                    
+                    if control_switch is not None:
+                        user_control_egress  = nf_fg.createEndpoint(CONTROL_INGRESS)
+                        port = nf_fg.addPortToSwitch(control_switch)
+                        port.setFlowRuleToEndpoint(user_control_egress.id)
+                        port.setFlowRuleFromEndpoint(control_switch.id, user_control_egress.id)
+                            
             #logging.info("")
             
         # TODO: if endpoint is ... then connect tu ISP
         # Create connection to another NF-FG
         isp_nf_fg = None
         # TODO: The following row should be executed only if  we want to concatenate ISP to our graphs
-        if ISP is True:
+        if ISP is True and nf_fg.name != 'ISP_graph':
             isp_nf_fg = self.remoteConnection(nf_fg)
         
         Endpoint(nf_fg).characterizeEndpoint(token.get_userID())
@@ -376,9 +389,9 @@ class OrchestratorController():
         #edge_endpoint = nf_fg.addEdgeEndpoint(endpoint_switch)
         
         # Retrieve isp NF-FG
-        self.ISP = KeystoneAuthentication(self.keystone_server,ISP_TENANT,ISP_USERNAME, ISP_PASSWORD)
-        if UserSession(self.ISP.get_userID(), self.ISP).checkSession(nf_fg.id) is True:
-            isp_nf_fg = Session().get_instantiated_nffg(self.ISP.get_userID())
+        self.isp = KeystoneAuthentication(self.keystone_server,ISP_TENANT,ISP_USERNAME, ISP_PASSWORD)
+        if UserSession(self.isp.get_userID(), self.isp).checkSession('ISP_graph', self.orchestrator) is True:
+            isp_nf_fg = Graph().get_instantiated_nffg(self.isp.get_userID())
             #logging.debug("ISP - \n"+isp_profile.getJSON())
         else:
             raise ISPNotDeployed("ISP NF-FG is not deployed, impossible connect to endpoint of NF-FG not yet deployed")
@@ -397,26 +410,39 @@ class OrchestratorController():
                         control_endpoint_switch = isp_nf_fg.getVNFConnectedToEndpoint(CONTROL_EGRESS)
                     control_endpoint_port = isp_nf_fg.addPortToSwitch(control_endpoint_switch)
                     update_isp = True
-                    
+        
+        data_endpoint_switch = None
+        data_endpoint_port = None
         if nf_fg.getEndpointFromName(USER_EGRESS) is not None:
-            if Graph().getGraphConnections() is not None:
-                if len(Graph().getGraphConnections(isp_nf_fg.id, USER_EGRESS)) != 0:
-                    if len(Graph().getGraphConnections(isp_nf_fg.id, USER_EGRESS)) == 1:
-                        # Crate a switch
-                        data_endpoint_switch = isp_nf_fg.addEndpointSwitch(USER_EGRESS)
-                    else:
-                        # Add a port to switch
-                        data_endpoint_switch = isp_nf_fg.getVNFConnectedToEndpoint(USER_EGRESS)
-                    data_endpoint_port = isp_nf_fg.addPortToSwitch(data_endpoint_switch)
-                    update_isp = True
+            if len(Graph().getGraphConnections(isp_nf_fg.id, ISP_INGRESS)) == 0:
+                # Crate a switch
+                data_endpoint_switch = isp_nf_fg.addEndpointSwitch(ISP_INGRESS)
+                data_endpoint_port = data_endpoint_switch.listPort[0]
+                
+                switch_connection_port = isp_nf_fg.addPortToSwitch(data_endpoint_switch)
+                NF_FG_Management(isp_nf_fg).connectEndpointSwitchToVNF(isp_nf_fg.getEndpointFromName(ISP_INGRESS), data_endpoint_switch, switch_connection_port)
+            else:
+                data_endpoint_switch = isp_nf_fg.getVNFConnectedToEndpoint(ISP_INGRESS)
+                
+                # TODO: Create a new endpoint
+                
+                # Add a port to switch    
+                data_endpoint_port = isp_nf_fg.addPortToSwitch(data_endpoint_switch)
+                
+                # TODO: Connect the endpoint to the port just created
+                
+            update_isp = True
                     
         if update_isp is True:
-            isp_nf_fg = Session().get_instantiated_nffg(self.ISP.get_userID())
-            isp_session_id = self.orchestrator.put(isp_nf_fg)
+            #isp_nf_fg = Session().get_instantiated_nffg(self.ISP.get_userID())
+            logging.debug("new isp graph:")
+            logging.debug(isp_nf_fg.getJSON())
+            self.orchestrator.put(json.loads(isp_nf_fg.getJSON()), self.isp.get_token())
+            isp_nf_fg = Graph().get_instantiated_nffg(self.isp.get_userID())
             if nf_fg.getEndpointFromName(CONTROL_EGRESS) is not None:
-                control_endpoint_switch = isp_nf_fg.getVNFConnectedToEndpoint(CONTROL_EGRESS)
+                control_endpoint_switch = isp_nf_fg.getVNFConnectedToEndpoint(isp_nf_fg.getEndpointFromName(CONTROL_INGRESS).id)[0]
             if nf_fg.getEndpointFromName(USER_EGRESS) is not None:
-                data_endpoint_switch = isp_nf_fg.getVNFConnectedToEndpoint(USER_EGRESS)              
+                data_endpoint_switch = isp_nf_fg.getVNFConnectedToEndpoint(isp_nf_fg.getEndpointFromName(ISP_INGRESS).id)[0]           
         
         if nf_fg.getEndpointFromName(CONTROL_EGRESS) is not None:  
             nf_fg.getEndpointFromName(CONTROL_EGRESS).connectToExternalNF_FGWithoutEdgeEndpoint(nf_fg, isp_nf_fg, CONTROL_INGRESS, control_endpoint_switch, control_endpoint_port)

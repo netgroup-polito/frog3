@@ -22,15 +22,19 @@ class GlobalOrchestrator(object):
         self.delete_url = self.base_url+"/NF-FG/%s"
         self.get_url = self.base_url+"/NF-FG/%s"   
         
-    def get(self, nffg_id):
-        headers = {'Content-Type': 'application/json', "cache-control": "no-cache", 'X-Auth-Token': self.token}
+    def get(self, nffg_id, token=None):
+        if token is None:
+            token = self.token
+        headers = {'Content-Type': 'application/json', "cache-control": "no-cache", 'X-Auth-Token': token}
         resp = requests.get(self.get_url % (nffg_id), headers=headers, timeout=long(self.timeout))
         resp.raise_for_status()
         logging.debug(resp.text)
         return resp.text
         
-    def put(self, nffg):
-        headers = {'Content-Type': 'application/json', "cache-control": "no-cache", 'X-Auth-Token': self.token}
+    def put(self, nffg, token = None):
+        if token is None:
+            token = self.token
+        headers = {'Content-Type': 'application/json', "cache-control": "no-cache", 'X-Auth-Token': token}
         logging.debug("Orchestrator url: "+self.put_url)
         resp = requests.put(self.put_url, data = json.dumps(nffg), headers=headers, timeout=long(self.timeout))
         resp.raise_for_status()
@@ -44,8 +48,8 @@ class GlobalOrchestrator(object):
         logging.debug("Delete completed")
         return resp.text
         
-    def checkNFFG(self, nffg_id):
-        status = self.get(nffg_id)
+    def checkNFFG(self, nffg_id, token = None):
+        status = self.get(nffg_id, token)
         logging.debug("Check completed")
         return status
         

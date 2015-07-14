@@ -12,6 +12,7 @@ ISP_INGRESS = Configuration().ISP_INGRESS
 ISP_EGRESS = Configuration().ISP_EGRESS
 CONTROL_INGRESS = Configuration().CONTROL_INGRESS
 USER_INGRESS = Configuration().USER_INGRESS
+CONTROL_EGRESS = Configuration().CONTROL_EGRESS
 
 INGRESS_PORT = Configuration().INGRESS_PORT
 INGRESS_TYPE = Configuration().INGRESS_TYPE
@@ -34,7 +35,7 @@ class Endpoint(object):
         # Characterize INGRESS endpoint
         for endpoint in self.nf_fg.listEndpoint:
             # Connects directly vnf with endpoint_switch, that means get rid of egress_endpoint           
-            if endpoint.name == ISP_EGRESS:
+            if endpoint.name == ISP_EGRESS or endpoint.name == CONTROL_EGRESS:
                 endpoint.type = EGRESS_TYPE
                 endpoint.interface = EGRESS_PORT
                 logging.debug("NF-FG name: "+self.nf_fg.name)

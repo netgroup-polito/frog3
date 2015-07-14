@@ -234,19 +234,21 @@ class NF_FG(object):
                             return vnf
                                            
     def deleteEndpointConnections(self, endpoint):
+        deleted_flows = []
         ports = self.getVNFPortsSendingTrafficToEndpoint(endpoint.id)
         for port in ports[:]:            
             for flowrule in port.list_outgoing_label[:]:
                 if flowrule.action.endpoint is not None and getEndpointID(flowrule.action.endpoint) == endpoint.id:
+                    deleted_flows.append(flowrule.db_id)
                     port.list_outgoing_label.remove(flowrule)
-                    
-                    
         ports = self.getVNFPortsReceivingTrafficFromEndpont(endpoint.id)
         for port in ports[:]:
             for flowrule in port.list_ingoing_label[:]:
                 if 'ingress_endpoint' in flowrule.flowspec and flowrule.flowspec['ingress_endpoint'] == endpoint.id:
+                    deleted_flows.append(flowrule.db_id)
                     port.list_ingoing_label.remove(flowrule)
-                         
+        return deleted_flows   
+    
     def getVNFPortsReceivingTrafficFromEndpont(self,  endpoint_id):
         connected_ports  = []
         for vnf in self.listVNF:
@@ -380,14 +382,14 @@ class NF_FG(object):
         '''
         Make a wrapper of  createEndpointSwitch function
         '''
-        control_user_endpoint = self.getEndpointFromName(endpoint_name)
-        assert isinstance(control_user_endpoint, Endpoint)
-        if control_user_endpoint is None:
+        user_endpoint = self.getEndpointFromName(endpoint_name)
+        assert isinstance(user_endpoint, Endpoint)
+        if user_endpoint is None:
             raise Wrong_ISP_Graph(endpoint_name+" is not in the NF-FG")
-        endpoint_switch  = self.createEndpointSwitch(control_user_endpoint)
-        control_user_endpoint.endpoint_switch = endpoint_switch
-        logging.debug("addEndpointSwitch - control_user_endpoint id: "+control_user_endpoint._id)
-        logging.debug("addEndpointSwitch - control_user_endpoint.endpoint_switch id: "+control_user_endpoint.endpoint_switch.id)
+        endpoint_switch  = self.createEndpointSwitch(user_endpoint)
+        user_endpoint.endpoint_switch = endpoint_switch
+        logging.debug("addEndpointSwitch - control_user_endpoint id: "+user_endpoint._id)
+        logging.debug("addEndpointSwitch - control_user_endpoint.endpoint_switch id: "+user_endpoint.endpoint_switch.id)
 
         return endpoint_switch
     
@@ -921,13 +923,13 @@ class Endpoint(object):
             for port in ports:
                 for flowrule in port.list_outgoing_label:   
                     if flowrule.action.endpoint is not None and getEndpointID(flowrule.action.endpoint) == self.id:
-                        nf_fg.getEndpointMap()[getEndpointID(flowrule.action.endpoint)].type = 'physical'
+                        nf_fg.getEndpointMap()[getEndpointID(flowrule.action.endpoint)].type = external_port.type
                         nf_fg.getEndpointMap()[getEndpointID(flowrule.action.endpoint)].interface = external_port.internal_id
             for port in ports:
                 for flowrule in port.list_ingoing_label:
                     if 'ingress_endpoint' in flowrule.flowspec and flowrule.flowspec['ingress_endpoint'] == self.id:
                         nf_fg.getEndpointMap()[flowrule.flowspec['ingress_endpoint']].interface = external_port.internal_id
-                        nf_fg.getEndpointMap()[flowrule.flowspec['ingress_endpoint']].type = 'physical'
+                        nf_fg.getEndpointMap()[flowrule.flowspec['ingress_endpoint']].type = external_port.type
         else:              
             external_ports = ext_nf_fg.getVNFPortsReceivingTrafficFromEndpont(ext_nf_fg.getEndpointFromName(endpoint_name).id)
             for external_port in external_ports:
@@ -935,13 +937,13 @@ class Endpoint(object):
                 for port in ports:
                     for flowrule in port.list_outgoing_label:   
                         if flowrule.action.endpoint is not None and getEndpointID(flowrule.action.endpoint) == self.id:
-                            nf_fg.getEndpointMap()[getEndpointID(flowrule.action.endpoint)].type = 'physical'
+                            nf_fg.getEndpointMap()[getEndpointID(flowrule.action.endpoint)].type = external_port.type
                             nf_fg.getEndpointMap()[getEndpointID(flowrule.action.endpoint)].interface = external_port.internal_id
                 for port in ports:
                     for flowrule in port.list_ingoing_label:
                         if 'ingress_endpoint' in flowrule.flowspec and flowrule.flowspec['ingress_endpoint'] == self.id:
                             nf_fg.getEndpointMap()[flowrule.flowspec['ingress_endpoint']].interface = external_port.internal_id
-                            nf_fg.getEndpointMap()[flowrule.flowspec['ingress_endpoint']].type = 'physical'
+                            nf_fg.getEndpointMap()[flowrule.flowspec['ingress_endpoint']].type = external_port.type
             
         self.remote_graph_name = ext_nf_fg.name
         self.remote_id = ext_nf_fg.getEndpointFromName(endpoint_name).id
@@ -988,18 +990,18 @@ class VNF(object):
     def id(self):
         return self._id
     
-    def addPort(self, vnf=None, label=None, port_id=None, db_id=None, internal_id=None):
+    def addPort(self, vnf=None, label=None, port_id=None, db_id=None, internal_id=None, type=None):
         num = 0
         if label is not None:
             for port in self.listPort:
                 if port.id.split(":")[0] == label:
                     num = num + 1
-            port = Port(label+":"+str(num), vnf_id = vnf.id, db_id=db_id, internal_id=internal_id)
+            port = Port(label+":"+str(num), vnf_id = vnf.id, db_id=db_id, internal_id=internal_id, type=type)
         elif port_id is not None:
             if vnf is not None:
-                port = Port(port_id, vnf_id = vnf.id, db_id=db_id, internal_id=internal_id)
+                port = Port(port_id, vnf_id = vnf.id, db_id=db_id, internal_id=internal_id, type=type)
             else:
-                port = Port(port_id, db_id=db_id, internal_id=internal_id)
+                port = Port(port_id, db_id=db_id, internal_id=internal_id, type=type)
         self.listPort.append(port)
         return port
         
@@ -1112,7 +1114,7 @@ class Node(object):
       
 class Port(object):
     
-    def __init__(self, port_id, outgoing_label = None, ingoing_label= None, vnf_id = None,  internal_id = None, status = None, db_id=None):
+    def __init__(self, port_id, outgoing_label = None, ingoing_label= None, vnf_id = None,  internal_id = None, status = None, db_id=None, type=None):
         self._id = port_id
         self.vnf_id = vnf_id
         self.internal_id = internal_id
@@ -1121,7 +1123,8 @@ class Port(object):
         self.list_ingoing_label = []
         self.flowrules = []
         self.status = status
-        self.db_id=db_id
+        self.db_id = db_id
+        self.type = type
         if outgoing_label is not None:
             flowrules = []
             for flowrule in outgoing_label['flowrules']:

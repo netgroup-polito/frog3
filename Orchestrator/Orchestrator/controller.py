@@ -64,9 +64,11 @@ class UpperLayerOrchestratorController(object):
             self.token = token.get_token()
         elif self.AUTH_MODE == 'token':
             token = KeystoneAuthentication(self.keystone_server, user_token=self.token, orch_token=self.orchToken)
-            
+        
+        logging.debug("Getting resources information for graph id: "+str(nffg_id))
         # TODO: have I to manage a sort of cache? Reading from db the status, maybe
         session_id = Session().get_active_user_session_by_nf_fg_id(nffg_id).id
+        logging.debug("Corresponding to session id: "+str(session_id))
         status = self.getResourcesStatus(session_id, token)
         return json.dumps(status)
     

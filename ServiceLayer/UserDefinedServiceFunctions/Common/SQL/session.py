@@ -207,7 +207,7 @@ class Session(object):
         else:
             session_ref = session.query(SessionModel).filter_by(service_graph_id = service_graph_id).filter_by(ended = None).order_by(desc(SessionModel.started_at)).first()
         if session_ref is None:
-            raise sessionNotFound("Session Not Found")
+            raise sessionNotFound("Session Not Found, for servce graph id: "+str(service_graph_id))
         return session_ref
     
     def get_profile_id_from_active_user_session(self, user_id):

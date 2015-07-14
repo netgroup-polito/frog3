@@ -489,6 +489,8 @@ class FlowRoute(object):
                         if "interface" in flowspec['action']['endpoint']['type']:
                             action['outputPort'] = flowspec['action']['endpoint']['interface']
                 resource['flowrule']['actions']='OUTPUT='+str(action['outputPort'])
+            elif action['type']=='DROP':
+                resource['flowrule']['actions']='DROP'
             for match in flow['matches']:
                 for key, value in match.iteritems():
                     if key == 'sourceMAC':
@@ -506,6 +508,6 @@ class FlowRoute(object):
                     elif key == 'id':
                         resource['flowrule']['id'] = tenant_id+"-"+value
                     else:
-                        resource['flowrule'][key] = value
+                        resource['flowrule'][key] = str(value)
             resources.append(copy.deepcopy(resource))
         return resources

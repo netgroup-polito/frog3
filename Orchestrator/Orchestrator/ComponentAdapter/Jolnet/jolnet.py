@@ -5,6 +5,7 @@ Created on 13/apr/2015
 
 import logging
 import json
+import time
 
 from Common.config import Configuration
 from Common.Manifest.manifest import Manifest
@@ -215,7 +216,7 @@ class JolnetAdapter(OrchestratorInterface):
             else:
                 for port in vnf.listPort[:]:
                     if port.status == "new":
-                        self.createPort(port, vnf, nf_fg)
+                        self.addPorttoVNF(port, vnf, nf_fg)
                     
         #Create flow on the SDN network for graphs interconnection
         for endpoint in profile_graph.getVlanEgressEndpoints():
@@ -291,7 +292,7 @@ class JolnetAdapter(OrchestratorInterface):
         # Delete VNFs
         for vnf in updated_nffg.listVNF[:]:
             if vnf.status == 'to_be_deleted':
-                self.deleteServer(vnf)              
+                self.deleteServer(vnf, updated_nffg)              
             else:
                 # Delete ports
                 for port in vnf.listPort[:]:
@@ -306,7 +307,7 @@ class JolnetAdapter(OrchestratorInterface):
                         ODL().deleteFlow(switch_id, flow.internal_id)
         
         # Wait for resource deletion
-        for vnf in updated_nffg.listVNF[:]:
+        '''for vnf in updated_nffg.listVNF[:]:
             if vnf.status == 'to_be_deleted':
                 while True:
                     status = Nova().getServerStatus(self.novaEndpoint, token_id, vnf.internal_id)
@@ -328,7 +329,7 @@ class JolnetAdapter(OrchestratorInterface):
                                 break
                             if status == 'ERROR':
                                 raise Exception('Port status ERROR - '+vnf.internal_id)
-                            logging.debug("Port "+vnf.internal_id+" status "+status)
+                            logging.debug("Port "+vnf.internal_id+" status "+status)'''
     
     def openstackResourcesStatus(self, token_id):
         resources_status = {}
@@ -376,25 +377,29 @@ class JolnetAdapter(OrchestratorInterface):
     def createServer(self, vnf, nf_fg):
         for port in vnf.listPort[:]:
             self.createPort(port, vnf, nf_fg) 
-        
-        resp = Nova().createServer(self.novaEndpoint, self.token.get_token(), vnf.getResourceJSON())
+        json_data = vnf.getResourceJSON()
+        resp = Nova().createServer(self.novaEndpoint, self.token.get_token(), json_data)
         vnf.OSid = resp['server']['id']
+        
         #TODO: image location, location, type and availability_zone missing
         Graph().setVNFInternalID(vnf.id, vnf.OSid, self.session_id, nf_fg.db_id)
     
-    def deleteServer(self, vnf):
+    def deleteServer(self, vnf, nf_fg):
         Nova().deleteServer(self.novaEndpoint, self.token.get_token(), vnf.internal_id)
-        Graph().deleteFlowspecFromVNF(self.session_id, vnf.db_id)        
+        Graph().deleteFlowspecFromVNF(self.session_id, vnf.db_id)
+        Graph().deleteVNFNetworks(self.session_id, vnf.db_id)     
         Graph().deletePort(None, self.session_id, vnf.db_id)
-        Graph().deleteVNF(vnf.id, self.session_id) 
+        Graph().deleteVNF(vnf.id, self.session_id)
+        nf_fg.listVNF.remove(vnf)    
     
     def createPort(self, port, vnf, nf_fg):
         if port.net is None:
             #TODO: create an Openstack network and subnet and set the id into port.net instead of exception
             #You need to set its vlan-id as the one passed in the flowrule (you cannot do it from OpenStack)
             raise StackError("No network found for this port")
-                        
-        resp = Neutron().createPort(self.neutronEndpoint, self.token.get_token(), port.getResourceJSON())
+        
+        json_data = port.getResourceJSON()      
+        resp = Neutron().createPort(self.neutronEndpoint, self.token.get_token(), json_data)
         if resp['port']['status'] == "DOWN":
             port_id = resp['port']['id']
             port.setId(port_id)
@@ -406,6 +411,8 @@ class JolnetAdapter(OrchestratorInterface):
         if port.status == 'to_be_deleted':
             Neutron().deletePort(self.neutronEndpoint, self.token.get_token(), port.internal_id)
             Graph().deleteFlowspecFromPort(self.session_id, port.id)
+            p = Graph().getPortFromInternalID(port.internal_id)
+            Graph().deleteNetwok(p.os_network_id)
             Graph().deletePort(port.id, self.session_id)
         else:
             # Delete flow-rules
@@ -414,8 +421,19 @@ class JolnetAdapter(OrchestratorInterface):
                     Neutron().deletePort(self.neutronEndpoint, self.token.get_token(), port.internal_id)                                
                     Graph().deleteoOArch(flowrule.db_id, self.session_id)
                     Graph().deleteFlowspec(flowrule.db_id, self.session_id)
-                    Graph().deletePort(port.id, self.session_id)
+                    p = Graph().getPortFromInternalID(port.internal_id)
+                    Graph().deleteNetwok(p.os_network_id)
+                    Graph().deletePort(port.id, self.session_id)                   
                     port.list_outgoing_label.remove(flowrule)
+                    port.status = 'new'
+    
+    def addPorttoVNF(self, port, vnf, nf_fg):
+        vms = Graph().getVNFs(self.session_id)
+        for vm in vms:
+            if vm.graph_vnf_id == vnf.id:
+                port.setDeviceId(vm.internal_id)
+                self.createPort(port, vnf, nf_fg)
+                break;
         
     def getNetworkIdfromName(self, network_name):
         #Since we need to control explicitly the vlan id of OpenStack networks, we need to use this trick

@@ -341,7 +341,14 @@ class Neutron(object):
     Class used for Neutron API
     '''
     get_networks = "v2.0/networks"
+    get_network_status = "/v2.0/networks/%s"
+    create_network = "/v2.0/networks"
+    delete_network = "/v2.0/networks/%s"
+    create_subnet = "/v2.0/subnets"
+    delete_subnet = "/v2.0/subnets/%s"
+    get_subnet_status = "/v2.0/subnets/%s"
     get_ports = "v2.0/ports"
+    get_port_status = "/v2.0/ports/%s"
     
     def getNetworks(self, neutronEndpoint, token):
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}

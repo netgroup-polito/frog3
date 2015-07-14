@@ -131,7 +131,7 @@ class UpperLayerOrchestratorController(object):
         nf_fg = self.prepareNF_FG(token, nf_fg)
             
         
-        
+      
         # Get the component adapter associated  to the node where the nffg was instantiated
         node = Node().getNode(Graph().getNodeID(session.id))
         scheduler = Scheduler(session.id, token)
@@ -139,17 +139,21 @@ class UpperLayerOrchestratorController(object):
         orchestrator, new_node_endpoint = scheduler.schedule(nf_fg)
         
         if new_node_endpoint != old_node_endpoint:
-            self.delete(nf_fg.id)
-
-        # Update the nffg
-        try:
-            orchestrator.updateProfile(nf_fg, old_nf_fg, new_node_endpoint)
-        except Exception as ex:
-            logging.exception(ex)
-            #Session().set_error(session.id)
-            raise ex
+            orchestrator.deinstantiateProfile(nf_fg, node.domain_id)
+            Graph().delete_graph(session.id)
+            Session().set_ended(session.id)
+            Graph().addNFFG(nf_fg, session.id)
+            orchestrator.instantiateProfile(nf_fg, new_node_endpoint)
+        else:
+            # Update the nffg
+            try:
+                orchestrator.updateProfile(nf_fg, old_nf_fg, new_node_endpoint)
+            except Exception as ex:
+                logging.exception(ex)
+                #Session().set_error(session.id)
+                raise ex
         
-        #Session().updateSession(session.session_id, Node().getNodeID(token.get_userID()), Node().getNodeID(token.get_userID()), 'complete')
+            #Session().updateSession(session.session_id, Node().getNodeID(token.get_userID()), Node().getNodeID(token.get_userID()), 'complete')
 
 
         # TODO: update nffg status

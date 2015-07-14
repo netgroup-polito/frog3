@@ -563,6 +563,14 @@ class Graph(object):
         with session.begin():
             session.query(OpenstackNetworkModel).filter_by(id = network_id).delete()
     
+    def deleteVNFNetworks(self, session_id, vnf_id):
+        #TODO: check if it is the only VNF using that ports before deleting       
+        session = get_session()
+        ports = session.query(PortModel).filter_by(session_id = session_id).filter_by(vnf_id = vnf_id).all()
+        for port in ports:
+            with session.begin():
+                session.query(OpenstackNetworkModel).filter_by(id = port.os_network_id).delete()
+    
     def deleteSubnet(self, os_network_id):
         session = get_session()
         with session.begin():

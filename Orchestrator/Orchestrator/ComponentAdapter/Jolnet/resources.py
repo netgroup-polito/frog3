@@ -182,11 +182,15 @@ class Port(object):
         self.VNFId = VNFId
         self.port_id = None
         self.status = status
+        self.device_id = None
     
     def setNetwork(self, net_id, vlan_id):
         #Network id retrieved through Neutron REST API call
         self.net = net_id
         self.vlan = vlan_id
+        
+    def setDeviceId(self, device_id):
+        self.device_id = device_id
     
     def setId(self, port_id):
         #Port id returned after port creation with Neutron API
@@ -197,6 +201,8 @@ class Port(object):
         resource['port'] = {}
         resource['port']['name'] = self.VNFId+self.name
         resource['port']['network_id'] = self.net
+        if self.device_id is not None:
+            resource['port']['device_id'] = self.device_id
         return resource
 
 class VNF(object):

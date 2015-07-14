@@ -62,7 +62,7 @@
                   "id": "3",
                   "action": {
                     "VNF": {
-                      "id": "dhcp_ISP",
+                      "id": "nat_ISP",
                       "port": "inout:0"
                     },
                     "type": "output"

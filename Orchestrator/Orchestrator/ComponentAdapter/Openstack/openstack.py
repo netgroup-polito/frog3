@@ -228,6 +228,7 @@ class HeatOrchestrator(OrchestratorInterface):
         for endpoint in nffg.listEndpoint[:]:
             logging.debug("Deleting endpoint named "+str(endpoint.name))
             self.deleteEndpoint(endpoint, nffg)
+        
     
     def deleteEndpoint(self, endpoint, nffg):
         logging.debug("Deleting endpoint type: "+str(endpoint.type))
@@ -244,8 +245,8 @@ class HeatOrchestrator(OrchestratorInterface):
         
     def deletePort(self, token_id, port):
         Neutron().deletePort(self.neutronEndpoint, token_id, port.internal_id)
-        Graph().deleteFlowspecFromPort(self.session_id, port.id)
-        Graph().deletePort(port.id, self.session_id)
+        Graph().deleteFlowspecFromPort(self.session_id, port.db_id)
+        Graph().deletePort(port.db_id, self.session_id)
     
     def deleteVNF(self, token_id, vnf):
         Nova().deleteServer(self.novaEndpoint, token_id, vnf.internal_id)
@@ -465,7 +466,7 @@ class HeatOrchestrator(OrchestratorInterface):
         
     
     def disconnectEndpoint(self, endpoint, nffg):
-        if endpoint.type == 'openstack':
+        if endpoint.type == 'remote_interface':
             # TODO: delete flows
             pass
     
@@ -486,10 +487,15 @@ class HeatOrchestrator(OrchestratorInterface):
         # Set the flowrules that connects end-points to complete status
         for deleted_flowrule in deleted_flowrules:
             Graph().updateOArch(deleted_flowrule)
-            
+        
+        
+        # These flows for now are useless, because we set a base drop flow in br-int.
+        # Anyway if we would use them, they must be saved in the db, couse if we install a flow 
+        # with the same matches and priority the ODL mechanism driver raise an exception that
+        # cause the lost of samo following flow (Known bug).
         # Add drop flows to avoid that that packets match normal flows
-        for connected_port in ports:
-            connected_port.setDropFlow()
+        #for connected_port in ports:
+        #    connected_port.setDropFlow()
         pass
         
                                        
@@ -743,6 +749,8 @@ class HeatOrchestrator(OrchestratorInterface):
 
                         if("INGRESS_" in interface):
                             bridge_datapath_id = self.ovsdb.getBridgeDatapath_id(interface.split("INGRESS_")[1])
+                            if bridge_datapath_id is None:
+                                raise Exception("Bridge datapath id doesn't found for this interface: "+str(interface.split("INGRESS_")[1]))
                             interface = "INGRESS_"+bridge_datapath_id+":"+interface.split("INGRESS_")[1]
                             logging.debug("port with datapath id of his router: "+str(interface))
                             node2 = Node(endpoint = interface)

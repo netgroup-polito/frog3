@@ -146,8 +146,12 @@ class OrchestratorController():
         
 
         if num_sessions == 1:
+            # Update ISP graph if it necessary
+            self.checkRemoteConnections(token)
+            
             # De-instantiate User Profile Graph
             self.orchestrator.delete(session.service_graph_id)
+            
             logging.debug('Deinstantiate profile - user \"'+token.get_username()+'\" - Success')
             print 'ServiceLayerApplication - DELETE - User "'+token.get_username()+'"'
             
@@ -219,10 +223,7 @@ class OrchestratorController():
                  but in this moment the graph is always re-instantiated).
                 """
                 self.user_mac = None
-                
-            """
-             WARNING: the update, when a graph is connected to ISP, is not supported
-            """
+            
             new_nffg, isp_nf_fg = self.addDeviceToNF_FG(token)
             if isp_nf_fg is not None:
                 raise NotImplemented("Update of graph attached to ISP graph")
@@ -285,7 +286,13 @@ class OrchestratorController():
         logging.debug('ServiceLayerApplication -  addDeviceToNF_FG - Adding devices specific rules')
         nf_fg = NF_FG(self.graph)
         
-        nf_fg, isp_nf_fg = self._prepareProfile(token, nf_fg)
+        # If the graph is already attached to ISP, we don't have to reconnect it again
+        if ISP is True and (nf_fg.getEndpointFromName(CONTROL_EGRESS) is not None or nf_fg.getEndpointFromName(CONTROL_EGRESS) is not None):
+            already_connected = True
+        else:
+            already_connected = False
+        
+        nf_fg, isp_nf_fg = self._prepareProfile(token, nf_fg, already_connected=already_connected)
 
         # TODO: I should check the mac address already used in the ingress end point, but then
         # use the new graph to add all the mac (both those old and that new)
@@ -296,7 +303,7 @@ class OrchestratorController():
             
         return json.loads(nf_fg.getJSON()), isp_nf_fg
     
-    def _prepareProfile(self, token, nf_fg):
+    def _prepareProfile(self, token, nf_fg, already_connected = False):
         
         manage = NF_FG_Management(nf_fg, self.token)        
         
@@ -400,36 +407,62 @@ class OrchestratorController():
         #edge_endpoint.connectToExternalNF_FG(nf_fg, isp_nf_fg, ISP_INGRESS)
         update_isp = False
         if nf_fg.getEndpointFromName(CONTROL_EGRESS) is not None:
-            if Graph().getGraphConnections() is not None:
-                if len(Graph().getGraphConnections(isp_nf_fg.id, CONTROL_EGRESS)) != 0:
-                    if len(Graph().getGraphConnections(isp_nf_fg.id, CONTROL_EGRESS)) == 1:
-                        # Crate a switch
-                        control_endpoint_switch = isp_nf_fg.addEndpointSwitch(CONTROL_EGRESS)
-                    else:
-                        # Add a port to switch
-                        control_endpoint_switch = isp_nf_fg.getVNFConnectedToEndpoint(CONTROL_EGRESS)
-                    control_endpoint_port = isp_nf_fg.addPortToSwitch(control_endpoint_switch)
-                    update_isp = True
+            num_of_connections = len(Graph().getGraphConnections(isp_nf_fg.id, ISP_INGRESS))
+            # TOOO: If the graph is connected the following comparison should be done with 1 not 0
+            if num_of_connections == 0:
+                # Crate a switch
+                control_endpoint_switch = isp_nf_fg.addEndpointSwitch(CONTROL_EGRESS)
+                control_endpoint_port = control_endpoint_switch.listPort[0]
+                
+                switch_connection_port = isp_nf_fg.addPortToSwitch(control_endpoint_switch)
+                NF_FG_Management(isp_nf_fg).connectEndpointSwitchToVNF(isp_nf_fg.getEndpointFromName(CONTROL_EGRESS), control_endpoint_switch, switch_connection_port)
+                control_ingress_endpoint_id = isp_nf_fg.getEndpointFromName(CONTROL_EGRESS).id
+                isp_nf_fg.getEndpointFromName(CONTROL_EGRESS)._id = control_ingress_endpoint_id + nf_fg.getEndpointFromName(CONTROL_EGRESS).id
+            else:
+                control_endpoint_switch = isp_nf_fg.getVNFConnectedToEndpoint(isp_nf_fg.getEndpointFromName(CONTROL_EGRESS).id)[0]
+                
+                # Create a new endpoint
+                control_ingress_endpoint = isp_nf_fg.getEndpointFromName(CONTROL_EGRESS)
+                control_ingress_endpoint_id = control_ingress_endpoint.id+nf_fg.getEndpointFromName(CONTROL_EGRESS).id
+                endpoint = isp_nf_fg.createEndpoint(control_ingress_endpoint.name, endpoint_id=control_ingress_endpoint_id)
+                
+                # Add a port to switch 
+                control_endpoint_port = isp_nf_fg.addPortToSwitch(control_endpoint_switch)
+                           
+                # Connect the endpoint to the port just created
+                control_endpoint_port.setFlowRuleToEndpoint(endpoint.id)
+                control_endpoint_port.setFlowRuleFromEndpoint(control_endpoint_switch.id, endpoint.id)
+                
+            update_isp = True
         
         data_endpoint_switch = None
         data_endpoint_port = None
         if nf_fg.getEndpointFromName(USER_EGRESS) is not None:
-            if len(Graph().getGraphConnections(isp_nf_fg.id, ISP_INGRESS)) == 0:
+            num_of_connections = len(Graph().getGraphConnections(isp_nf_fg.id, ISP_INGRESS))
+            # TOOO: If the graph is connected the following comparison should be done with 1 not 0
+            if num_of_connections == 0:
                 # Crate a switch
                 data_endpoint_switch = isp_nf_fg.addEndpointSwitch(ISP_INGRESS)
                 data_endpoint_port = data_endpoint_switch.listPort[0]
                 
                 switch_connection_port = isp_nf_fg.addPortToSwitch(data_endpoint_switch)
                 NF_FG_Management(isp_nf_fg).connectEndpointSwitchToVNF(isp_nf_fg.getEndpointFromName(ISP_INGRESS), data_endpoint_switch, switch_connection_port)
+                isp_ingress_endpoint_id = isp_nf_fg.getEndpointFromName(ISP_INGRESS).id
+                isp_nf_fg.getEndpointFromName(USER_EGRESS)._id = isp_ingress_endpoint_id + nf_fg.getEndpointFromName(USER_EGRESS).id
             else:
-                data_endpoint_switch = isp_nf_fg.getVNFConnectedToEndpoint(ISP_INGRESS)
+                data_endpoint_switch = isp_nf_fg.getVNFConnectedToEndpoint(isp_nf_fg.getEndpointFromName(ISP_INGRESS).id)[0]
                 
-                # TODO: Create a new endpoint
+                # Create a new endpoint
+                isp_ingress_endpoint = isp_nf_fg.getEndpointFromName(ISP_INGRESS)
+                isp_ingress_endpoint_id = isp_ingress_endpoint.id+nf_fg.getEndpointFromName(USER_EGRESS).id
+                endpoint = isp_nf_fg.createEndpoint(isp_ingress_endpoint.name, endpoint_id=isp_ingress_endpoint_id)
                 
-                # Add a port to switch    
+                # Add a port to switch 
                 data_endpoint_port = isp_nf_fg.addPortToSwitch(data_endpoint_switch)
-                
-                # TODO: Connect the endpoint to the port just created
+                           
+                # Connect the endpoint to the port just created
+                data_endpoint_port.setFlowRuleToEndpoint(endpoint.id)
+                data_endpoint_port.setFlowRuleFromEndpoint(data_endpoint_switch.id, endpoint.id)
                 
             update_isp = True
                     
@@ -438,6 +471,14 @@ class OrchestratorController():
             logging.debug("new isp graph:")
             logging.debug(isp_nf_fg.getJSON())
             self.orchestrator.put(json.loads(isp_nf_fg.getJSON()), self.isp.get_token())
+            while True:
+                status = json.loads(self.orchestrator.checkNFFG(isp_nf_fg.id, self.isp.get_token()))
+                if status['status'] == 'in_progress':
+                    logging.debug('ISP in progress '+str(status['percentage_completed']))
+                    time.sleep(1)
+                    continue
+                logging.debug('ISP '+str(status['status'])+' '+str(status['percentage_completed']))
+                break
             isp_nf_fg = Graph().get_instantiated_nffg(self.isp.get_userID())
             if nf_fg.getEndpointFromName(CONTROL_EGRESS) is not None:
                 control_endpoint_switch = isp_nf_fg.getVNFConnectedToEndpoint(isp_nf_fg.getEndpointFromName(CONTROL_INGRESS).id)[0]
@@ -445,12 +486,71 @@ class OrchestratorController():
                 data_endpoint_switch = isp_nf_fg.getVNFConnectedToEndpoint(isp_nf_fg.getEndpointFromName(ISP_INGRESS).id)[0]           
         
         if nf_fg.getEndpointFromName(CONTROL_EGRESS) is not None:  
-            nf_fg.getEndpointFromName(CONTROL_EGRESS).connectToExternalNF_FGWithoutEdgeEndpoint(nf_fg, isp_nf_fg, CONTROL_INGRESS, control_endpoint_switch, control_endpoint_port)
+            nf_fg.getEndpointFromName(CONTROL_EGRESS).connectToExternalNF_FGWithoutEdgeEndpoint(nf_fg, isp_nf_fg, control_ingress_endpoint_id, control_endpoint_switch, control_endpoint_port)
         if nf_fg.getEndpointFromName(USER_EGRESS) is not None:
-            nf_fg.getEndpointFromName(USER_EGRESS).connectToExternalNF_FGWithoutEdgeEndpoint(nf_fg, isp_nf_fg, ISP_INGRESS, data_endpoint_switch, data_endpoint_port)
+            nf_fg.getEndpointFromName(USER_EGRESS).connectToExternalNF_FGWithoutEdgeEndpoint(nf_fg, isp_nf_fg, isp_ingress_endpoint_id, data_endpoint_switch, data_endpoint_port)
 
         
         logging.info("After remote connection : "+str(nf_fg.getJSON()))
 
         return isp_nf_fg
+
+    def deleteRemoteConnections(self):
+        pass
+    
+    def checkRemoteConnections(self, token):
+        nffg = Graph().get_instantiated_nffg(token.get_userID())
         
+        self.isp = KeystoneAuthentication(self.keystone_server,ISP_TENANT,ISP_USERNAME, ISP_PASSWORD)
+        if UserSession(self.isp.get_userID(), self.isp).checkSession('ISP_graph', self.orchestrator) is True:
+            isp_nf_fg = Graph().get_instantiated_nffg(self.isp.get_userID())
+        else:
+            logging.warning('ISP is unexpectedly not correctly instantiated')
+            return
+            
+        num_of_connections = len(Graph().getGraphConnections(isp_nf_fg.id, ISP_INGRESS))
+        if num_of_connections == 0:
+            return
+                
+        update_isp = False
+        if ISP is True:
+            if nffg.getEndpointFromName(CONTROL_EGRESS) is not None:
+                control_connections = Graph().getGraphConnections(nffg.id, CONTROL_INGRESS)
+                if len(control_connections) == 0:
+                    return
+                remote_control_endpoint_ref = Graph()._getEndpoint(control_connections[0].endpoint_id_2)
+                if num_of_connections == 1:
+                    isp_ingress_endpoint = isp_nf_fg.getEndpointFromName(CONTROL_INGRESS)
+                    
+                    manage = NF_FG_Management(isp_nf_fg, self.token)    
+                    manage.deleteEndpointSwitch(isp_nf_fg.getVNFConnectedToEndpoint(isp_ingress_endpoint.id)[0], isp_ingress_endpoint)
+                    isp_ingress_endpoint._id = isp_ingress_endpoint.id.split(nffg.getEndpointFromName(CONTROL_EGRESS).id)[0]
+
+                else:
+                    remote_control_endpoint = isp_nf_fg.getEndpointByID(remote_control_endpoint_ref.id)
+                    isp_nf_fg.deleteEndpointConnections(remote_control_endpoint)
+                    isp_nf_fg.listEndpoint.remove(remote_control_endpoint)
+                update_isp = True
+            if nffg.getEndpointFromName(USER_EGRESS) is not None:
+                logging.debug("getGraphConnections(nffg.id, USER_EGRESS) "+str(nffg.id)+" - "+str(USER_EGRESS))
+                data_connections = Graph().getGraphConnections(nffg.id, USER_EGRESS)
+                if len(data_connections) == 0:
+                    return
+                remote_data_endpoint_ref = Graph()._getEndpoint(data_connections[0].endpoint_id_2)
+                
+                if num_of_connections == 1:
+                    isp_ingress_endpoint = isp_nf_fg.getEndpointFromName(ISP_INGRESS)
+                    
+                    manage = NF_FG_Management(isp_nf_fg, self.token)    
+                    manage.deleteEndpointSwitch(isp_nf_fg.getVNFConnectedToEndpoint(isp_ingress_endpoint.id)[0], isp_ingress_endpoint)
+                    isp_ingress_endpoint._id = isp_ingress_endpoint.id.split(nffg.getEndpointFromName(USER_EGRESS).id)[0]
+                else:
+                    remote_data_endpoint = isp_nf_fg.getEndpointByID(remote_data_endpoint_ref.graph_endpoint_id)
+                    isp_nf_fg.deletePortsConnectedToEndpoint(remote_data_endpoint)
+                    isp_nf_fg.listEndpoint.remove(remote_data_endpoint)
+                update_isp = True
+        
+        if update_isp is True:
+            logging.debug("new isp graph:")
+            logging.debug(isp_nf_fg.getJSON())
+            self.orchestrator.put(json.loads(isp_nf_fg.getJSON()), self.isp.get_token())

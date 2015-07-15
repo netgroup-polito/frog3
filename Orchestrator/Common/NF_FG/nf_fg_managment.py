@@ -81,6 +81,24 @@ class NF_FG_Management(object):
         return new_ng_fg
         """
         
+    def deleteEndpointSwitch(self, switch, endpoint):
+        endpoint_port = self.nf_fg.getVNFPortsConnectedToEndpoint(endpoint.id)[0]
+        for sw_port in switch.listPort:
+            if sw_port.id != endpoint_port.id:
+                
+                ports = self.nf_fg.getVNFPortsSendingTrafficToVNFPort(switch.id, sw_port.id)
+                for port in ports:
+                    flows = port.getVNFPortsFlowruleSendingTrafficToVNFPort(switch.id, sw_port.id)
+                    for flow in flows:
+                        flow.action = Action('output', endpoint = {'id':endpoint.id})
+                    
+                    
+                    flowrules = endpoint_port.list_ingoing_label
+                    for flowrule in flowrules:
+                        flowrule.action = Action('output', vnf = {'id':port.vnf_id, 'port':port.id})
+                    port.list_ingoing_label = flowrules
+        self.nf_fg.listVNF.remove(switch)
+                    
     def connectEndpointSwitchToVNF(self, endpoint, endpoint_switch, switch_port):
         # Add connections from EndpointSwitch to VNFs
         ports = self.nf_fg.getVNFPortsSendingTrafficToEndpoint(endpoint.id)
@@ -202,7 +220,6 @@ class NF_FG_Management(object):
                     port.list_ingoing_label = port.list_ingoing_label + new_flowrules
         logging.debug("NF-FG after devices flows: "+self.nf_fg.getJSON())
         
-
     def setDeviceFlows(self, mac_address):
         """
         Add ingress flow for user device
@@ -407,7 +424,6 @@ class NF_FG_Management(object):
         switch_A.deletePortsWithoutFlows()
         switch_B.listPort = switch_B.listPort + switch_A.listPort  
              
-        
     def mergeSwitchesOfTwoGraph(self, nf_fg_A, endpoint_A, nf_fg_B, endpoint_B):
         
         #######################################################################
@@ -714,6 +730,4 @@ class NF_FG_Management(object):
         
     def setConnectionFlowrules(self, a, b):
         return
-        
-        
-        
+                

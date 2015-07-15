@@ -303,14 +303,18 @@ class Graph(object):
         #graph_id = self._getGraphID(service_graph_id)
         session_id = Session().get_active_user_session_by_nf_fg_id(service_graph_id).id
         endpoints = self.getEndpoints(session_id)
+        connections = []
         for endpoint in endpoints:
             if endpoint.name == endpoint_name:
-                return self.checkConnection(endpoint.id)
-        return []
+                connections = connections + self.checkConnection(endpoint.id)
+        return connections
     
     def checkConnection(self, endpoint_id):
         session = get_session() 
-        return session.query(GraphConnectionModel).filter_by(endpoint_id_2 = endpoint_id).all()
+        connections = []
+        connections = connections+session.query(GraphConnectionModel).filter_by(endpoint_id_2 = endpoint_id).all()
+        connections = connections+session.query(GraphConnectionModel).filter_by(endpoint_id_1 = endpoint_id).all()
+        return connections
 
     def getNodeID(self, session_id):
         session = get_session()
@@ -581,11 +585,11 @@ class Graph(object):
         with session.begin():
             session.query(VNFModel).filter_by(session_id = session_id).filter_by(graph_vnf_id = graph_vnf_id).delete()
 
-    def deletePort(self, graph_port_id, session_id, vnf_id=None):
+    def deletePort(self, port_id, session_id, vnf_id=None):
         session = get_session()
         with session.begin():
             if vnf_id is None:
-                session.query(PortModel).filter_by(session_id = session_id).filter_by(graph_port_id = graph_port_id).delete()
+                session.query(PortModel).filter_by(session_id = session_id).filter_by(id = port_id).delete()
             else:
                 session.query(PortModel).filter_by(session_id = session_id).filter_by(vnf_id = vnf_id).delete()
     
@@ -685,6 +689,7 @@ class Graph(object):
 
         nffg._id = service_graph_info_ref.service_graph_id
         nffg.name = service_graph_info_ref.service_graph_name
+        nffg.db_id = graphs_ref[0].id
         vnfs_ref = session.query(VNFModel).filter_by(session_id = session_id).all()
         for vnf_ref in vnfs_ref:
             vnf = nffg.createVNF(vnf_ref.name, vnf_ref.template_location, vnf_ref.graph_vnf_id, db_id=vnf_ref.id,internal_id=vnf_ref.internal_id)
@@ -819,7 +824,7 @@ class Graph(object):
             return session.query(EndpointModel).filter_by(graph_endpoint_id=graph_endpoint_id).filter_by(graph_id=graph_id).one().id
         except Exception as ex:
             logging.error(ex)
-            raise EndpointNotFound("Endpoint not found: ")
+            raise EndpointNotFound("Endpoint not found - graph_endpoint_id: "+str(graph_endpoint_id)+" - graph_id: "+str(graph_id))
     
     def _id_generator(self, nffg, session_id, update=False):
         graph_base_id = self._get_higher_graph_id()
@@ -855,7 +860,9 @@ class Graph(object):
         if update == False:
             nffg.db_id = self.graph_id
         else:
-            nffg.db_id = self.graph_id - 1
+            session = get_session()  
+            graphs_ref = session.query(GraphModel).filter_by(session_id = session_id).all()
+            nffg.db_id = graphs_ref[0].id
         for vnf in nffg.listVNF:
             if vnf.status is None or vnf.status == "new":
                 vnf.db_id = self.vnf_id

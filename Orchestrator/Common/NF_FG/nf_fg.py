@@ -232,7 +232,12 @@ class NF_FG(object):
                     if flowrule.flowspec['ingress_endpoint'] is not None and flowrule.flowspec['ingress_endpoint']  == endpoint_id:
                         if vnf.name == "Endpoint_Switch":
                             return vnf
-                                           
+    
+    def deletePortsConnectedToEndpoint(self, endpoint):
+        ports = self.getVNFPortsSendingTrafficToEndpoint(endpoint.id)
+        for port in ports[:]:
+            self.getVNFByID(port.vnf_id).listPort.remove(port)
+                                      
     def deleteEndpointConnections(self, endpoint):
         deleted_flows = []
         ports = self.getVNFPortsSendingTrafficToEndpoint(endpoint.id)
@@ -894,7 +899,7 @@ class Endpoint(object):
     def id(self):
         return self._id
     
-    def connectToExternalNF_FGWithoutEdgeEndpoint(self, nf_fg, ext_nf_fg, endpoint_name, endpoint_switch = None, endpoint_port = None):
+    def connectToExternalNF_FGWithoutEdgeEndpoint(self, nf_fg, ext_nf_fg, endpoint_id, endpoint_switch = None, endpoint_port = None):
         '''
         Returns the edge endpoint to connect
         '''
@@ -914,7 +919,7 @@ class Endpoint(object):
                         nf_fg.getEndpointMap()[flowrule.flowspec['ingress_endpoint']].interface = external_port.internal_id
                         nf_fg.getEndpointMap()[flowrule.flowspec['ingress_endpoint']].type = external_port.type
         else:              
-            external_ports = ext_nf_fg.getVNFPortsReceivingTrafficFromEndpont(ext_nf_fg.getEndpointFromName(endpoint_name).id)
+            external_ports = ext_nf_fg.getVNFPortsReceivingTrafficFromEndpont(endpoint_id)
             for external_port in external_ports:
                 # TODO: manage traffic splitters
                 for port in ports:
@@ -929,7 +934,7 @@ class Endpoint(object):
                             nf_fg.getEndpointMap()[flowrule.flowspec['ingress_endpoint']].type = external_port.type
             
         self.remote_graph_name = ext_nf_fg.name
-        self.remote_id = ext_nf_fg.getEndpointFromName(endpoint_name).id
+        self.remote_id = endpoint_id
         self.remote_graph = ext_nf_fg._id
         self.connection = True 
              
@@ -1336,7 +1341,7 @@ class Flowrule(object):
         return j_flowrule
     
 class Action(object):
-    def __init__(self, action_type, vnf = None, endpoint = None, graph_id = None):
+    def __init__(self, action_type, vnf = None, endpoint = None):
         self.type = action_type
         self.vnf = {}
         self.endpoint = {}

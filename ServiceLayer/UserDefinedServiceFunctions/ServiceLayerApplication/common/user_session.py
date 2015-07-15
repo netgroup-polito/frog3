@@ -28,6 +28,8 @@ class UserSession(object):
             if response['status'] != 'error' or response['status'] != 'not_found':
                 # The user profile is really instantiated
                 return True
+            if response['status'] != 'in_progress':
+                logging.debug("NFFG: "+str(nffg_id)+" in progress!");
             else:
                 # Set error state for all active session for the user
                 logging.debug("ERROR in NF-FG for user "+user_session.user_id);

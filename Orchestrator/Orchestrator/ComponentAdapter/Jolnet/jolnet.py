@@ -5,7 +5,6 @@ Created on 13/apr/2015
 
 import logging
 import json
-import time
 
 from Common.config import Configuration
 from Common.Manifest.manifest import Manifest
@@ -132,6 +131,7 @@ class JolnetAdapter(OrchestratorInterface):
         profile_graph = ProfileGraph()
         profile_graph.setId(nf_fg.id)
         
+        #TODO: merge this two cycles together
         for vnf in nf_fg.listVNF[:]:
             nf = self.buildVNF(vnf)
             profile_graph.addVNF(nf)
@@ -144,6 +144,10 @@ class JolnetAdapter(OrchestratorInterface):
             if endpoint.type == "vlan-egress" or endpoint.type == "vlan-ingress":
                 ep = self.buildEndpoint(endpoint)
                 profile_graph.addEndpoint(ep)
+                
+        for vnf in nf_fg.listVNF[:]:
+            nf = profile_graph.functions[vnf.id]
+            self.characterizeIngressEndpoints(profile_graph, nf_fg, vnf)
                              
         return profile_graph                        
     
@@ -173,10 +177,10 @@ class JolnetAdapter(OrchestratorInterface):
                 raise StackError("Traffic splitting and merging not supported!")
             
             for flowrule in port.list_outgoing_label:
-                if flowrule.action.type == "output" or flowrule.action.type == "endpoint":
+                if flowrule.action.type == "output":
                     if flowrule.matches is not None:
                         #Check if the network required already exists in Neutron
-                        net_vlan = flowrule.match.of_field['vlan-id']
+                        net_vlan = flowrule.match.of_field['vlanId']
                         name = "exp" + str(net_vlan)
                         net_id = self.getNetworkIdfromName(name)
                         p.setNetwork(net_id, net_vlan)                        
@@ -191,8 +195,8 @@ class JolnetAdapter(OrchestratorInterface):
                 if flowrule.action.type == "control":
                     if flowrule.matches is not None:
                         #TODO: attach the port to the right management network
-                        pass
-    
+                        pass                                          
+            
     def buildEndpoint(self, endpoint):
         if endpoint.status is None:
             status = "new"
@@ -202,6 +206,23 @@ class JolnetAdapter(OrchestratorInterface):
             return Endpoint(endpoint.id, endpoint.name, endpoint.connection, endpoint.type, endpoint.node, endpoint.interface, status, endpoint.remote_graph, endpoint.remote_id)
         else:
             return Endpoint(endpoint.id, endpoint.name, endpoint.connection, endpoint.type, endpoint.node, endpoint.interface, status)
+    
+    def characterizeIngressEndpoints(self, profile_graph, nf_fg, vnf):
+        for port in vnf.listPort[:]:
+            for flowrule in port.list_ingoing_label:
+                if flowrule.status == 'new':
+                    if flowrule.action.type == "output":
+                        if flowrule.matches is not None:
+                            endpoint = profile_graph.getIngressEndpoint(flowrule.flowspec['ingress_endpoint'])
+                            
+                            user_vlan = flowrule.match.of_field['vlanId']
+                            user_mac = flowrule.match.of_field['sourceMAC']
+                            user_port = flowrule.match.of_field['sourcePort']
+                            tmp = user_port.split(":")                                     
+                            cpe = tmp[0] + ":" + tmp[1]
+                            cpe_port = tmp[2]
+                            
+                            endpoint.setUserParams(user_mac, user_vlan, cpe, cpe_port)
     
     '''
     ######################################################################################################
@@ -240,6 +261,7 @@ class JolnetAdapter(OrchestratorInterface):
                         switch2 = Node().getNodeDomainID(node2_id)     
                         port2 = remote_endpoint.location         
                         
+                        #TODO: add the port on the endpoint switch
                         self.linkZones(nf_fg.db_id, switch1, port1, node1_id, switch2, port2, node2_id, vlan)
                     else:
                         logging.error("Remote graph " + endpoint.remote_graph + " has not a " + endpoint.id + " endpoint available!")
@@ -251,25 +273,9 @@ class JolnetAdapter(OrchestratorInterface):
         for endpoint in profile_graph.getVlanIngressEndpoints():
             if endpoint.status == "new":
                 if endpoint.connection is True:
-                    session = Session().get_active_user_session_by_nf_fg_id(endpoint.remote_graph).id
-                    existing_endpoints = Graph().getEndpoints(session)
-                    remote_endpoint = None
-                    for e in existing_endpoints:
-                        if (e.graph_endpoint_id == endpoint.remote_id):
-                            remote_endpoint = e
-                        
-                    user_vlan = endpoint.id
-                    user_mac = endpoint.user_mac
-                    graph_vlan = endpoint.remote_id               
-                    cpe = endpoint.node
-                    cpe_port = endpoint.interface
-                                    
-                    cpe_id = Node().getNodeFromDomainID(cpe).id
-                    node_id = Graph().getNodeID(session)
-                    switch = Node().getNodeDomainID(node_id)
-                    switch_port = remote_endpoint.location 
-                        
-                    self.linkUser(nf_fg.db_id, cpe, cpe_port, cpe_id, switch, switch_port, node_id, graph_vlan, user_vlan, user_mac)
+                    cpe_id = Node().getNodeFromDomainID(endpoint.user_node).id
+                    switch_id = Node().getNodeFromDomainID(endpoint.node).id
+                    self.linkUser(nf_fg.db_id, endpoint.user_node, endpoint.user_interface, cpe_id, endpoint.node, endpoint.interface, switch_id, endpoint.id, endpoint.user_vlan, endpoint.user_mac)
                 
                 #Insert location info into the database
                 Graph().setEndpointLocation(self.session_id, nf_fg.db_id, endpoint.id, endpoint.interface)                      
@@ -403,7 +409,6 @@ class JolnetAdapter(OrchestratorInterface):
         if resp['port']['status'] == "DOWN":
             port_id = resp['port']['id']
             port.setId(port_id)
-            #TODO: mac address and other port info missing in the db
             Graph().setPortInternalID(port.name, nf_fg.getVNFByID(vnf.id).db_id, port_id, self.session_id, nf_fg.db_id, port_type='openstack')
             Graph().setOSNetwork(port.net, port.name, nf_fg.getVNFByID(vnf.id).db_id, port_id, self.session_id, nf_fg.db_id,  vlan_id = port.vlan)
     
@@ -426,7 +431,17 @@ class JolnetAdapter(OrchestratorInterface):
                     Graph().deletePort(port.id, self.session_id)                   
                     port.list_outgoing_label.remove(flowrule)
                     port.status = 'new'
-    
+            for flowrule in port.list_ingoing_label[:]:
+                if flowrule.status == 'to_be_deleted':
+                    flows = Graph().getOArchs(self.session_id)
+                    for flow in flows:
+                        if flow.type == "external" and flow.status == "complete" and flow.internal_id.contains(flowrule.action.endpoint.id):
+                            switch_id = Node().getNodeDomainID(flow.start_node_id)
+                            ODL().deleteFlow(switch_id, flow.internal_id)
+                            Graph().deleteoOArch(flowrule.db_id, self.session_id)
+                            Graph().deleteFlowspec(flowrule.db_id, self.session_id)
+                            port.list_ingoing_label.remove(flowrule)
+            
     def addPorttoVNF(self, port, vnf, nf_fg):
         vms = Graph().getVNFs(self.session_id)
         for vm in vms:

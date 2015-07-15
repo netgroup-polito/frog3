@@ -273,9 +273,9 @@ class VNF(object):
 
 class Endpoint(object):
     '''
-    Class that contains the VNF data that will be used on the profile generation
+    Class that contains the endpoints data
     '''
-    def __init__(self, end_id, name, connection, end_type, node, interface, status = 'new', remote_graph = None, remote_id = None):
+    def __init__(self, end_id, name, connection, end_type, node, interface, status, remote_graph = None, remote_id = None):
         self.id = end_id
         self.name = name
         self.connection = connection
@@ -285,6 +285,17 @@ class Endpoint(object):
         self.status = status
         self.remote_graph = remote_graph
         self.remote_id = remote_id
+        self.user_mac = None
+        self.user_vlan = None
+        self.user_node = None
+        self.user_interface = None
+    
+    def setUserParams(self, user_mac, user_vlan, user_node, user_interface):
+        self.user_mac = user_mac
+        self.user_vlan = user_vlan
+        self.user_node = user_node
+        self.user_interface = user_interface
+        self.connection = True
     
 class ProfileGraph(object):
     '''
@@ -313,6 +324,12 @@ class ProfileGraph(object):
         Add a new endpoint to the graph
         '''
         self.endpoints[endpoint.id] = endpoint
+        
+    def getIngressEndpoint(self, endpoint_id):
+        for endpoint in self.endpoints.values():
+            if endpoint.type == "vlan-ingress":   
+                if endpoint.id == endpoint_id:
+                    return endpoint
     
     def getVlanEgressEndpoints(self):
         endpoints = []

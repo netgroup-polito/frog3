@@ -14,18 +14,44 @@
                               "endpoint":{
                                  "id":"295"
                               },
-                              "type":"endpoint"
+                              "type":"output"
                            },
                            "flowspec":{
                               "matches":[
                                  {  
                                     "id":"1",                                   
                                     "priority":"100",
-                                    "vlan-id":"295"
+                                    "vlanId":"295"
                                  }
                               ]
                            }
                         }
+              ]
+            },
+            "ingoing_label": {
+              "flowrules": [
+                {
+                  "id":"10",
+                  "action": {
+                    "VNF": {
+                      "id": "Switch_prova1",
+                      "port": "L2Port:0"
+                    },
+                    "type": "output"
+                  },
+                  "flowspec": {
+                    "matches": [
+                      {
+                        "id":"10",                                   
+                        "priority":"200",
+                        "vlanId":"298",
+                        "sourceMAC": "AA:AA:AA:AA:AA:AA",
+                        "sourcePort": "openflow:968199681216:5098"
+                      }
+                    ],
+                    "ingress_endpoint": "295"
+                  }
+                }
               ]
             }
           },
@@ -47,7 +73,7 @@
                       { 
                         "id":"2",                       
                         "priority":"100",
-                        "vlan-id":"293"
+                        "vlanId":"293"
                       }
                     ]
                   }
@@ -80,7 +106,7 @@
                       { 
                         "id":"3",                       
                         "priority":"100",
-                        "vlan-id":"293"
+                        "vlanId":"293"
                       }
                     ]
                   }
@@ -98,14 +124,14 @@
                     "endpoint": {
                       "id": "288"
                     },
-                    "type": "endpoint"
+                    "type": "output"
                   },
                   "flowspec": {
                     "matches": [
                       {
                         "id":"4",
                         "priority": "100",
-                        "vlan-id":"288"
+                        "vlanId":"288"
                       }
                     ]
                   }
@@ -132,14 +158,11 @@
          },
          {
             "name": "INGRESS",
-            "connection": true,
+            "connection": false,
             "type": "vlan-ingress",
-            "id": "298",
-            "node": "openflow:968199681216",
-            "interface": "5099",
-            "remote_graph": "5",
-            "remote_graph_name": "Jolnet Test Graph",
-            "remote_id": "295"
+            "id": "295",
+            "node": "openflow:44838630154304",
+            "interface": "5102"
          }
     ],
     "id": "5",

@@ -141,7 +141,6 @@ class UpperLayerOrchestratorController(object):
         if new_node_endpoint != old_node_endpoint:
             orchestrator.deinstantiateProfile(nf_fg, node.domain_id)
             Graph().delete_graph(session.id)
-            Session().set_ended(session.id)
             Graph().addNFFG(nf_fg, session.id)
             orchestrator.instantiateProfile(nf_fg, new_node_endpoint)
         else:
@@ -153,8 +152,7 @@ class UpperLayerOrchestratorController(object):
                 #Session().set_error(session.id)
                 raise ex
         
-            #Session().updateSession(session.session_id, Node().getNodeID(token.get_userID()), Node().getNodeID(token.get_userID()), 'complete')
-
+        #Session().updateSession(session.session_id, Node().getNodeID(token.get_userID()), Node().getNodeID(token.get_userID()), 'complete')
 
         # TODO: update nffg status
         return session.id

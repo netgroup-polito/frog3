@@ -12,17 +12,6 @@
             "remote_graph": "0",
             "remote_graph_name": "Jolnet ISP Graph",
             "remote_id": "288"      
-         },
-         {
-            "name": "INGRESS",
-            "connection": true,
-            "type": "vlan-ingress",
-            "id": "299",
-            "node": "openflow:968199681216",
-            "interface": "5099",
-            "remote_graph": "5",
-            "remote_graph_name": "Jolnet Test Graph",
-            "remote_id": "295"
          }
     ],
     "id": "10",

@@ -14,14 +14,14 @@
                     "endpoint": {
                       "id": "297"
                     },
-                    "type": "endpoint"
+                    "type": "output"
                   },
                   "flowspec": {
                     "matches": [
                       {
                         "id": "1",
                         "priority": "100",                     
-                        "vlan-id":"297"
+                        "vlanId":"297"
                       }
                     ]
                   }
@@ -39,14 +39,14 @@
                     "endpoint": {
                       "id": "288"
                     },
-                    "type": "endpoint"
+                    "type": "output"
                   },
                   "flowspec": {
                     "matches": [
                       {
                         "id": "2",
                         "priority": "100",                        
-                        "vlan-id":"288"
+                        "vlanId":"288"
                       }
                     ]
                   }
@@ -72,7 +72,7 @@
                       {
                         "id": "3",
                         "priority": "100",                       
-                        "vlan-id":"296"
+                        "vlanId":"296"
                       }
                     ]
                   }
@@ -105,7 +105,7 @@
                                  {
                                     "id": "4",
                                     "priority":"100",                                   
-                                    "vlan-id":"296"
+                                    "vlanId":"296"
                                  }
                               ]
                            }

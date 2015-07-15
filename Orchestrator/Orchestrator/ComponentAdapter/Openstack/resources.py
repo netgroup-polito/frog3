@@ -255,6 +255,9 @@ class VNF(object):
             else:
                 port_status = 'new'
             if port.status != 'new' and port.status != None:
+                logging.debug("vnf.name: "+str(vnf.name))
+                logging.debug("vnf.id: "+str(vnf.id))
+                logging.debug("port.id: "+str(port.id))
                 logging.debug("port.db_id: "+str(port.db_id))
                 net = Net(Graph().getNetwork(port.db_id).name)
                 net.network_id = Graph().getNetwork(port.db_id).id

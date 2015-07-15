@@ -146,12 +146,12 @@ class UpperLayerOrchestratorController(object):
             orchestrator.updateProfile(nf_fg, old_nf_fg, new_node_endpoint)
         except Exception as ex:
             logging.exception(ex)
-            #Session().set_error(session.id)
+            Session().set_error(session.id)
             raise ex
         
         #Session().updateSession(session.session_id, Node().getNodeID(token.get_userID()), Node().getNodeID(token.get_userID()), 'complete')
 
-
+        Session().updateSession(session.id, Node().getNodeID(token.get_userID()), Node().getNodeID(token.get_userID()), 'complete')
         # TODO: update nffg status
         return session.id
         

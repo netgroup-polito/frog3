@@ -354,7 +354,7 @@ class JolnetAdapter(OrchestratorInterface):
         
         for value in resources_status['ports'].itervalues():
             logging.debug("port - "+value)
-            if value == 'ACTIVE':
+            if value == 'ACTIVE' or value == 'DOWN':
                 num_resources_completed = num_resources_completed + 1
         for value in resources_status['vnfs'].itervalues():
             logging.debug("vnf - "+value)
@@ -428,7 +428,7 @@ class JolnetAdapter(OrchestratorInterface):
                     Graph().deleteFlowspec(flowrule.db_id, self.session_id)
                     p = Graph().getPortFromInternalID(port.internal_id)
                     Graph().deleteNetwok(p.os_network_id)
-                    Graph().deletePort(port.id, self.session_id)                   
+                    Graph().deletePort(port.db_id, self.session_id)                   
                     port.list_outgoing_label.remove(flowrule)
                     port.status = 'new'
             for flowrule in port.list_ingoing_label[:]:

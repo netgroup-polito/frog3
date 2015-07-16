@@ -7,7 +7,7 @@ Created on Oct 1, 2014
 import sys, os, inspect, falcon, logging
 
 from Common.config import Configuration
-from Orchestrator.orchestrator import UpperLayerOrchestrator
+from Orchestrator.orchestrator import UpperLayerOrchestrator, TemplateAPI, YANGAPI
 from Common.exception import Wrong_ISP_Graph, ISPNotDeployed
 
 conf = Configuration()
@@ -39,8 +39,12 @@ app = falcon.API()
 logging.info("Starting Orchestration Server application")
 
 upper_layer_API = UpperLayerOrchestrator(conf.AUTH_SERVER,conf.ORCH_USERNAME,conf.ORCH_PASSWORD,conf.ORCH_TENANT)
+template = TemplateAPI(conf.AUTH_SERVER,conf.ORCH_USERNAME,conf.ORCH_PASSWORD,conf.ORCH_TENANT)
+yang = YANGAPI(conf.AUTH_SERVER,conf.ORCH_USERNAME,conf.ORCH_PASSWORD,conf.ORCH_TENANT)
 app.add_route('/NF-FG', upper_layer_API)
 app.add_route('/NF-FG/{nffg_id}', upper_layer_API)
+app.add_route('/template/{image_id}', template)
+app.add_route('/yang/{image_id}', yang)
 
 
 logging.info("Falcon Successfully started")

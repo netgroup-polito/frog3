@@ -90,12 +90,15 @@ class Session(object):
             raise sessionNotFound("Session Not Found")
         return session_ref
     
-    def get_active_user_device_session(self, user_id, mac_address = None):
+    def get_active_user_device_session(self, user_id, mac_address = None, error_aware=True):
         '''
         returns if exists an active session of the user connected on the port of the switch passed
         '''
         session = get_session()
-        user_session = session.query(SessionModel).filter_by(user_id = user_id).filter_by(ended = None).filter_by(error = None).first()
+        if error_aware is True:
+            user_session = session.query(SessionModel).filter_by(user_id = user_id).filter_by(ended = None).filter_by(error = None).first()
+        else:
+            user_session = session.query(SessionModel).filter_by(user_id = user_id).filter_by(ended = None).first()
         if user_session is None:
             raise sessionNotFound("Session Not Found")
         if mac_address is None:

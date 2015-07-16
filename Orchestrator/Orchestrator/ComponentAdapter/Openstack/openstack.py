@@ -237,6 +237,7 @@ class HeatOrchestrator(OrchestratorInterface):
             self.deleteExitEndpoint(nffg, endpoint)
         if endpoint.connection is True:
             self.disconnectEndpoint(endpoint, nffg)
+        nffg.listEndpoint.remove(endpoint)
     
     def deleteFlowrule(self, token_id, port, flowrule):
         Neutron().deleteFlowrule(self.neutronEndpoint, token_id, flowrule.internal_id)

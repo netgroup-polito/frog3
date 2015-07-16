@@ -19,7 +19,37 @@ from Common.NF_FG.validator import ValidateNF_FG
 from Common.exception import wrongRequest, unauthorizedRequest, sessionNotFound, ingoingFlowruleMissing, ManifestValidationError
 
 
-
+class YANGAPI(object):
+    
+    def __init__(self, AUTH_SERVER, orch_UN,orch_PW,orch_tenant):
+        self.username=orch_UN;
+        self.password=orch_PW; 
+        self.tenant=orch_tenant;
+        self.keystone_server = AUTH_SERVER;
+        try:
+            self.keystoneAuth = KeystoneAuthentication(self.keystone_server, self.tenant, self.username, self.password);
+        except:
+            logging.exception("Orchestrator not authenticated!!")
+            raise
+    
+    def get(self, request, response, image_id):
+        pass
+    
+class TemplateAPI(object):
+    
+    def __init__(self, AUTH_SERVER, orch_UN,orch_PW,orch_tenant):
+        self.username=orch_UN;
+        self.password=orch_PW; 
+        self.tenant=orch_tenant;
+        self.keystone_server = AUTH_SERVER;
+        try:
+            self.keystoneAuth = KeystoneAuthentication(self.keystone_server, self.tenant, self.username, self.password);
+        except:
+            logging.exception("Orchestrator not authenticated!!")
+            raise
+    
+    def get(self, request, response, image_id):
+        pass
 
 class UpperLayerOrchestrator(object):
     '''
@@ -39,13 +69,6 @@ class UpperLayerOrchestrator(object):
         except:
             logging.exception("Orchestrator not authenticated!!")
             raise
-        if self.keystoneAuth is not None:
-            logging.info("Login Servlet orchestrator successfully authenticated!!")
-
-        logging.debug('Authenticating the Orchestrator')
-        self.keystoneAuth = KeystoneAuthentication(self.keystone_server,self.tenant,self.username,self.password)
-        
-
         
     def on_delete(self, request, response, nffg_id):
         try :
@@ -63,7 +86,7 @@ class UpperLayerOrchestrator(object):
             self.token = token
             
             # Now, it initialize a new controller instance to handle the request        
-            controller = UpperLayerOrchestratorController(self.keystone_server, self.keystoneAuth.get_admin_token(), "Orchestrator", self.token, response)
+            controller = UpperLayerOrchestratorController(self.keystone_server, self.getAdminToken(self.keystoneAuth), "Orchestrator", self.token, response)
 
             controller.delete(nffg_id)
             
@@ -95,7 +118,7 @@ class UpperLayerOrchestrator(object):
         except Exception as ex:
             logging.exception(ex)
             raise falcon.HTTPInternalServerError('Contact the admin. ',ex.message)
-
+    
     def on_get(self, request, response, nffg_id):
         try :
             # Orchestrator authenticates himself
@@ -112,7 +135,7 @@ class UpperLayerOrchestrator(object):
             self.token = token
             
             # Now, it initialize a new controller instance to handle the request        
-            controller = UpperLayerOrchestratorController(self.keystone_server, self.keystoneAuth.get_admin_token(), "Orchestrator", self.token, response)
+            controller = UpperLayerOrchestratorController(self.keystone_server, self.getAdminToken(self.keystoneAuth), "Orchestrator", self.token, response)
 
             
             response.body = controller.get(nffg_id)
@@ -168,7 +191,7 @@ class UpperLayerOrchestrator(object):
             self.token = token
             
             # Now, it initialize a new controller instance to handle the request        
-            controller = UpperLayerOrchestratorController(self.keystone_server, self.keystoneAuth.get_admin_token(), "Orchestrator", self.token, response)
+            controller = UpperLayerOrchestratorController(self.keystone_server, self.getAdminToken(self.keystoneAuth), "Orchestrator", self.token, response)
             response.body = controller.put(nf_fg)
             
             response.status = falcon.HTTP_202
@@ -187,5 +210,12 @@ class UpperLayerOrchestrator(object):
                 raise falcon.HTTPInternalServerError('Resource Not found.',err.message)
             raise err
     
-    def on_post(self, request, response):
-        pass
+    def getAdminToken(self, token):
+        if token.validateToken(self.keystone_server, token.get_admin_token(), token.get_admin_token()) is True:
+            return token.get_admin_token()
+        else:
+            logging.debug("Admin token out of date, renewing...")
+            self.keystoneAuth = KeystoneAuthentication(self.keystone_server,self.tenant,self.username,self.password)
+            return self.keystoneAuth.get_admin_token()
+    
+    

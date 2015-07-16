@@ -34,11 +34,11 @@ class GraphModel(Base):
     node_id = Column(VARCHAR(64))
     partial = Column(Boolean())
     
-class VNFModel(Base):
+class VNFInstanceModel(Base):
     '''
     Maps the database table node
     '''
-    __tablename__ = 'vnf'
+    __tablename__ = 'vnf_instance'
     attributes = ['id', 'internal_id', 'graph_vnf_id','session_id', 'graph_id', 'name','template_location', 'image_location', 'location','type', 'status', 'creation_date','last_update', 'availability_zone']
     id = Column(Integer, primary_key=True)
     internal_id = Column(VARCHAR(64))
@@ -225,7 +225,7 @@ class Graph(object):
     
     def getVNFs(self, session_id):
         session = get_session()
-        return session.query(VNFModel).filter_by(session_id = session_id).all()
+        return session.query(VNFInstanceModel).filter_by(session_id = session_id).all()
     
     def getPorts(self, session_id):
         session = get_session()
@@ -287,7 +287,7 @@ class Graph(object):
     def setVNFInternalID(self, graph_vnf_id, internal_id, session_id, graph_id, status='complete'):
         session = get_session()  
         with session.begin():
-            assert (session.query(VNFModel).filter_by(graph_vnf_id = graph_vnf_id).filter_by(session_id = session_id).filter_by(graph_id = graph_id).update({"internal_id": internal_id, "last_update":datetime.datetime.now(), 'status':status})==1)
+            assert (session.query(VNFInstanceModel).filter_by(graph_vnf_id = graph_vnf_id).filter_by(session_id = session_id).filter_by(graph_id = graph_id).update({"internal_id": internal_id, "last_update":datetime.datetime.now(), 'status':status})==1)
   
     def setOArchInternalID(self, graph_o_arch_id, internal_id, session_id, graph_id, arch_type = None, status='complete'):
         session = get_session()  
@@ -342,7 +342,7 @@ class Graph(object):
                                'type', 'status', 'creation_date','last_update', 'availability_zone']
                 '''
                 logging.debug("VNF db_id: "+str(vnf.db_id))
-                vnf_ref = VNFModel(id=vnf.db_id, graph_vnf_id = vnf.id, session_id=session_id,
+                vnf_ref = VNFInstanceModel(id=vnf.db_id, graph_vnf_id = vnf.id, session_id=session_id,
                                    graph_id=nffg.db_id, name=vnf.name, template_location=vnf.template,
                                    creation_date=datetime.datetime.now(), last_update=datetime.datetime.now(), status=default_status)
                 session.add(vnf_ref)
@@ -459,7 +459,7 @@ class Graph(object):
                                'type', 'status', 'creation_date','last_update', 'avialability_zone']
                 '''
                 if vnf.status == 'new':
-                    vnf_ref = VNFModel(id=vnf.db_id, graph_vnf_id = vnf.id, session_id=session_id,
+                    vnf_ref = VNFInstanceModel(id=vnf.db_id, graph_vnf_id = vnf.id, session_id=session_id,
                                        graph_id=nffg.db_id, name=vnf.name, template_location=vnf.template,
                                        creation_date=datetime.datetime.now(), last_update=datetime.datetime.now(), status=default_status)
                     session.add(vnf_ref)
@@ -567,6 +567,14 @@ class Graph(object):
         with session.begin():
             session.query(OpenstackNetworkModel).filter_by(id = network_id).delete()
     
+    def deleteVNFNetworks(self, session_id, vnf_id):
+        #TODO: check if it is the only VNF using that ports before deleting       
+        session = get_session()
+        ports = session.query(PortModel).filter_by(session_id = session_id).filter_by(vnf_id = vnf_id).all()
+        for port in ports:
+            with session.begin():
+                session.query(OpenstackNetworkModel).filter_by(id = port.os_network_id).delete()
+    
     def deleteSubnet(self, os_network_id):
         session = get_session()
         with session.begin():
@@ -575,7 +583,7 @@ class Graph(object):
     def deleteVNF(self, graph_vnf_id, session_id):
         session = get_session()
         with session.begin():
-            session.query(VNFModel).filter_by(session_id = session_id).filter_by(graph_vnf_id = graph_vnf_id).delete()
+            session.query(VNFInstanceModel).filter_by(session_id = session_id).filter_by(graph_vnf_id = graph_vnf_id).delete()
 
     def deletePort(self, port_id, session_id, vnf_id=None):
         session = get_session()
@@ -589,20 +597,20 @@ class Graph(object):
         session = get_session()
         with session.begin():
             o_archs_ref = session.query(O_ArchModel.id).\
-                filter(VNFModel.id == vnf_id).\
-                filter(VNFModel.id == PortModel.vnf_id).\
+                filter(VNFInstanceModel.id == vnf_id).\
+                filter(VNFInstanceModel.id == PortModel.vnf_id).\
                 filter(O_ArchModel.start_node_id == PortModel.id).\
                 filter(O_ArchModel.start_node_type == 'port').\
-                filter(VNFModel.session_id == session_id).all()
+                filter(VNFInstanceModel.session_id == session_id).all()
             for o_arch_ref in o_archs_ref:
                 session.query(O_ArchModel).filter_by(id = o_arch_ref.id).delete()
                 session.query(FlowspecModel).filter_by(session_id = session_id).filter_by(o_arch_id = o_arch_ref.id).delete()
             o_archs_ref = session.query(O_ArchModel.id).\
-                filter(VNFModel.id == vnf_id).\
-                filter(VNFModel.id == PortModel.vnf_id).\
+                filter(VNFInstanceModel.id == vnf_id).\
+                filter(VNFInstanceModel.id == PortModel.vnf_id).\
                 filter(O_ArchModel.end_node_id == PortModel.id).\
                 filter(O_ArchModel.end_node_type == 'port').\
-                filter(VNFModel.session_id == session_id).all()
+                filter(VNFInstanceModel.session_id == session_id).all()
             for o_arch_ref in o_archs_ref:
                 session.query(O_ArchModel).filter_by(id = o_arch_ref.id).delete()
                 session.query(FlowspecModel).filter_by(session_id = session_id).filter_by(o_arch_id = o_arch_ref.id).delete()
@@ -651,7 +659,7 @@ class Graph(object):
         session = get_session()
         with session.begin():
             session.query(GraphModel).filter_by(session_id = session_id).delete()
-            session.query(VNFModel).filter_by(session_id = session_id).delete()
+            session.query(VNFInstanceModel).filter_by(session_id = session_id).delete()
             subnets_ref = session.query(OpenstackSubnetModel.id).\
                 filter(OpenstackNetworkModel.id == OpenstackSubnetModel.os_network_id).\
                 filter(OpenstackNetworkModel.id == PortModel.os_network_id).\
@@ -682,7 +690,7 @@ class Graph(object):
         nffg._id = service_graph_info_ref.service_graph_id
         nffg.name = service_graph_info_ref.service_graph_name
         nffg.db_id = graphs_ref[0].id
-        vnfs_ref = session.query(VNFModel).filter_by(session_id = session_id).all()
+        vnfs_ref = session.query(VNFInstanceModel).filter_by(session_id = session_id).all()
         for vnf_ref in vnfs_ref:
             vnf = nffg.createVNF(vnf_ref.name, vnf_ref.template_location, vnf_ref.graph_vnf_id, db_id=vnf_ref.id,internal_id=vnf_ref.internal_id)
             ports_ref = session.query(PortModel).filter_by(session_id = session_id).filter_by(vnf_id = str(vnf_ref.id)).all()
@@ -692,7 +700,7 @@ class Graph(object):
                 for o_arch_ref in o_archs_ref:
                     if o_arch_ref.end_node_type == 'port':
                         connected_port_ref = session.query(PortModel).filter_by(id = o_arch_ref.end_node_id).first()
-                        connected_vnf_ref = session.query(VNFModel).filter_by(id = connected_port_ref.vnf_id).first()
+                        connected_vnf_ref = session.query(VNFInstanceModel).filter_by(id = connected_port_ref.vnf_id).first()
                         if connected_port_ref is not None:
                             flowspecs_ref = session.query(FlowspecModel).filter_by(o_arch_id= o_arch_ref.id).all()
                             for flowspec_ref in flowspecs_ref: 
@@ -757,7 +765,10 @@ class Graph(object):
                         endpoint.remote_graph_name = service_graph_info_ref.service_graph_name
                         endpoint.connection = True                 
                         graph_connection_ref = session.query(GraphConnectionModel).filter_by(endpoint_id_1 = endpoint_ref.id).one()
-                        endpoint.remote_id = self._getEndpoint(graph_connection_ref.endpoint_id_2).graph_endpoint_id
+                        try:
+                            endpoint.remote_id = self._getEndpoint(graph_connection_ref.endpoint_id_2).graph_endpoint_id
+                        except EndpointNotFound:
+                            endpoint.remote_id = None
 
         if encode:
             return nffg.getJSON()
@@ -808,7 +819,7 @@ class Graph(object):
             return session.query(EndpointModel).filter_by(id=endpoint_id).one()
         except Exception as ex:
             logging.error(ex)
-            raise EndpointNotFound("Endpoint not found: ")
+            raise EndpointNotFound("Endpoint not found - id: "+str(endpoint_id))
     
     def _getEndpointID(self, graph_endpoint_id, graph_id):
         session = get_session()  
@@ -890,7 +901,7 @@ class Graph(object):
     
     def _get_higher_vnf_id(self):
         session = get_session()  
-        return session.query(func.max(VNFModel.id).label("max_id")).one().max_id
+        return session.query(func.max(VNFInstanceModel.id).label("max_id")).one().max_id
         
     def _get_higher_port_id(self):
         session = get_session()  

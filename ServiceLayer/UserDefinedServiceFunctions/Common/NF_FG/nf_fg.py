@@ -134,6 +134,15 @@ class NF_FG(object):
     def id(self):
         return self._id 
 
+    def changeEndpointID(self, old_endpoint_id, new_endpoint_id):
+        ports = self.getVNFPortsConnectedToEndpoint(old_endpoint_id)
+        for port in ports:
+            flows = port.getVNFPortsFlowruleSendingTrafficToEndpoint(old_endpoint_id)
+            for flow in flows:
+                flow.action = Action('output', endpoint = {'id':new_endpoint_id})                    
+            flows = port.getIngoingFlowruleToSpecificEndpoint(old_endpoint_id)
+            for flow in flows:
+                flow.flowspec['ingress_endpoint'] = new_endpoint_id
         
     def characterizeEndpoint(self, endpoint, endpoint_type = None, interface = None, endpoint_id = None, node=None):
         if endpoint_id is not None:
@@ -852,23 +861,6 @@ class NF_FG(object):
             for endpoint in self.listEndpoint:
                 self.endpoint_map[endpoint.id] = endpoint
         return self.endpoint_map
-    
-    '''
-    Added for Jolnet adapter
-    '''
-    def getVlanIngressEndpoints(self):
-        endpoints = []
-        for endpoint in self.listEndpoint:
-            if endpoint.type == "vlan-ingress":   
-                endpoints.append(endpoint)
-        return endpoints
-    
-    def getVlanEgressEndpoints(self):
-        endpoints = []
-        for endpoint in self.listEndpoint:
-            if endpoint.type == "vlan-egress":   
-                endpoints.append(endpoint)
-        return endpoints
 
 class Connection(object):
     def __init__(self, ext_nf_fg_id, ext_edge_endpoint):
@@ -996,6 +988,23 @@ class VNF(object):
         return self._id
     
     def addPort(self, vnf=None, label=None, port_id=None, db_id=None, internal_id=None, type=None):
+        max = 0
+        if label is not None:
+            for port in self.listPort:
+                if port.id.split(":")[0] == label:
+                    if int(port.id.split(":")[1]) > max:
+                        max = int(port.id.split(":")[1])
+            auto_port_id = max + 1
+            port = Port(label+":"+str(auto_port_id), vnf_id = vnf.id, db_id=db_id, internal_id=internal_id, type=type)
+        elif port_id is not None:
+            if vnf is not None:
+                port = Port(port_id, vnf_id = vnf.id, db_id=db_id, internal_id=internal_id, type=type)
+            else:
+                port = Port(port_id, db_id=db_id, internal_id=internal_id, type=type)
+        self.listPort.append(port)
+        return port
+        '''
+        # Take as port id the label and the number of ports already in the switch
         num = 0
         if label is not None:
             for port in self.listPort:
@@ -1009,6 +1018,7 @@ class VNF(object):
                 port = Port(port_id, db_id=db_id, internal_id=internal_id, type=type)
         self.listPort.append(port)
         return port
+        '''
         
     def getControlPort(self):
         for self.port in self.listPort:

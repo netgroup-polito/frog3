@@ -553,6 +553,7 @@ class NF_FG_Management(object):
             self.nf_fg.listVNF.remove(vnf)
   
     def addToControlNet(self, vnf, port_id, endpoint_name = None):
+        switch = None
         if vnf.name != SWITCH_NAME:
             if endpoint_name is None: 
                 switch = self.nf_fg.addControlSwitch()
@@ -560,6 +561,7 @@ class NF_FG_Management(object):
                 switch = self.nf_fg.addControlSwitch(endpoint_name)
             switch_port = self.nf_fg.addPortToSwitch(switch)
             self.nf_fg.connectTwoVNFs(switch, switch_port, vnf, port_id)
+        return switch
             
     def getProfile(self, uri):    
         logging.debug("NF-FG_management - getProfile - uri: "+uri)

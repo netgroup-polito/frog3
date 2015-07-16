@@ -33,7 +33,7 @@ class VNFModel(Base):
     '''
     Maps the database table node
     '''
-    __tablename__ = 'vnf'
+    __tablename__ = 'vnf_instance'
     attributes = ['id', 'internal_id', 'graph_vnf_id','session_id', 'graph_id', 'name','template_location', 'image_location', 'location','type', 'status', 'creation_date','last_update', 'availability_zone']
     id = Column(Integer, primary_key=True)
     internal_id = Column(VARCHAR(64))

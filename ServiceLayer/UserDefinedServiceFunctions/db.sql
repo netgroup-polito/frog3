@@ -3,7 +3,7 @@
 -- http://www.phpmyadmin.net
 --
 -- Host: localhost
--- Generato il: Lug 09, 2015 alle 20:12
+-- Generato il: Lug 16, 2015 alle 16:56
 -- Versione del server: 5.5.41-0ubuntu0.14.04.1
 -- Versione PHP: 5.5.9-1ubuntu4.7
 
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS `endpoint` (
   `session_id` varchar(64) NOT NULL,
   `graph_id` varchar(64) NOT NULL,
   `name` varchar(64) DEFAULT NULL,
-  `type` varchar(64) NOT NULL,
+  `type` varchar(64) DEFAULT NULL,
   `location` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
@@ -243,10 +243,24 @@ CREATE TABLE IF NOT EXISTS `user_location` (
 -- --------------------------------------------------------
 
 --
--- Struttura della tabella `vnf`
+-- Struttura della tabella `vnf_image`
 --
 
-CREATE TABLE IF NOT EXISTS `vnf` (
+CREATE TABLE IF NOT EXISTS `vnf_image` (
+  `id` varchar(255) NOT NULL,
+  `internal_id` varchar(255) NOT NULL,
+  `template` text NOT NULL,
+  `configuration_model` text,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- --------------------------------------------------------
+
+--
+-- Struttura della tabella `vnf_instance`
+--
+
+CREATE TABLE IF NOT EXISTS `vnf_instance` (
   `id` int(64) NOT NULL,
   `internal_id` varchar(64) DEFAULT NULL,
   `graph_vnf_id` varchar(64) NOT NULL,

@@ -355,7 +355,7 @@ class JolnetAdapter(OrchestratorInterface):
         
         for value in resources_status['ports'].itervalues():
             logging.debug("port - "+value)
-            if value == 'ACTIVE' or value == 'DOWN':
+            if value == 'ACTIVE':
                 num_resources_completed = num_resources_completed + 1
         for value in resources_status['vnfs'].itervalues():
             logging.debug("vnf - "+value)
@@ -449,6 +449,8 @@ class JolnetAdapter(OrchestratorInterface):
             if vm.graph_vnf_id == vnf.id:
                 port.setDeviceId(vm.internal_id)
                 self.createPort(port, vnf, nf_fg)
+                #TODO: this calls gives a 500 error on OpenStack
+                Nova().attachPort(self.novaEndpoint, self.token.get_token(), port.port_id, vm.internal_id)
                 break;
         
     def getNetworkIdfromName(self, network_name):

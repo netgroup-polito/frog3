@@ -164,6 +164,7 @@ class JolnetAdapter(OrchestratorInterface):
             status = "new"
         else:
             status = vnf.status
+        #TODO: add image location to the database
         return VNF(vnf.id, vnf, image, flavor, vnf.availability_zone, status)
     
     def setVNFNetwork(self, vnf, nf):

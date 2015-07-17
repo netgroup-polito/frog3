@@ -44,8 +44,34 @@
                       {
                         "id":"10",                                   
                         "priority":"200",
-                        "vlanId":"298",
+                        "vlanId":"299",
                         "sourceMAC": "AA:AA:AA:AA:AA:AA",
+                        "sourcePort": "openflow:968199681216:5099"
+                      }
+                    ],
+                    "ingress_endpoint": "295"
+                  }
+                }
+              ]
+            },
+            "ingoing_label": {
+              "flowrules": [
+                {
+                  "id":"10",
+                  "action": {
+                    "VNF": {
+                      "id": "Switch_prova1",
+                      "port": "L2Port:0"
+                    },
+                    "type": "output"
+                  },
+                  "flowspec": {
+                    "matches": [
+                      {
+                        "id":"10",                                   
+                        "priority":"200",
+                        "vlanId":"298",
+                        "sourceMAC": "BB:BB:BB:BB:BB:BB",
                         "sourcePort": "openflow:968199681216:5098"
                       }
                     ],

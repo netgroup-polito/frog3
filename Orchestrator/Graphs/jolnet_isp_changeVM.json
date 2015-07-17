@@ -4,37 +4,12 @@
       {
         "vnf_descriptor": "jolnet_switch.json",
         "ports": [
-            {
+          {
             "id": "L2Port:0",
             "outgoing_label": {
               "flowrules": [
                 {
-                  "id": "1",
-                  "action": {
-                    "endpoint": {
-                      "id": "297"
-                    },
-                    "type": "output"
-                  },
-                  "flowspec": {
-                    "matches": [
-                      {
-                        "id": "1",
-                        "priority": "100",                     
-                        "vlanId":"297"
-                      }
-                    ]
-                  }
-                }
-              ]
-            }
-          },
-          {
-            "id": "L2Port:1",
-            "outgoing_label": {
-              "flowrules": [
-                {
-                  "id": "2",
+                  "id": "0",
                   "action": {
                     "endpoint": {
                       "id": "288"
@@ -44,7 +19,7 @@
                   "flowspec": {
                     "matches": [
                       {
-                        "id": "2",
+                        "id": "0",
                         "priority": "100",                        
                         "vlanId":"288"
                       }
@@ -55,14 +30,14 @@
             }
           },
            {
-            "id": "L2Port:2",
+            "id": "L2Port:1",
             "outgoing_label": {
               "flowrules": [
                 {
-                  "id": "3",
+                  "id": "1",
                   "action": {
                     "VNF": {
-                      "id": "dhcp_ISP",
+                      "id": "nat_ISP",
                       "port": "inout:0"
                     },
                     "type": "output"
@@ -70,9 +45,9 @@
                   "flowspec": {
                     "matches": [
                       {
-                        "id": "3",
+                        "id": "1",
                         "priority": "100",                       
-                        "vlanId":"282"
+                        "vlanId":"296"
                       }
                     ]
                   }
@@ -85,27 +60,27 @@
         "id": "endpoint_switch"
       },
       {
-            "vnf_descriptor":"jolnet_dhcp.json",
+            "vnf_descriptor":"jolnet_nat.json",
             "ports":[
                {
                   "id":"inout:0",
                   "outgoing_label":{
                      "flowrules":[
                         {
-                           "id":"4",
+                           "id":"10",
                            "action":{
                               "VNF":{
                                  "id":"endpoint_switch",
-                                 "port":"L2Port:2"
+                                 "port":"L2Port:1"
                               },
                               "type":"output"
                            },
                            "flowspec":{
                               "matches":[
                                  {
-                                    "id": "4",
+                                    "id": "10",
                                     "priority":"100",                                   
-                                    "vlanId":"282"
+                                    "vlanId":"296"
                                  }
                               ]
                            }
@@ -114,8 +89,8 @@
                   }
                }
             ],
-            "name":"dhcp_isp",
-            "id":"dhcp_ISP"
+            "name":"nat_isp",
+            "id":"nat_ISP"
          }
     ],
     "endpoints": [
@@ -124,16 +99,8 @@
         "connection": false,
         "type": "vlan-ingress",
         "id": "288",
-        "node": "openflow:110953238266560",
-        "interface": "5098" 
-     },
-     {
-        "name": "INGRESS",
-        "connection": false,
-        "type": "vlan-ingress",
-        "id": "297",
-        "node": "openflow:110953238266560",
-        "interface": "5098" 
+        "node": "openflow:110953238267840",
+        "interface": "5097" 
      }
     ],
     "id": "0",

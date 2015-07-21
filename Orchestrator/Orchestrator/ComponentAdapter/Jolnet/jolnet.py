@@ -450,7 +450,7 @@ class JolnetAdapter(OrchestratorInterface):
                 port.setDeviceId(vm.internal_id)
                 self.createPort(port, vnf, nf_fg)
                 #TODO: this calls gives a 500 error on OpenStack
-                Nova().attachPort(self.novaEndpoint, self.token.get_token(), port.port_id, vm.internal_id)
+                #Nova().attachPort(self.novaEndpoint, self.token.get_token(), port.port_id, vm.internal_id)
                 break;
         
     def getNetworkIdfromName(self, network_name):

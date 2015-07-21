@@ -44,10 +44,8 @@ class UpperLayerOrchestratorController(object):
             self.AUTH_MODE = 'token'       
             self.token = token
             
-        if OrchestratorToken is not None:
-            self.AUTH_MODE = 'token'     
-            self.orchToken = OrchestratorToken
-            
+        if OrchestratorToken is not None:    
+            self.orchToken = OrchestratorToken            
         if response is not None:
             self.response = response 
             

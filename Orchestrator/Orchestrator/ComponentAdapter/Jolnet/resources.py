@@ -296,6 +296,7 @@ class Endpoint(object):
         self.user_node = user_node
         self.user_interface = user_interface
         self.connection = True
+        self.status = 'new'
     
 class ProfileGraph(object):
     '''

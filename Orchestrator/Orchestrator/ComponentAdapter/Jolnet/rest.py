@@ -64,8 +64,6 @@ class ODL(object):
         resp = requests.delete(url,headers=headers, auth=(self.odl_user, self.odl_pass))
         resp.raise_for_status()
         return resp.text
-    
-    #TODO: aggiungere chiamate AD-SAL per host tracking???
 
 class Heat(object):
     ''' 
@@ -237,6 +235,7 @@ class Nova(object):
     getHostAggregateListPath="/os-aggregates"
     addComputeNodeToHostAggregatePath = "/os-aggregates/%s/action"
     addServer = "/servers"
+    attachInterface = "/servers/%s/os-interface"
     
     def getAvailabilityZones(self, novaEndpoint, token):
         """
@@ -321,6 +320,13 @@ class Nova(object):
         resp = requests.delete(novaEndpoint + self.addServer + "/" + server_id, headers=headers)
         resp.raise_for_status()
         return resp
+    
+    def attachPort(self, novaEndpoint, token, port_id, server_id):
+        data = {"interfaceAttachment": {"port_id": port_id}}
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.post(novaEndpoint + (self.attachInterface % server_id), data=json.dumps(data), headers=headers)
+        resp.raise_for_status()
+        return json.loads(resp.text)
        
 class Glance(object):
     '''

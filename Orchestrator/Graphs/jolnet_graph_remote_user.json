@@ -44,9 +44,8 @@
                       {
                         "id":"10",                                   
                         "priority":"200",
-                        "vlanId":"298",
-                        "sourceMAC": "AA:AA:AA:AA:AA:AA",
-                        "sourcePort": "openflow:968199681216:5098"
+                        "vlanId":"295",
+                        "sourcePort": "openflow:110953238266560:5098"
                       }
                     ],
                     "ingress_endpoint": "295"

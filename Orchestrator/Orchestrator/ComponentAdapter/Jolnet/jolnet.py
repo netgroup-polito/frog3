@@ -164,6 +164,7 @@ class JolnetAdapter(OrchestratorInterface):
             status = "new"
         else:
             status = vnf.status
+        #TODO: add image location to the database
         return VNF(vnf.id, vnf, image, flavor, vnf.availability_zone, status)
     
     def setVNFNetwork(self, vnf, nf):
@@ -210,19 +211,21 @@ class JolnetAdapter(OrchestratorInterface):
     def characterizeIngressEndpoints(self, profile_graph, nf_fg, vnf):
         for port in vnf.listPort[:]:
             for flowrule in port.list_ingoing_label:
-                if flowrule.status == 'new':
-                    if flowrule.action.type == "output":
-                        if flowrule.matches is not None:
-                            endpoint = profile_graph.getIngressEndpoint(flowrule.flowspec['ingress_endpoint'])
+                if flowrule.action.type == "output":
+                    if flowrule.matches is not None:
+                        endpoint = profile_graph.getIngressEndpoint(flowrule.flowspec['ingress_endpoint'])
                             
-                            user_vlan = flowrule.match.of_field['vlanId']
+                        user_vlan = flowrule.match.of_field['vlanId']
+                        if 'sourceMAC' in flowrule.match.of_field:
                             user_mac = flowrule.match.of_field['sourceMAC']
-                            user_port = flowrule.match.of_field['sourcePort']
-                            tmp = user_port.split(":")                                     
-                            cpe = tmp[0] + ":" + tmp[1]
-                            cpe_port = tmp[2]
+                        else:
+                            user_mac = None
+                        user_port = flowrule.match.of_field['sourcePort']
+                        tmp = user_port.split(":")                                     
+                        cpe = tmp[0] + ":" + tmp[1]
+                        cpe_port = tmp[2]
                             
-                            endpoint.setUserParams(user_mac, user_vlan, cpe, cpe_port)
+                        endpoint.setUserParams(user_mac, user_vlan, cpe, cpe_port)
     
     '''
     ######################################################################################################
@@ -448,6 +451,8 @@ class JolnetAdapter(OrchestratorInterface):
             if vm.graph_vnf_id == vnf.id:
                 port.setDeviceId(vm.internal_id)
                 self.createPort(port, vnf, nf_fg)
+                #TODO: this calls gives a 500 error on OpenStack
+                #Nova().attachPort(self.novaEndpoint, self.token.get_token(), port.port_id, vm.internal_id)
                 break;
         
     def getNetworkIdfromName(self, network_name):
@@ -583,12 +588,17 @@ class JolnetAdapter(OrchestratorInterface):
                 output port where to send out the traffic (action)
             graph_vlan:
                 new VLAN id to be applied to packets (action)
-        '''
-        action1 = Action()
-        action1.setSwapVlanAction(graph_vlan)
-        action2 = Action()
-        action2.setOutputAction(out_port, 65535)
-        actions = [action1, action2]
+        '''       
+        if user_vlan != graph_vlan:
+            action1 = Action()
+            action1.setSwapVlanAction(graph_vlan)
+            action2 = Action()
+            action2.setOutputAction(out_port, 65535)
+            actions = [action1, action2]
+        else:
+            action1 = Action()
+            action1.setOutputAction(out_port, 65535)
+            actions = [action1]
         
         priority = 10
         match = Match()
@@ -623,11 +633,16 @@ class JolnetAdapter(OrchestratorInterface):
             graph_vlan:
                 VLAN id of incoming packets (matching)
         '''
-        action1 = Action()
-        action1.setSwapVlanAction(user_vlan)
-        action2 = Action()
-        action2.setOutputAction(out_port, 65535)
-        actions = [action1, action2]
+        if user_vlan != graph_vlan:
+            action1 = Action()
+            action1.setSwapVlanAction(user_vlan)
+            action2 = Action()
+            action2.setOutputAction(out_port, 65535)
+            actions = [action1, action2]
+        else:
+            action1 = Action()
+            action1.setOutputAction(out_port, 65535)
+            actions = [action1]
         
         priority = 10
         match = Match()

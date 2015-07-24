@@ -78,17 +78,27 @@ class UpperLayerOrchestrator(object):
             
             token = request.get_header("X-Auth-Token")
             
-            if token is None:
+            #temporary basic auth for Jolnet controller (not secure!) 
+            user = request.get_header("X-Auth-User")
+            pwd = request.get_header("X-Auth-Pass")
+            tenant = request.get_header("X-Auth-Tenant")
+            
+            if token is None and (user is None or pwd is None or tenant is None):
                 description = "{\"error\":{\"message\":\"Please provide an auth token\",\"code\":\"401\",\"title\":\"Unauthorized\"}}"            
                 raise falcon.HTTPUnauthorized('Auth token required',
                                               description,
                                               href='http://docs.example.com/auth')
-            self.token = token
             
-            # Now, it initialize a new controller instance to handle the request        
-            controller = UpperLayerOrchestratorController(self.keystone_server, self.getAdminToken(self.keystoneAuth), "Orchestrator", self.token, response)
-
-            controller.delete(nffg_id)
+            
+            if token is not None:
+                self.token = token
+                # Now, it initialize a new controller instance to handle the request        
+                controller = UpperLayerOrchestratorController(self.keystone_server, self.getAdminToken(self.keystoneAuth), "Orchestrator", self.token, response)
+                response.body = controller.delete(nffg_id)
+            else:
+                # Now, it initialize a new controller instance to handle the request        
+                controller = UpperLayerOrchestratorController(self.keystone_server, self.getAdminToken(self.keystoneAuth), "Orchestrator", response = response, username = user, password = pwd, tenant = tenant)
+                response.body = controller.delete(nffg_id)
             
         except NoResultFound:
             logging.exception("EXCEPTION - NoResultFound")
@@ -127,18 +137,27 @@ class UpperLayerOrchestrator(object):
             
             token = request.get_header("X-Auth-Token")
             
-            if token is None:
+            #temporary basic auth for Jolnet controller (not secure!) 
+            user = request.get_header("X-Auth-User")
+            pwd = request.get_header("X-Auth-Pass")
+            tenant = request.get_header("X-Auth-Tenant")
+            
+            if token is None and (user is None or pwd is None or tenant is None):
                 description = "{\"error\":{\"message\":\"Please provide an auth token\",\"code\":\"401\",\"title\":\"Unauthorized\"}}"            
                 raise falcon.HTTPUnauthorized('Auth token required',
                                               description,
                                               href='http://docs.example.com/auth')
-            self.token = token
             
-            # Now, it initialize a new controller instance to handle the request        
-            controller = UpperLayerOrchestratorController(self.keystone_server, self.getAdminToken(self.keystoneAuth), "Orchestrator", self.token, response)
-
+            if token is not None:
+                self.token = token
+                # Now, it initialize a new controller instance to handle the request        
+                controller = UpperLayerOrchestratorController(self.keystone_server, self.getAdminToken(self.keystoneAuth), "Orchestrator", self.token, response)
+                response.body = controller.get(nffg_id)
+            else:
+                # Now, it initialize a new controller instance to handle the request        
+                controller = UpperLayerOrchestratorController(self.keystone_server, self.getAdminToken(self.keystoneAuth), "Orchestrator", response = response, username = user, password = pwd, tenant = tenant)
+                response.body = controller.get(nffg_id)
             
-            response.body = controller.get(nffg_id)
             response.status = falcon.HTTP_200
             
         except NoResultFound:
@@ -180,20 +199,30 @@ class UpperLayerOrchestrator(object):
             #self.authenticateOrch()
             
             token = request.get_header("X-Auth-Token")
+            
+            #temporary basic auth for Jolnet controller (not secure!) 
+            user = request.get_header("X-Auth-User")
+            pwd = request.get_header("X-Auth-Pass")
+            tenant = request.get_header("X-Auth-Tenant")
+            
             nf_fg = json.load(request.stream, 'utf-8')
             ValidateNF_FG(nf_fg).validate()
             
-            if token is None:
+            if token is None and (user is None or pwd is None or tenant is None):
                 description = "{\"error\":{\"message\":\"Please provide an auth token\",\"code\":\"401\",\"title\":\"Unauthorized\"}}"            
                 raise falcon.HTTPUnauthorized('Auth token required',
                                               description,
                                               href='http://docs.example.com/auth')
-            self.token = token
-            
-            # Now, it initialize a new controller instance to handle the request        
-            controller = UpperLayerOrchestratorController(self.keystone_server, self.getAdminToken(self.keystoneAuth), "Orchestrator", self.token, response)
-            response.body = controller.put(nf_fg)
-            
+            if token is not None:
+                self.token = token
+                # Now, it initialize a new controller instance to handle the request        
+                controller = UpperLayerOrchestratorController(self.keystone_server, self.getAdminToken(self.keystoneAuth), "Orchestrator", self.token, response)
+                response.body = controller.put(nf_fg)
+            else:
+                # Now, it initialize a new controller instance to handle the request        
+                controller = UpperLayerOrchestratorController(self.keystone_server, self.getAdminToken(self.keystoneAuth), "Orchestrator", response = response, username = user, password = pwd, tenant = tenant)
+                response.body = controller.put(nf_fg)
+
             response.status = falcon.HTTP_202
             
         except wrongRequest as err:

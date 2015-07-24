@@ -284,6 +284,16 @@ class Graph(object):
         with session.begin():
             assert (session.query(PortModel).filter_by(name = port_name).filter_by(vnf_id = vnf_id).filter_by(session_id = session_id).filter_by(graph_id = graph_id).update({"internal_id": internal_id,"last_update":datetime.datetime.now(), 'status':status, 'type':port_type})==1)
     
+    def setPortMacAddress(self, port_id, mac_address):
+        session = get_session()  
+        with session.begin():
+            assert (session.query(PortModel).filter_by(id = port_id).update({"mac_address": mac_address,"last_update":datetime.datetime.now()})==1)
+    
+    def checkMacAddress(self, mac_address):
+        session = get_session()  
+        with session.begin():
+            session.query(PortModel).filter_by(mac_address = mac_address).one()
+                    
     def setVNFInternalID(self, graph_vnf_id, internal_id, session_id, graph_id, status='complete'):
         session = get_session()  
         with session.begin():

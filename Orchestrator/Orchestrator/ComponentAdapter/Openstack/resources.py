@@ -6,6 +6,7 @@ Created on Jul 1, 2015
 import collections
 import logging
 import copy
+from Orchestrator.ComponentAdapter.Common import utils
 from Common.config import Configuration
 from Common.SQL.graph import Graph
 
@@ -322,11 +323,11 @@ class Port(object):
     Class that contains the port data for the VNF
     '''        
     
-    def __init__(self, portTemplate, VNFId, status='new', net=None, internal_id=None):
+    def __init__(self, port_info, VNFId, status='new', net=None, internal_id=None):
         '''
         Constructor for the port
         params:
-            portTemplate:
+            port_info:
                 The template of the port from the user profile graph
             VNFId:
                 The Id of the VNF associated to that port
@@ -334,7 +335,11 @@ class Port(object):
         self.net = net
         self.trash = net
         self.fip = None
-        self.name = portTemplate.id
+        self.name = port_info.id
+        if hasattr(port_info, 'mac_address'):
+            self.mac_address = port_info.mac_address
+        else:
+            self.mac_address = utils.getMacAddress(port_info)
         self.network = None
         self.type = None
         self.VNFId = VNFId
@@ -378,6 +383,7 @@ class Port(object):
         resource['port'] = {}
         resource['port']['name'] = self.VNFId+self.name
         resource['port']['network_id'] = self.net.network_id
+        resource['port']['mac_address'] = self.mac_address
         return resource
        
 class FlowRoute(object):

@@ -102,7 +102,6 @@ class Configuration(object):
         
         # ODL
         self._ODL_ENDPOINT = config.get('odl','endpoint')
-        self._ODL_ENDPOINT2 = config.get('odl', 'endpoint2')
         self._ODL_USER = config.get('odl', 'odl_user')
         self._ODL_PASS = config.get('odl', 'odl_password')
         
@@ -146,10 +145,6 @@ class Configuration(object):
     @property
     def ODL_ENDPOINT(self):
         return self._ODL_ENDPOINT
-    
-    @property
-    def ODL_ENDPOINT2(self):
-        return self._ODL_ENDPOINT2
     
     @property
     def ODL_USER(self):

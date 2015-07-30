@@ -18,7 +18,7 @@ timeout = 3600000
 # The isp graph will be instantiated at the startup of the orchestrator.
 # Not all service graph will be connected to the isp graph, this connection depends by the
 # endpoints of the sigle service graph.
-isp = false
+isp = true
 
 # The nobody's graph will be instantiated at the startup of the orchestrator.
 nobody = false
@@ -165,8 +165,7 @@ file = egress_graph_user.json
 
 [odl]
 # OpenDayLight endpoint
-endpoint = http://jolnet-odl:8080
-endpoint2 = http://jolnet-odl:8181
+endpoint = http://jolnet-odl:8181
 
 odl_user = admin
 odl_password = admin

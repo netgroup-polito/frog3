@@ -8,13 +8,11 @@ import json
 from Common.config import Configuration
 
 ODL_ENDPOINT = Configuration().ODL_ENDPOINT
-ODL_ENDPOINT2 = Configuration().ODL_ENDPOINT2
 ODL_USER = Configuration().ODL_USER
 ODL_PASS = Configuration().ODL_PASSWORD
 
 class ODL(object):
-    endpoint8080 = ODL_ENDPOINT
-    endpoint8181 = ODL_ENDPOINT2
+    odl_endpoint = ODL_ENDPOINT
     odl_nodes_path = "/restconf/operational/opendaylight-inventory:nodes"
     odl_topology_path = "/restconf/operational/network-topology:network-topology/"
     odl_flows_path = "/restconf/config/opendaylight-inventory:nodes"
@@ -30,7 +28,7 @@ class ODL(object):
         Deprecated with Cisco 3850 switches because response is not a valid JSON
         '''
         headers = {'Accept': 'application/json'}
-        url = self.endpoint8080+self.odl_nodes_path
+        url = self.odl_endpoint+self.odl_nodes_path
         resp = requests.get(url, headers=headers, auth=(self.odl_user, self.odl_pass))
         resp.raise_for_status()
         return resp.text
@@ -40,7 +38,7 @@ class ODL(object):
         Gets the entire topology comprensive of hosts, switches and links
         '''
         headers = {'Accept': 'application/json'}
-        url = self.endpoint8080+self.odl_topology_path
+        url = self.odl_endpoint+self.odl_topology_path
         resp = requests.get(url, headers=headers, auth=(self.odl_user, self.odl_pass))
         resp.raise_for_status()
         return resp.text
@@ -50,7 +48,7 @@ class ODL(object):
         Creates a flow (described by the json passed) on the switch passed
         '''
         headers = {'Accept': 'application/json', 'Content-type':'application/json'}
-        url = self.endpoint8181+self.odl_flows_path+self.odl_node+"/"+str(switch_id)+self.odl_flow+str(flow_id)
+        url = self.odl_endpoint+self.odl_flows_path+self.odl_node+"/"+str(switch_id)+self.odl_flow+str(flow_id)
         resp = requests.put(url,jsonFlow,headers=headers, auth=(self.odl_user, self.odl_pass))
         resp.raise_for_status()
         return resp.text
@@ -60,7 +58,7 @@ class ODL(object):
         Deletes a flow identified by the switch and the id
         '''
         headers = {'Accept': 'application/json', 'Content-type':'application/json'}
-        url = self.endpoint8181+self.odl_flows_path+self.odl_node+"/"+switch_id+self.odl_flow+str(flow_id)
+        url = self.odl_endpoint+self.odl_flows_path+self.odl_node+"/"+switch_id+self.odl_flow+str(flow_id)
         resp = requests.delete(url,headers=headers, auth=(self.odl_user, self.odl_pass))
         resp.raise_for_status()
         return resp.text

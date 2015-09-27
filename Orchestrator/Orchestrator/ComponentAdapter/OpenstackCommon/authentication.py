@@ -12,11 +12,11 @@ import hashlib
 import logging
 import six
 
-from Common.config import Configuration
+#from Common.config import Configuration
 
-ADMIN_TENANT_NAME = Configuration().ADMIN_TENANT_NAME
-ADMIN_USER = Configuration().ADMIN_USER
-ADMIN_PASSWORD = Configuration().ADMIN_PASSWORD
+#ADMIN_TENANT_NAME = Configuration().ADMIN_TENANT_NAME
+#ADMIN_USER = Configuration().ADMIN_USER
+#ADMIN_PASSWORD = Configuration().ADMIN_PASSWORD
 
 
 

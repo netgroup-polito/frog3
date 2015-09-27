@@ -10,6 +10,7 @@ Created on 30/mag/2014
 from Orchestrator.ComponentAdapter.Openstack.openstack import HeatOrchestrator
 from Orchestrator.ComponentAdapter.Jolnet.jolnet import JolnetAdapter
 from Orchestrator.ComponentAdapter.Unify.unify import UnifyCA
+from Orchestrator.ComponentAdapter.OpenstackCommon.authentication import KeystoneAuthentication
 from Common.SQL.node import Node
 from Common.SQL.graph import Graph
 
@@ -17,13 +18,11 @@ import logging
 
 class Scheduler(object):
     
-    def __init__(self, session_id, token):
+    def __init__(self, session_id, userdata):
         self.session_id = session_id
-        self.token = token
-
+        self.userdata = userdata
     
-    def schedule(self, nffg):
-        
+    def schedule(self, nffg):      
         
         node = Node().getNodeFromDomainID(self.checkEndpointLocation(nffg))
         self.changeAvailabilityZone(nffg, Node().getAvailabilityZone(node.id))
@@ -32,15 +31,18 @@ class Scheduler(object):
         
         # Set n the db the node chose for instantiate the nffg
         Graph().setNodeID(self.session_id, node.id)
+        
         return orchestratorCA_instance, node_endpoint
     
     def getInstance(self, node):
+        token = None
         if node.type == "HeatCA" or node.type == "OpenStack_compute":
             node_endpoint = self.findNode("HeatCA", node)
-            orchestratorCA_instance = HeatOrchestrator(self.session_id, node.domain_id, self.token)
+            #TODO: modify HeatCA constructor to get userdata instead of token (like JolnetCA)
+            orchestratorCA_instance = HeatOrchestrator(self.session_id, node.domain_id, token)
         elif node.type == "JolnetCA":
             node_endpoint = node.domain_id
-            orchestratorCA_instance = JolnetAdapter(self.session_id, node.domain_id, self.token)
+            orchestratorCA_instance = JolnetAdapter(self.session_id, self.userdata, node)
         elif node.type == "UniversalNodeCA":
             node_endpoint = node.domain_id
             orchestratorCA_instance = UnifyCA(self.session_id);

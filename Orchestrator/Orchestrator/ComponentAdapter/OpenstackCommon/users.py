@@ -10,7 +10,7 @@ import json
 import logging
 import falcon
 
-from Common.authentication import KeystoneAuthentication
+from Orchestrator.ComponentAdapter.OpenstackCommon.authentication import KeystoneAuthentication
 from Common.config import Configuration
 
 ORCH_PASSWORD = Configuration().ORCH_PASSWORD

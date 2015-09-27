@@ -10,7 +10,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 import logging
 from Common.config import Configuration
-from Common.exception import NodeNotFound, UserLocationNotFound
+from Common.exception import NodeNotFound, ControllerNotFound, UserLocationNotFound
 from Common.SQL.sql import get_session
 
 Base = declarative_base()
@@ -20,7 +20,7 @@ class NodeModel(Base):
     Maps the database table node
     '''
     __tablename__ = 'node'
-    attributes = ['id', 'name', 'type','domain_id','availability_zone','controller_node']
+    attributes = ['id', 'name', 'type','domain_id','availability_zone','openstack_controller', 'openflow_controller']
     id = Column(VARCHAR(64), primary_key=True)
     name = Column(VARCHAR(64))
     
@@ -31,7 +31,7 @@ class NodeModel(Base):
         OpenStack_compute  # this value doesn't correspond to a component_adapter
                            # in this type of nodes is not possible to directly
                            # instantiate a VNF
-        Jolnet             # for the Jolnet component adapter
+        JolnetCA           # for the Jolnet component adapter
         UnifiedNode        # for the Universal node component adapter 
     '''
     type = Column(VARCHAR(64))
@@ -39,10 +39,29 @@ class NodeModel(Base):
     availability_zone = Column(VARCHAR(64))
     
     '''
-    This field is used only when the node is an OpenStack_compute node.
-    It specifies the controller node connected to this compute node
+    This specifies the endpoint for Keystone authentication on the controller (es: http://1.1.1.1:35357)
     '''
-    controller_node = Column(VARCHAR(64))
+    openstack_controller = Column(VARCHAR(64))
+    '''
+    This specifies the id of the tuple in the openflow_controller table
+    '''
+    openflow_controller = Column(VARCHAR(64))
+    
+class OpenflowControllerModel(Base):
+    '''
+    Maps the database table openflow_controller
+    '''
+    __tablename__ = 'openflow_controller'
+    attributes = ['id', 'endpoint', 'version', 'username', 'password']
+    id = Column(VARCHAR(64), primary_key=True)
+    
+    '''
+    This specifies the endpoint for REST APIs on the openflow controller (es: http://2.2.2.2:8181)
+    '''
+    endpoint = Column(VARCHAR(64))
+    version = Column(VARCHAR(64))
+    username = Column(VARCHAR(64))
+    password = Column(VARCHAR(64))
     
 class UserLocationModel(Base):
     '''
@@ -112,6 +131,30 @@ class Node(object):
         except Exception as ex:
             logging.error(ex)
             raise NodeNotFound("Node not found")
+        
+    def getOpenstackControllerURL(self, node_id):
+        session = get_session()
+        try:
+            return session.query(NodeModel.openstack_controller).filter_by(id = node_id).one().openstack_controller
+        except Exception as ex:
+            logging.error(ex)
+            raise NodeNotFound("Node not found: "+str(node_id))
+    
+    def getOpenflowControllerID(self, node_id):
+        session = get_session()
+        try:
+            return session.query(NodeModel.openflow_controller).filter_by(id = node_id).one().openflow_controller
+        except Exception as ex:
+            logging.error(ex)
+            raise NodeNotFound("Node not found: "+str(node_id))
+        
+    def getOpenflowController(self, controller_id):
+        session = get_session()
+        try:
+            return session.query(OpenflowControllerModel.id).filter_by(id = controller_id).one()
+        except Exception as ex:
+            logging.error(ex)
+            raise ControllerNotFound("Node not found: "+str(controller_id))
         
     def getUserLocation(self, user_id):
         '''

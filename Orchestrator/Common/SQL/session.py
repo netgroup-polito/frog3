@@ -64,6 +64,18 @@ class Session(object):
         with session.begin():
             session.query(SessionModel).filter_by(id = session_id).filter_by(ended = None).filter_by(error = None).update({"last_update":datetime.datetime.now(), 'status':status})
 
+    def updateUserID(self, session_id, user_id):
+        session = get_session()  
+        with session.begin():
+            session.query(SessionModel).filter_by(id = session_id).filter_by(ended = None).filter_by(error = None).update({"user_id":user_id})
+    
+    def updateSessionNode(self, session_id, ingress_node, egress_node):
+        '''
+        store the session in db
+        '''
+        session = get_session()  
+        with session.begin():
+            session.query(SessionModel).filter_by(id = session_id).filter_by(ended = None).filter_by(error = None).update({"last_update":datetime.datetime.now(), "ingress_node":ingress_node, "egress_node": egress_node})
     
     def updateSession(self, session_id, ingress_node, egress_node, status):
         '''

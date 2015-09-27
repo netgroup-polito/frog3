@@ -9,12 +9,12 @@ import json
 import logging
 
 from Common.config import Configuration
-ODL_ENDPOINT = Configuration().ODL_ENDPOINT
+#ODL_ENDPOINT = Configuration().ODL_ENDPOINT
 
 
 class ODL(object):
     
-    endpoint = ODL_ENDPOINT
+    #endpoint = ODL_ENDPOINT
     odl_controllerPath="/controller/nb/v2"
     odl_connectionManagerPath="/connectionmanager"
     odl_flowProgrammerPath="/flowprogrammer"

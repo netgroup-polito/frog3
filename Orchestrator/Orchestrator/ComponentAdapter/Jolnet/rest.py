@@ -7,65 +7,56 @@ import requests
 import json
 from Common.config import Configuration
 
-ODL_ENDPOINT = Configuration().ODL_ENDPOINT
-ODL_USER = Configuration().ODL_USER
-ODL_PASS = Configuration().ODL_PASSWORD
-
 class ODL(object):
-    odl_endpoint = ODL_ENDPOINT
     odl_nodes_path = "/restconf/operational/opendaylight-inventory:nodes"
     odl_topology_path = "/restconf/operational/network-topology:network-topology/"
     odl_flows_path = "/restconf/config/opendaylight-inventory:nodes"
     odl_node="/node"
     odl_flow="/table/0/flow/"
     
-    #Credential for authentication on Opendaylight controller
-    odl_user = ODL_USER
-    odl_pass = ODL_PASS
-    
-    def getNodes(self):
+    def getNodes(self, odl_endpoint, odl_user, odl_pass):
         '''
         Deprecated with Cisco 3850 switches because response is not a valid JSON
         '''
         headers = {'Accept': 'application/json'}
-        url = self.odl_endpoint+self.odl_nodes_path
-        resp = requests.get(url, headers=headers, auth=(self.odl_user, self.odl_pass))
+        url = odl_endpoint+self.odl_nodes_path
+        resp = requests.get(url, headers=headers, auth=(odl_user, odl_pass))
         resp.raise_for_status()
         return resp.text
     
-    def getTopology(self):
+    def getTopology(self, odl_endpoint, odl_user, odl_pass):
         '''
         Gets the entire topology comprensive of hosts, switches and links
         '''
         headers = {'Accept': 'application/json'}
-        url = self.odl_endpoint+self.odl_topology_path
-        resp = requests.get(url, headers=headers, auth=(self.odl_user, self.odl_pass))
+        url = odl_endpoint+self.odl_topology_path
+        resp = requests.get(url, headers=headers, auth=(odl_user, odl_pass))
         resp.raise_for_status()
         return resp.text
     
-    def createFlow(self, jsonFlow, switch_id, flow_id):
+    def createFlow(self, odl_endpoint, odl_user, odl_pass, jsonFlow, switch_id, flow_id):
         '''
         Creates a flow (described by the json passed) on the switch passed
         '''
         headers = {'Accept': 'application/json', 'Content-type':'application/json'}
-        url = self.odl_endpoint+self.odl_flows_path+self.odl_node+"/"+str(switch_id)+self.odl_flow+str(flow_id)
-        resp = requests.put(url,jsonFlow,headers=headers, auth=(self.odl_user, self.odl_pass))
+        url = odl_endpoint+self.odl_flows_path+self.odl_node+"/"+str(switch_id)+self.odl_flow+str(flow_id)
+        resp = requests.put(url,jsonFlow,headers=headers, auth=(odl_user, odl_pass))
         resp.raise_for_status()
         return resp.text
     
-    def deleteFlow(self, switch_id, flow_id):
+    def deleteFlow(self, odl_endpoint, odl_user, odl_pass, switch_id, flow_id):
         '''
         Deletes a flow identified by the switch and the id
         '''
         headers = {'Accept': 'application/json', 'Content-type':'application/json'}
-        url = self.odl_endpoint+self.odl_flows_path+self.odl_node+"/"+switch_id+self.odl_flow+str(flow_id)
-        resp = requests.delete(url,headers=headers, auth=(self.odl_user, self.odl_pass))
+        url = odl_endpoint+self.odl_flows_path+self.odl_node+"/"+switch_id+self.odl_flow+str(flow_id)
+        resp = requests.delete(url,headers=headers, auth=(odl_user, odl_pass))
         resp.raise_for_status()
         return resp.text
 
 class Heat(object):
     ''' 
-    Class used to call the Heat Openstack API
+    Class (no longer) used to call the Heat Openstack API
     '''
     getStackPath="/stacks"
     createStackPath="/stacks"

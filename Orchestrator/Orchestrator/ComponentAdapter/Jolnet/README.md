@@ -6,37 +6,34 @@ This is the technology-dependent controller in charge of implementing NF-FGs on 
 
 In order to user the global orchestrator with this infrastructure, you need to configure it in this way:
 
-- Select the "JolnetCA" driver in the divers tab
+- Add the "JolnetCA" driver in the divers tab
 
-- Set the URL of the OpenStack controller authentication endpoint and set the access credential for the orchestration user and the admin user (usually it is the same user):
-
-```sh
-[authentication]
-server = http://jolnet-openstack-controller:35357
-
-# An OpenStack (keystone) admin user is needed to create new users
-orch_username = user1
-orch_password = pass1
-orch_tenant = tenant1
-
-admin_user = user1
-admin_password = pass1
-admin_tenant_name = tenant1
-```
-
-- Set the URL of the OpenDaylight (OpenFlow controller) access endpoint:
-
-```sh
-[odl]
-# OpenDayLight endpoint
-endpoint = http://jolnet-odl-controller:8181
-```
+# Essential database information
 
 After that, you need also to manually insert every JOLNet node into the orchestrator database "node" table (if not already there):
 
 ```sh
-| ID |  NAME   |    TYPE    |       DOMAIN_ID       |   AVAILABILITY_ZONE   |  CONTROLLER_NODE   |
-   1    node1	  JolnetCA    openflow:xxxxxxxxxxx           Turin                 1.1.1.1
+| ID |  NAME   |    TYPE    |       DOMAIN_ID        |   AVAILABILITY_ZONE   |  OPENSTACK_CONTROLLER  | OPENFLOW_CONTROLLER  |
+  1     node1	  JolnetCA    openflow:xxxxxxxxxxx           Turin              http://1.1.1.1:35557           XYZ 
 ```
 
-where the ID can be arbitrary assigned, the DOMAIN_ID is the OpenFlow id of the switch, AVAILABILITY_ZONE is the availability zone of the correspondent OpenStack compute node and CONTROLLER_NODE is the public IP address of the OpenStack controller.
+where the ID can be arbitrary assigned, the DOMAIN_ID is the OpenFlow id of the switch, AVAILABILITY_ZONE is the availability zone of the correspondent OpenStack compute node, OPENSTACK_CONTROLLER is the public authentication endpoint of the OpenStack controller (Keystone) and OPENFLOW_CONTROLLER is the foreign key which remands to the "openflow_controller" table.
+
+```sh
+| ID  |       ENDPOINT         |    VERSION     |   USERNAME    |   PASSWORD   |
+  XYZ    http://2.2.2.2:8181        LITHIUM          XYZ             ABC
+```
+
+Last but not least, you need to "register" into the "user" table to get access to the orchestrator functionalities:
+
+```sh
+| ID |  NAME  |  PASSWORD  |  TENANT  |      MAIL     |
+  1     AAAA      BBBBB        CCCC      AAA@BBB.COM
+```
+
+where the TENANT field is a foreign key to the "tenant" table:
+
+```sh
+|  ID  |   NAME   |   DESCRIPTION    |
+  CCCC    Tenant1      My tenant 
+```

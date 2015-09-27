@@ -1,3 +1,21 @@
+class UserNotFound(Exception):
+    def __init__(self, message):
+        self.message = message
+        # Call the base class constructor with the parameters it needs
+        super(UserNotFound, self).__init__(message)
+        
+    def get_mess(self):
+        return self.message
+    
+class TenantNotFound(Exception):
+    def __init__(self, message):
+        self.message = message
+        # Call the base class constructor with the parameters it needs
+        super(TenantNotFound, self).__init__(message)
+        
+    def get_mess(self):
+        return self.message    
+    
 class UserLocationNotFound(Exception):
     def __init__(self, message):
         self.message = message
@@ -38,6 +56,16 @@ class NodeNotFound(Exception):
     def __init__(self, message):
         # Call the base class constructor with the parameters it needs
         super(NodeNotFound, self).__init__(message)
+
+        self.message = message
+        
+    def get_mess(self):
+        return self.message
+    
+class ControllerNotFound(Exception):
+    def __init__(self, message):
+        # Call the base class constructor with the parameters it needs
+        super(ControllerNotFound, self).__init__(message)
 
         self.message = message
         

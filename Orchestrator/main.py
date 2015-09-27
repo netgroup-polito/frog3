@@ -38,9 +38,14 @@ print "Welcome to the UN orchestrator"
 app = falcon.API()
 logging.info("Starting Orchestration Server application")
 
-upper_layer_API = UpperLayerOrchestrator(conf.AUTH_SERVER,conf.ORCH_USERNAME,conf.ORCH_PASSWORD,conf.ORCH_TENANT)
-template = TemplateAPI(conf.AUTH_SERVER,conf.ORCH_USERNAME,conf.ORCH_PASSWORD,conf.ORCH_TENANT)
-yang = YANGAPI(conf.AUTH_SERVER,conf.ORCH_USERNAME,conf.ORCH_PASSWORD,conf.ORCH_TENANT)
+#upper_layer_API = UpperLayerOrchestrator(conf.AUTH_SERVER,conf.ORCH_USERNAME,conf.ORCH_PASSWORD,conf.ORCH_TENANT)
+#template = TemplateAPI(conf.AUTH_SERVER,conf.ORCH_USERNAME,conf.ORCH_PASSWORD,conf.ORCH_TENANT)
+#yang = YANGAPI(conf.AUTH_SERVER,conf.ORCH_USERNAME,conf.ORCH_PASSWORD,conf.ORCH_TENANT)
+
+upper_layer_API = UpperLayerOrchestrator()
+template = TemplateAPI()
+yang = YANGAPI()
+
 app.add_route('/NF-FG', upper_layer_API)
 app.add_route('/NF-FG/{nffg_id}', upper_layer_API)
 app.add_route('/template/{image_id}', template)

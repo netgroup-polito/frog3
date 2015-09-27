@@ -17,6 +17,7 @@ from Orchestrator.ComponentAdapter.interfaces import OrchestratorInterface
 from Orchestrator.ComponentAdapter.Common.nffg_management import NFFG_Management
 from Orchestrator.ComponentAdapter.Jolnet.rest import ODL, Glance, Nova, Neutron
 from Orchestrator.ComponentAdapter.Jolnet.resources import Action, Match, Flow, ProfileGraph, VNF, Endpoint
+from Orchestrator.ComponentAdapter.OpenstackCommon.authentication import KeystoneAuthentication
 
 DEBUG_MODE = Configuration().DEBUG_MODE
 
@@ -25,34 +26,37 @@ class JolnetAdapter(OrchestratorInterface):
     Override class of the abstract class OrchestratorInterface
     '''
     
-    def __init__(self, session_id, compute_node_address, token):
+    def __init__(self, session_id, userdata, node):
         '''
         Initialize the Jolnet component adapter
         Args:
             session_id:
                 identifier for the current user session
-            compute_node_address:
+            node:
                 address of the compute node where to deploy the graph (can change at every graph)
-            token:
-                OpenStack access token of the orchestration user
+            userdata:
+                credentials to get Keystone token for the user
         '''
         self.session_id = session_id
-        self.token = token
-        self.compute_node_address = compute_node_address
-        self._URI = "http://" + compute_node_address
-        self.novaEndpoint = token.get_endpoints('compute')[0]['publicURL']
-        self.glanceEndpoint = token.get_endpoints('image')[0]['publicURL']
-        self.neutronEndpoint = token.get_endpoints('network')[0]['publicURL']
-        
-        logging.debug(self._URI)    
+        self.token = KeystoneAuthentication(node.openstack_controller, userdata.tenant, userdata.username, userdata.password)
+        self.compute_node_address = node.domain_id
+        self.novaEndpoint = self.token.get_endpoints('compute')[0]['publicURL']
+        self.glanceEndpoint = self.token.get_endpoints('image')[0]['publicURL']
+        self.neutronEndpoint = self.token.get_endpoints('network')[0]['publicURL']
+        odl = Node().getOpenflowController(node.openflow_controller)
+        self.odlendpoint = odl.endpoint
+        self.odlusername = odl.username
+        self.odlpassword = odl.password
+           
         if DEBUG_MODE is True:
             logging.debug(self.novaEndpoint)
             logging.debug(self.glanceEndpoint)
             logging.debug(self.neutronEndpoint)
+            logging.debug(self.odlendpoint)
     
     @property
     def URI(self):
-        return self._URI
+        return self.compute_node_address
     
     '''
     ######################################################################################################
@@ -68,6 +72,8 @@ class JolnetAdapter(OrchestratorInterface):
         Override method of the abstract class for instantiating the user graph
         '''
         self.node_endpoint = node_endpoint
+        Session().updateUserID(self.session_id, self.token.get_userID())
+        Session().updateSessionNode(self.session_id, node_endpoint.id, node_endpoint.id)
         
         if DEBUG_MODE is True:
             logging.debug("Forwarding graph: " + nf_fg.getJSON())
@@ -87,6 +93,8 @@ class JolnetAdapter(OrchestratorInterface):
         Override method of the abstract class for updating the user graph
         '''        
         self.node_endpoint = node_endpoint
+        Session().updateUserID(self.session_id, self.token.get_userID())
+        Session().updateSessionNode(self.session_id, node_endpoint.id, node_endpoint.id)
         
         try:
             updated_nffg = NFFG_Management().diff(old_nf_fg, new_nf_fg)
@@ -289,7 +297,7 @@ class JolnetAdapter(OrchestratorInterface):
         for flow in flows:
             if flow.type == "external" and flow.status == "complete":
                 switch_id = Node().getNodeDomainID(flow.start_node_id)
-                ODL().deleteFlow(switch_id, flow.internal_id)
+                ODL().deleteFlow(self.odlendpoint, self.odlusername, self.odlpassword, switch_id, flow.internal_id)
         
         vnfs = Graph().getVNFs(self.session_id)
         for vnf in vnfs:
@@ -313,7 +321,7 @@ class JolnetAdapter(OrchestratorInterface):
                 for flow in flows:
                     if flow.type == "external" and flow.status == "complete" and flow.internal_id.contains(endpoint.id):
                         switch_id = Node().getNodeDomainID(flow.start_node_id)
-                        ODL().deleteFlow(switch_id, flow.internal_id)
+                        ODL().deleteFlow(self.odlendpoint, self.odlusername, self.odlpassword, switch_id, flow.internal_id)
         
         # Wait for resource deletion
         '''for vnf in updated_nffg.listVNF[:]:
@@ -440,7 +448,7 @@ class JolnetAdapter(OrchestratorInterface):
                     for flow in flows:
                         if flow.type == "external" and flow.status == "complete" and flow.internal_id.contains(flowrule.action.endpoint.id):
                             switch_id = Node().getNodeDomainID(flow.start_node_id)
-                            ODL().deleteFlow(switch_id, flow.internal_id)
+                            ODL().deleteFlow(self.odlendpoint, self.odlusername, self.odlpassword, switch_id, flow.internal_id)
                             Graph().deleteoOArch(flowrule.db_id, self.session_id)
                             Graph().deleteFlowspec(flowrule.db_id, self.session_id)
                             port.list_ingoing_label.remove(flowrule)
@@ -505,7 +513,7 @@ class JolnetAdapter(OrchestratorInterface):
         '''
         Retrieve a list of Jolnet nodes (could be hosts or switches)
         '''
-        json_data = ODL().getTopology(self)
+        json_data = ODL().getTopology(self.odlendpoint, self.odlusername, self.odlpassword)
         topology = json.loads(json_data)
         nList = topology["network-topology"]["topology"][0]["node"]
         return nList
@@ -528,7 +536,7 @@ class JolnetAdapter(OrchestratorInterface):
             switch2:
                 OpenDaylight identifier of the destination switch (example: openflow:987654321)
         '''
-        json_data = ODL().getTopology()
+        json_data = ODL().getTopology(self.odlendpoint, self.odlusername, self.odlpassword)
         topology = json.loads(json_data)
         tList = topology["network-topology"]["topology"][0]["link"]
         for link in tList:
@@ -566,7 +574,7 @@ class JolnetAdapter(OrchestratorInterface):
         
         flowj = Flow("jolnetflow", flow_id, 0, 20, True, 0, 0, actions, match)        
         json_req = flowj.getJSON()
-        ODL().createFlow(json_req, source_node, flow_id)
+        ODL().createFlow(self.odlendpoint, self.odlusername, self.odlpassword, json_req, source_node, flow_id)
     
     def pushMACSourceFlow(self, source_node, flow_id, user_vlan, in_port, source_mac, out_port, graph_vlan):
         '''
@@ -610,7 +618,7 @@ class JolnetAdapter(OrchestratorInterface):
         
         flowj = Flow("edgeflow", flow_id, 0, priority, True, 0, 0, actions, match)        
         json_req = flowj.getJSON()
-        ODL().createFlow(json_req, source_node, flow_id)
+        ODL().createFlow(self.odlendpoint, self.odlusername, self.odlpassword, json_req, source_node, flow_id)
     
     def pushMACDestFlow(self, source_node, flow_id, user_vlan, in_port, dest_mac, out_port, graph_vlan):
         '''
@@ -654,7 +662,7 @@ class JolnetAdapter(OrchestratorInterface):
         
         flowj = Flow("edgeflow", flow_id, 0, priority, True, 0, 0, actions, match)        
         json_req = flowj.getJSON()
-        ODL().createFlow(json_req, source_node, flow_id)
+        ODL().createFlow(self.odlendpoint, self.odlusername, self.odlpassword, json_req, source_node, flow_id)
     
     def linkZones(self, graph_id, switch_user, port_vms_user, switch_user_id, switch_isp, port_vms_isp, switch_isp_id, vlan_id):
         '''

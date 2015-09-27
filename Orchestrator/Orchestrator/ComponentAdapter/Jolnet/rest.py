@@ -10,14 +10,22 @@ from Common.config import Configuration
 ODL_ENDPOINT = Configuration().ODL_ENDPOINT
 ODL_USER = Configuration().ODL_USER
 ODL_PASS = Configuration().ODL_PASSWORD
+ODL_VERSION = Configuration().ODL_VERSION
 
 class ODL(object):
     odl_endpoint = ODL_ENDPOINT
-    odl_nodes_path = "/restconf/operational/opendaylight-inventory:nodes"
-    odl_topology_path = "/restconf/operational/network-topology:network-topology/"
-    odl_flows_path = "/restconf/config/opendaylight-inventory:nodes"
-    odl_node="/node"
-    odl_flow="/table/0/flow/"
+    if ODL_VERSION == "Hydrogen":
+        odl_nodes_path = "/controller/nb/v2/switchmanager/default/nodes"
+        odl_topology_path = "/controller/nb/v2/topology/default"
+        odl_flows_path = "/controller/nb/v2/flowprogrammer/default"
+        odl_node="/node/OF"
+        odl_flow="/staticFlow/"     
+    else:
+        odl_nodes_path = "/restconf/operational/opendaylight-inventory:nodes"
+        odl_topology_path = "/restconf/operational/network-topology:network-topology/"
+        odl_flows_path = "/restconf/config/opendaylight-inventory:nodes"
+        odl_node="/node"
+        odl_flow="/table/0/flow/"
     
     #Credential for authentication on Opendaylight controller
     odl_user = ODL_USER

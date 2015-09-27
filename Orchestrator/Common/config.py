@@ -101,6 +101,7 @@ class Configuration(object):
             
         
         # ODL
+        self._ODL_VERSION = config.get('odl','version')
         self._ODL_ENDPOINT = config.get('odl','endpoint')
         self._ODL_USER = config.get('odl', 'odl_user')
         self._ODL_PASS = config.get('odl', 'odl_password')
@@ -141,6 +142,10 @@ class Configuration(object):
     @property
     def ORCH_TIMEOUT(self):
         return self._ORCH_TIMEOUT
+    
+    @property
+    def ODL_VERSION(self):
+        return self._ODL_VERSION
     
     @property
     def ODL_ENDPOINT(self):

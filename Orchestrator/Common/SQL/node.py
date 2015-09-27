@@ -79,6 +79,14 @@ class Node(object):
         except Exception as ex:
             logging.error(ex)
             raise NodeNotFound("Node not found.")
+        
+    def getNodeFromName(self, name):
+        session = get_session()
+        try:
+            return session.query(NodeModel).filter_by(name = name).one()
+        except Exception as ex:
+            logging.error(ex)
+            raise NodeNotFound("Node not found for name: "+str(name))        
     
     def getNodeFromDomainID(self, domain_id):
         session = get_session()
@@ -103,6 +111,19 @@ class Node(object):
         except Exception as ex:
             logging.error(ex)
             raise NodeNotFound("Node not found: "+str(node_id))
+        
+    def getNodeName(self, node_id):
+        '''
+        Ruturns the name of the node given its node_id
+        '''
+        session = get_session()
+        try:
+            session.query(NodeModel.name).filter_by(id = node_id).one()
+            return session.query(NodeModel.name).filter_by(id = node_id).one().name
+
+        except Exception as ex:
+            logging.error(ex)
+            raise NodeNotFound("Node not found: "+str(node_id))    
     
     def getComponentAdapter(self, node_id):
         session = get_session()

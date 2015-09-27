@@ -81,7 +81,7 @@ class UpperLayerOrchestratorController(object):
         
         # Retrieve the session data, from active session on a port of a switch passed, if no active session raise an exception
         # session = SessionSQL.get_active_user_device_session(token.get_userID(), self.session)
-        logging.debug("nffg_id: "+nffg_id)
+        ##logging.debug("nffg_id: "+nffg_id)
         
         # Get the component adapter associated  to the node where the nffg was instantiated
         session_id = Session().get_active_user_session_by_nf_fg_id(nffg_id, error_aware=False).id
@@ -140,6 +140,8 @@ class UpperLayerOrchestratorController(object):
             orchestrator.deinstantiateProfile(nf_fg, node.domain_id)
             Graph().delete_graph(session.id)
             Graph().addNFFG(nf_fg, session.id)
+            # added to fix update bug
+            Graph().setNodeID(session.id, Node().getNodeFromDomainID(new_node_endpoint).id)
             orchestrator.instantiateProfile(nf_fg, new_node_endpoint)
         else:
             # Update the nffg
@@ -171,6 +173,7 @@ class UpperLayerOrchestratorController(object):
         
         logging.debug('Orchestrator - PUT - Checking session ')
         #if UserSession(token.get_userID(), token, nf_fg.id).checkSession() is True:
+        
         if self.checkNFFGStatus(nf_fg.id, token) is True:
             logging.debug('Orchestrator - PUT - Updating NF-FG')
             session_id = self.update(nf_fg)

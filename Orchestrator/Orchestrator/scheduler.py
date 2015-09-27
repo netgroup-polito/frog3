@@ -7,6 +7,7 @@ Created on 30/mag/2014
 
 @author: fabiomignini
 '''
+from Common.config import Configuration
 from Orchestrator.ComponentAdapter.Openstack.openstack import HeatOrchestrator
 from Orchestrator.ComponentAdapter.Jolnet.jolnet import JolnetAdapter
 from Orchestrator.ComponentAdapter.Unify.unify import UnifyCA
@@ -24,8 +25,10 @@ class Scheduler(object):
     
     def schedule(self, nffg):
         
-        
-        node = Node().getNodeFromDomainID(self.checkEndpointLocation(nffg))
+        if Configuration().DRIVERS == "JolnetCA" and Configuration().ODL_VERSION == "Hydrogen":
+            node = Node().getNodeFromName(self.checkEndpointLocation(nffg))
+        else:
+            node = Node().getNodeFromDomainID(self.checkEndpointLocation(nffg))
         self.changeAvailabilityZone(nffg, Node().getAvailabilityZone(node.id))
         
         orchestratorCA_instance, node_endpoint = self.getInstance(node)

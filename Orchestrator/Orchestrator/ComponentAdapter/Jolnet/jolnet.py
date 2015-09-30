@@ -219,19 +219,46 @@ class JolnetAdapter(OrchestratorInterface):
                             
                         user_vlan = flowrule.match.of_field['vlanId']
                         if 'sourceMAC' in flowrule.match.of_field:
-                            user_mac = flowrule.match.of_field['sourceMAC']
+                            user_source_mac = flowrule.match.of_field['sourceMAC']
                         else:
-                            user_mac = None
-                        if 'sourceIP' in flowrule.match.of_field:
-                            user_ip = flowrule.match.of_field['sourceIP']
-                        else:
-                            user_ip = None                            
-                        user_port = flowrule.match.of_field['sourcePort']
-                        tmp = user_port.split(":")                                     
-                        cpe = tmp[0] + ":" + tmp[1]
-                        cpe_port = tmp[2]
+                            user_source_mac = None
                             
-                        endpoint.setUserParams(user_mac, user_vlan, cpe, cpe_port, user_ip)
+                        if 'destMAC' in flowrule.match.of_field:
+                            user_dest_mac = flowrule.match.of_field['destMAC']
+                        else:
+                            user_dest_mac = None 
+                            
+                        if 'sourceIP' in flowrule.match.of_field:
+                            user_source_ip = flowrule.match.of_field['sourceIP']
+                        else:
+                            user_source_ip = None 
+                            
+                        if 'destIP' in flowrule.match.of_field:
+                            user_dest_ip = flowrule.match.of_field['destIP']
+                        else:
+                            user_dest_ip = None 
+                              
+                        if 'etherType' in flowrule.match.of_field:
+                            user_etherType = flowrule.match.of_field['etherType']
+                        else:
+                            user_etherType = None
+                            
+                        if 'protocol' in flowrule.match.of_field:
+                            user_protocol = flowrule.match.of_field['protocol']
+                        else:
+                            user_protocol = None                            
+                                        
+                        if 'vlanPriority' in flowrule.match.of_field:
+                            logging.warning('Field "vlanPriority" not supported')
+                        if 'tosBits' in flowrule.match.of_field:
+                            logging.warning('Field "tosBits" not supported')
+                            
+                        user_port = flowrule.match.of_field['sourcePort']
+                        delimiter = user_port.rfind(":")
+                        cpe_port = user_port[delimiter+1:]
+                        cpe = user_port[:delimiter]
+                        
+                        endpoint.setUserParams(user_source_mac, user_dest_mac, user_vlan, cpe, cpe_port, user_source_ip, user_dest_ip, user_etherType, user_protocol)
     
     '''
     ######################################################################################################
@@ -265,23 +292,11 @@ class JolnetAdapter(OrchestratorInterface):
                         switch1 = endpoint.node
                         port1 = endpoint.interface                                       
                          
-                        #endpoint.node is node name in Hydrogen, instead of domain_id 
-                        """                   
+                                         
                         node1_id = Node().getNodeFromDomainID(switch1).id
                         node2_id = Graph().getNodeID(session)
                         switch2 = Node().getNodeDomainID(node2_id)     
-                        port2 = remote_endpoint.location   
-                        """
-                        node2_id = Graph().getNodeID(session)
-                        if ODL_VERSION == "Hydrogen":                                              
-                            node1_id = Node().getNodeFromName(switch1).id
-                            switch2 = Node().getNodeName(node2_id)   
-                        else:
-                            node1_id = Node().getNodeFromDomainID(switch1).id
-                            switch2 = Node().getNodeDomainID(node2_id)    
-
-                        port2 = remote_endpoint.location      
-                        
+                        port2 = remote_endpoint.location
                         
                         #TODO: add the port on the endpoint switch
                         self.linkZones(nf_fg.db_id, switch1, port1, node1_id, switch2, port2, node2_id, vlan)
@@ -295,16 +310,12 @@ class JolnetAdapter(OrchestratorInterface):
         for endpoint in profile_graph.getVlanIngressEndpoints():
             if endpoint.status == "new":
                 if endpoint.connection is True:
-                    if ODL_VERSION=="Hydrogen":
-                        cpe_node = Node().getNodeFromName(endpoint.user_node)
-                        cpe_id = cpe_node.id
-                        switch_id = Node().getNodeFromName(endpoint.node).id
-                        self.linkUser(nf_fg.db_id, cpe_node.name, endpoint.user_interface, cpe_id, endpoint.node, endpoint.interface, switch_id, endpoint.id, endpoint.user_vlan, endpoint.user_mac, endpoint.user_ip)
-                    else:
-                        cpe_id = Node().getNodeFromDomainID(endpoint.user_node).id
-                        switch_id = Node().getNodeFromDomainID(endpoint.node).id
-                        self.linkUser(nf_fg.db_id, endpoint.user_node, endpoint.user_interface, cpe_id, endpoint.node, endpoint.interface, switch_id, endpoint.id, endpoint.user_vlan, endpoint.user_mac, endpoint.user_ip)
-                
+                    cpe_id = Node().getNodeFromDomainID(endpoint.user_node).id
+                    switch_id = Node().getNodeFromDomainID(endpoint.node).id
+                    self.linkUser(nf_fg.db_id, endpoint.user_node,
+                                   endpoint.user_interface, cpe_id, endpoint.node, endpoint.interface, switch_id, endpoint.id, endpoint.user_vlan, 
+                                   endpoint.user_source_mac, endpoint.user_dest_mac, endpoint.user_source_ip, endpoint.user_dest_ip, endpoint.user_etherType, endpoint.user_protocol)
+                    
                 #Insert location info into the database
                 Graph().setEndpointLocation(self.session_id, nf_fg.db_id, endpoint.id, endpoint.interface)                      
     
@@ -313,11 +324,7 @@ class JolnetAdapter(OrchestratorInterface):
         flows = Graph().getOArchs(self.session_id)
         for flow in flows:
             if flow.type == "external" and flow.status == "complete":
-                if ODL_VERSION == "Hydrogen":
-                    switch_name = Node().getNodeName(flow.start_node_id)
-                    switch_id = self.getNodeOFID(switch_name)
-                else:
-                    switch_id = Node().getNodeDomainID(flow.start_node_id)
+                switch_id = Node().getNodeDomainID(flow.start_node_id)
                 ODL().deleteFlow(switch_id, flow.internal_id)
         
         vnfs = Graph().getVNFs(self.session_id)
@@ -341,11 +348,7 @@ class JolnetAdapter(OrchestratorInterface):
                 flows = Graph().getOArchs(self.session_id)
                 for flow in flows:
                     if flow.type == "external" and flow.status == "complete" and flow.internal_id.contains(endpoint.id):
-                        if ODL_VERSION == "Hydrogen":
-                            switch_name = Node().getNode(flow.start_node_id).name
-                            switch_id = self.getNodeOFID(switch_name)
-                        else:                        
-                            switch_id = Node().getNodeDomainID(flow.start_node_id)
+                        switch_id = Node().getNodeDomainID(flow.start_node_id)
                         ODL().deleteFlow(switch_id, flow.internal_id)
         
         # Wait for resource deletion
@@ -558,9 +561,9 @@ class JolnetAdapter(OrchestratorInterface):
         Retrieve the link between two switches, where you can find ports to use
         Args:
             switch1:
-                OpenDaylight identifier of the source switch (example: openflow:123456789) or node name in Hydrogen (example: cpe-to:sw1)
+                OpenDaylight identifier of the source switch (example: openflow:123456789 or 00:00:64:e9:50:5a:90:90 in Hydrogen)
             switch2:
-                OpenDaylight identifier of the destination switch (example: openflow:987654321) or node name in Hydrogen (example: nodo-to:sw1)
+                OpenDaylight identifier of the destination switch (example: openflow:987654321 or 00:00:64:e9:50:5a:90:90 in Hydrogen)
         '''
         json_data = ODL().getTopology()
         topology = json.loads(json_data)
@@ -579,14 +582,14 @@ class JolnetAdapter(OrchestratorInterface):
                 if (source_node == switch1 and dest_node == switch2):
                     return link
     
-    def pushVlanFlow(self, source_node, flow_id, vlan, in_port, out_port, user):
+    def pushVlanFlow(self, source_node, flow_id, vlan, in_port, out_port):
         '''
         Push a flow into a Jolnet switch with 
             matching on VLAN id and input port
             output through the specified port
         Args:
             source_node:
-                OpenDaylight identifier of the source switch (example: openflow:123456789)
+                OpenDaylight identifier of the source switch (example: openflow:123456789 or 00:00:64:e9:50:5a:90:90 in Hydrogen)
             flow_id:
                 unique identifier of the flow on the whole OpenDaylight domain
             vlan:
@@ -595,8 +598,6 @@ class JolnetAdapter(OrchestratorInterface):
                 ingoing port of the traffic (for matching)
             out_port:
                 output port where to send out the traffic (action)
-            user:
-                user profile id to keep track of the owner of the flow
         '''
         action1 = Action()
         action1.setOutputAction(out_port, 65535)
@@ -610,14 +611,13 @@ class JolnetAdapter(OrchestratorInterface):
         json_req = flowj.getJSON(source_node)
         ODL().createFlow(json_req, source_node, flow_id)
     
-    def pushSourceFlow(self, source_node, flow_id, user_vlan, in_port, source_mac, source_ip, out_port, graph_vlan):
+    def pushSourceFlow(self, source_node, flow_id, user_vlan, in_port, source_mac, dest_mac, source_ip, dest_ip, out_port, graph_vlan, etherType, protocol):
         '''
         Push a flow into a Jolnet switch (or cpe) with 
-            matching on source MAC address and VLAN id and source IP
             VLAN tag swapping and output through the specified port
         Args:
             source_node:
-                OpenDaylight identifier of the source switch (example: openflow:123456789)
+                OpenDaylight identifier of the source switch (example: openflow:123456789 or 00:00:64:e9:50:5a:90:90 in Hydrogen)
             flow_id:
                 unique identifier of the flow on the whole OpenDaylight domain
             user_vlan:
@@ -625,13 +625,21 @@ class JolnetAdapter(OrchestratorInterface):
             in_port:
                 ingoing port of the traffic (for matching)
             source_mac:
-                MAC address of the user device
+                MAC address of the user device (for matching)
+            dest_mac:
+                destination MAC address  (for matching)                
             source_ip:
-                IP address of the user device
+                IP address of the user device (for matching)
+            dest_ip:
+                destination IP address  (for matching)    
             out_port:
                 output port where to send out the traffic (action)
             graph_vlan:
                 new VLAN id to be applied to packets (action)
+            etherType:
+                ethertype (for matching)
+            protocol:
+                IP protocol (for matching)                
         '''       
         if user_vlan != graph_vlan:
             action1 = Action()
@@ -647,41 +655,54 @@ class JolnetAdapter(OrchestratorInterface):
         priority = 10
         match = Match()
         match.setInputMatch(in_port)
-        if source_mac is not None:
-            match.setEthernetMatch(None, source_mac, None)
+        if etherType is not None:
+            match.setEtherTypeMatch(etherType)
             priority = priority + 15
-        if source_ip is not None:
-            match.setIPMatch(source_ip, None)
+        if source_mac is not None or dest_mac is not None:
+            match.setEthernetMatch(source_mac, dest_mac)
             priority = priority + 15
+        if source_ip is not None or dest_ip is not None:
+            match.setIPMatch(source_ip, dest_ip)
+            priority = priority + 15
+        if protocol is not None:
+            match.setIPProtocol(protocol)
+            priority = priority + 15            
         match.setVlanMatch(user_vlan)
         
         
         flowj = Flow("edgeflow", flow_id, 0, priority, True, 0, 0, actions, match)        
         json_req = flowj.getJSON(source_node)
         ODL().createFlow(json_req, source_node, flow_id)
-    
-    def pushDestFlow(self, source_node, flow_id, user_vlan, in_port, dest_mac, dest_ip, out_port, graph_vlan):
+        
+    def pushDestFlow(self, source_node, flow_id, user_vlan, in_port, source_mac, dest_mac, source_ip, dest_ip, out_port, graph_vlan, etherType, protocol):
         '''
         Push a flow into a Jolnet switch (or cpe) with 
-            matching on destination MAC address and VLAN id and destination IP
             VLAN tag swapping and output through the specified port
         Args:
             source_node:
-                OpenDaylight identifier of the source switch (example: openflow:123456789)
+                OpenDaylight identifier of the source switch (example: openflow:123456789 or 00:00:64:e9:50:5a:90:90 in Hydrogen)
             flow_id:
                 unique identifier of the flow on the whole OpenDaylight domain
             user_vlan:
                 new VLAN id for the traffic (action)
             in_port:
                 ingoing port of the traffic (action)
+            source_mac:
+                source MAC address (for matching)
             dest_mac:
                 MAC address of the user device
+            source_ip:
+                source IP address (for matching)  
             dest_ip:
                 IP address of the user device                
             out_port:
-                output port where to send out the traffic (matching)
+                output port where to send out the traffic (for matching)
             graph_vlan:
-                VLAN id of incoming packets (matching)
+                VLAN id of incoming packets (for matching)
+            etherType:
+                etherType (for matching)
+            protocol:
+                IP protocol (for matching)                
         '''
         if user_vlan != graph_vlan:
             action1 = Action()
@@ -697,45 +718,24 @@ class JolnetAdapter(OrchestratorInterface):
         priority = 10
         match = Match()
         match.setInputMatch(in_port)
-        if dest_mac is not None:
-            match.setEthernetMatch(None, None, dest_mac)
+        if etherType is not None:
+            match.setEtherTypeMatch(etherType)
             priority = priority + 15
-        if dest_ip is not None:
-            match.setIPMatch(None, dest_ip)
+        if source_mac is not None or dest_mac is not None:
+            match.setEthernetMatch(dest_mac, source_mac)
+            priority = priority + 15
+        if source_ip is not None or dest_ip is not None:
+            match.setIPMatch(dest_ip, source_ip)
+            priority = priority + 15
+        if protocol is not None:
+            match.setIPProtocol(protocol)
             priority = priority + 15
         match.setVlanMatch(graph_vlan)
         
         flowj = Flow("edgeflow", flow_id, 0, priority, True, 0, 0, actions, match)        
         json_req = flowj.getJSON(source_node)
         ODL().createFlow(json_req, source_node, flow_id)
-        
-    def getNodeOFID(self, name):
-        '''
-        Gets the OpenDaylight node_id given the node_name (example: 00:00:00:e1:6d:32:b4:c0) 
-        To be used ONLY in ODL Hydrogen
-        '''
-        nodes = json.loads(ODL().getNodes())
-        tList = nodes["nodeProperties"]
-        for node in tList:
-            if node["properties"]["description"]["value"] == name:
-                return node["node"]["id"]
-        
-    def getNodesOFID(self, name1, name2):
-        '''
-        Returns the OpenDaylight node_ids given two switch names (example: 00:00:00:e1:6d:32:b4:c0) 
-        To be used ONLY in ODL Hydrogen
-        '''
-        node1 = None
-        node2 = None
-        nodes = json.loads(ODL().getNodes())
-        tList = nodes["nodeProperties"]
-        for node in tList:
-            if node["properties"]["description"]["value"] == name1:
-                node1 =  node["node"]["id"]
-            if node["properties"]["description"]["value"] == name2:
-                node2 =  node["node"]["id"]
-        return node1, node2
-    
+
     def linkZones(self, graph_id, switch_user, port_vms_user, switch_user_id, switch_isp, port_vms_isp, switch_isp_id, vlan_id):
         '''
         Link two graphs (or two parts of a single graph) through the SDN network
@@ -743,13 +743,13 @@ class JolnetAdapter(OrchestratorInterface):
             graph_id:
                 id of the user's graph
             switch_user:
-                OpenDaylight identifier of the first switch (example: openflow:123456789)
+                OpenDaylight identifier of the first switch (example: openflow:123456789 or 00:00:64:e9:50:5a:90:90 in Hydrogen)
             port_vms_user:
                 port on the OpenFlow switch where virtual machines are linked
             switch_user_id:
                 id of the node in the database
             switch_isp:
-                OpenDaylight identifier of the second switch (example: openflow:987654321)
+                OpenDaylight identifier of the second switch (example: openflow:987654321 or 00:00:64:e9:50:5a:90:90 in Hydrogen)
             port_vms_isp:
                 port on the OpenFlow switch where virtual machines are linked
             switch_isp_id:
@@ -760,13 +760,10 @@ class JolnetAdapter(OrchestratorInterface):
         edge = None
         link = None
         if ODL_VERSION == "Hydrogen":
-            node1, node2 = self.getNodesOFID(switch_user, switch_isp)
-            edge = self.getLinkBetweenSwitches(node1, node2)
+            edge = self.getLinkBetweenSwitches(switch_user, switch_isp)
             if edge is not None:
                 port12 = edge["edge"]["headNodeConnector"]["id"]
-                port21 = edge["edge"]["tailNodeConnector"]["id"]
-                switch_user = node1
-                switch_isp = node2          
+                port21 = edge["edge"]["tailNodeConnector"]["id"]    
         else:
             link = self.getLinkBetweenSwitches(switch_user, switch_isp)
             if link is not None:        
@@ -780,34 +777,34 @@ class JolnetAdapter(OrchestratorInterface):
                 
         if link is not None or edge is not None:
             fid = int(str(vlan_id) + str(1))              
-            self.pushVlanFlow(switch_user, fid, vlan_id, port_vms_user, port12, vlan_id)
+            self.pushVlanFlow(switch_user, fid, vlan_id, port_vms_user, port12)
             Graph().AddFlowrule(self.session_id, graph_id, fid, "external", "node", switch_user_id, "node", switch_isp_id, "complete")
             fid = int(str(vlan_id) + str(2))
-            self.pushVlanFlow(switch_isp, fid, vlan_id, port21, port_vms_isp, vlan_id)
+            self.pushVlanFlow(switch_isp, fid, vlan_id, port21, port_vms_isp)
             Graph().AddFlowrule(self.session_id, graph_id, fid, "external", "node", switch_isp_id, "node", switch_user_id, "complete")
             fid = int(str(vlan_id) + str(3))               
-            self.pushVlanFlow(switch_isp, fid, vlan_id, port_vms_isp, port21, vlan_id)
+            self.pushVlanFlow(switch_isp, fid, vlan_id, port_vms_isp, port21)
             Graph().AddFlowrule(self.session_id, graph_id, fid, "external", "node", switch_isp_id, "node", switch_user_id, "complete")
             fid = int(str(vlan_id) + str(4))               
-            self.pushVlanFlow(switch_user, fid, vlan_id, port12, port_vms_user, vlan_id)
+            self.pushVlanFlow(switch_user, fid, vlan_id, port12, port_vms_user)
             Graph().AddFlowrule(self.session_id, graph_id, fid, "external", "node", switch_user_id, "node", switch_isp_id, "complete")
         else:
             logging.debug("Cannot find a link between " + switch_user + " and " + switch_isp)
-    
-    def linkUser(self, graph_id, cpe, user_port, cpe_id, switch, switch_port, switch_id, graph_vlan, user_vlan, user_mac = None, user_ip = None):
+
+    def linkUser(self, graph_id, cpe, user_port, cpe_id, switch, switch_port, switch_id, graph_vlan, user_vlan, user_source_mac, user_dest_mac, user_source_ip, user_dest_ip, user_etherType, user_protocol):
         '''
         Link a user with his graph through the SDN network
         Args:
             graph_id:
                 id of the user's graph
             cpe:
-                OpenDaylight identifier of the cpe where user is connecting (example: openflow:123456789)
+                OpenDaylight identifier of the cpe where user is connecting (example: openflow:123456789 or 00:00:64:e9:50:5a:90:90 in Hydrogen)
             user_port:
                 port on the OpenFlow switch (cpe) where the user is connecting
             cpe_id:
                 id of the node in the database
             switch:
-                OpenDaylight identifier of the graph switch (example: openflow:987654321)
+                OpenDaylight identifier of the graph switch (example: openflow:987654321 or 00:00:64:e9:50:5a:90:90 in Hydrogen)
             switch_port:
                 port on the OpenFlow switch where the user's graph is istantiated (compute node)
             switch_id:
@@ -816,21 +813,26 @@ class JolnetAdapter(OrchestratorInterface):
                 VLAN id of the graph ingress endpoint
             user_vlan:
                 VLAN id of user's outgoing traffic (if any)
-            user_mac:
+            user_source_mac:
                 MAC address of the user's device
-            user_ip:
+            user_dest_mac:
+                destination MAC address                 
+            user_source_ip:
                 IP address of the user's device
+            user_dest_ip:
+                destination IP address
+            user_etherType:
+                etherType
+            user_protocol:
+                IP protocol
         '''
         edge = None
         link = None
         if ODL_VERSION == "Hydrogen":
-            node1, node2 = self.getNodesOFID(cpe, switch)
-            edge = self.getLinkBetweenSwitches(node1, node2)
+            edge = self.getLinkBetweenSwitches(cpe, switch)
             if edge is not None:
                 port12 = edge["edge"]["headNodeConnector"]["id"]
-                port21 = edge["edge"]["tailNodeConnector"]["id"]
-                cpe = node1
-                switch = node2          
+                port21 = edge["edge"]["tailNodeConnector"]["id"]        
         else:
             link = self.getLinkBetweenSwitches(cpe, switch)
         
@@ -845,16 +847,16 @@ class JolnetAdapter(OrchestratorInterface):
                 
         if link is not None or edge is not None:
             fid = int(str(graph_vlan) + str(1))
-            self.pushSourceFlow(cpe, fid, user_vlan , user_port, user_mac, user_ip, port12, graph_vlan)
+            self.pushSourceFlow(cpe, fid, user_vlan , user_port, user_source_mac, user_dest_mac, user_source_ip, user_dest_ip, port12, graph_vlan, user_etherType, user_protocol)
             Graph().AddFlowrule(self.session_id, graph_id, fid, "external", "node", cpe_id, "node", switch_id, "complete")
             fid = int(str(graph_vlan) + str(2))
-            self.pushVlanFlow(switch, fid, graph_vlan, port21, switch_port, user_mac)
+            self.pushVlanFlow(switch, fid, graph_vlan, port21, switch_port)
             Graph().AddFlowrule(self.session_id, graph_id, fid, "external", "node", switch_id, "node", cpe_id, "complete")
             fid = int(str(graph_vlan) + str(3))
-            self.pushVlanFlow(switch, fid, graph_vlan, switch_port, port21, user_mac)
+            self.pushVlanFlow(switch, fid, graph_vlan, switch_port, port21)
             Graph().AddFlowrule(self.session_id, graph_id, fid, "external", "node", switch_id, "node", cpe_id, "complete")
             fid = int(str(graph_vlan) + str(4))
-            self.pushDestFlow(cpe, fid, user_vlan , port12, user_mac, user_ip, user_port, graph_vlan)
+            self.pushDestFlow(cpe, fid, user_vlan , port12, user_source_mac, user_dest_mac, user_source_ip, user_dest_ip, user_port, graph_vlan, user_etherType, user_protocol)
             Graph().AddFlowrule(self.session_id, graph_id, fid, "external", "node", cpe_id, "node", switch_id, "complete")
         else:
             logging.debug("Cannot find a link between " + cpe + " and " + switch)

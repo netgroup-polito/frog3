@@ -24,11 +24,7 @@ class Scheduler(object):
 
     
     def schedule(self, nffg):
-        
-        if Configuration().DRIVERS == "JolnetCA" and Configuration().ODL_VERSION == "Hydrogen":
-            node = Node().getNodeFromName(self.checkEndpointLocation(nffg))
-        else:
-            node = Node().getNodeFromDomainID(self.checkEndpointLocation(nffg))
+        node = Node().getNodeFromDomainID(self.checkEndpointLocation(nffg))
         self.changeAvailabilityZone(nffg, Node().getAvailabilityZone(node.id))
         
         orchestratorCA_instance, node_endpoint = self.getInstance(node)

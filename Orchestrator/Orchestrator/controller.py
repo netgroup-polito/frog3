@@ -118,12 +118,13 @@ class UpperLayerOrchestratorController(object):
         elif self.AUTH_MODE == 'token':
             token = KeystoneAuthentication(self.keystone_server, user_token=self.token, orch_token=self.orchToken)
         
-        session = Session().get_active_user_session(token.get_userID()) 
+        #token is never used inside the function
+        session = Session().get_active_session(token.get_userID(),token, nf_fg.id) 
         Session().updateStatus(session.id, 'updating')
         
         # Get profile from session
         logging.debug('Orchestrator - UPDATE - get instantiate profile')
-        old_nf_fg = Graph().get_instantiated_nffg(token.get_userID())
+        old_nf_fg = Graph().get_nffg(session.id)   
         logging.debug('Orchestrator - UPDATE - Old profile\n'+old_nf_fg.getJSON())
 
         nf_fg = self.prepareNF_FG(token, nf_fg)

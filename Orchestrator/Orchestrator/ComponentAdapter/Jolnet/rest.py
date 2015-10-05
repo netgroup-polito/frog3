@@ -5,7 +5,6 @@ Created on 13/apr/2015
 '''
 import requests
 import json
-from Common.config import Configuration
 
 class ODL(object):
     odl_nodes_path = "/restconf/operational/opendaylight-inventory:nodes"

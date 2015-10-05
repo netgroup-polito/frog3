@@ -39,7 +39,7 @@ class Scheduler(object):
         if node.type == "HeatCA" or node.type == "OpenStack_compute":
             node_endpoint = self.findNode("HeatCA", node)
             #TODO: modify HeatCA constructor to get userdata instead of token (like JolnetCA)
-            orchestratorCA_instance = HeatOrchestrator(self.session_id, node.domain_id, token)
+            orchestratorCA_instance = HeatOrchestrator(self.session_id, self.userdata, node)
         elif node.type == "JolnetCA":
             node_endpoint = node.domain_id
             orchestratorCA_instance = JolnetAdapter(self.session_id, self.userdata, node)

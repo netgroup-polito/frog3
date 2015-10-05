@@ -48,11 +48,11 @@ class JolnetAdapter(OrchestratorInterface):
         self.odlusername = odl.username
         self.odlpassword = odl.password
            
-        if DEBUG_MODE is True:
+        '''if DEBUG_MODE is True:
             logging.debug(self.novaEndpoint)
             logging.debug(self.glanceEndpoint)
             logging.debug(self.neutronEndpoint)
-            logging.debug(self.odlendpoint)
+            logging.debug(self.odlendpoint)'''
     
     @property
     def URI(self):

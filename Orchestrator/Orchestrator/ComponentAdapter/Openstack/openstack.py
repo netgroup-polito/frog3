@@ -20,6 +20,7 @@ from Common.SQL.graph import Graph
 from Common.exception import NoHeatPortTranslationFound, StackError, NodeNotFound, DeletionTimeout
 from threading import Thread
 from Orchestrator.ComponentAdapter.Openstack.ovsdb import OVSDB
+from Orchestrator.ComponentAdapter.OpenstackCommon.authentication import KeystoneAuthentication
 
 
 DEBUG_MODE = Configuration().DEBUG_MODE
@@ -38,7 +39,7 @@ class HeatOrchestrator(OrchestratorInterface):
     STATUS = ['CREATE_IN_PROGRESS', 'CREATE_COMPLETE', 'CREATE_FAILED',  'DELETE_IN_PROGRESS', 'DELETE_COMPLETE', 'DELETE_FAILED', 'UPDATE_IN_PROGRESS', 'UPDATE_COMPLETE', 'UPDATE_FAILED']
     WRONG_STATUS = ['CREATE_FAILED','DELETE_FAILED', 'UPDATE_FAILED']
     
-    def __init__(self, session_id, compute_node_address, token):
+    def __init__(self, session_id, userdata, node):
         '''
         Initialized the Heat translation object from the user profile
         params:
@@ -49,13 +50,17 @@ class HeatOrchestrator(OrchestratorInterface):
         '''
         
         self.session_id = session_id
-        self.token = token
-        self.compute_node_address = compute_node_address
-        self._URI = "http://"+compute_node_address
-        self.novaEndpoint = token.get_endpoints('compute')[0]['publicURL']
-        self.glanceEndpoint = token.get_endpoints('image')[0]['publicURL']
-        self.neutronEndpoint = token.get_endpoints('network')[0]['publicURL']
-        self.ovsdb = OVSDB(self.compute_node_address)
+        self.token = KeystoneAuthentication(node.openstack_controller, userdata.tenant, userdata.username, userdata.password)
+        self.compute_node_address = node.domain_id
+        self._URI = "http://"+self.compute_node_address
+        self.novaEndpoint = self.token.get_endpoints('compute')[0]['publicURL']
+        self.glanceEndpoint = self.token.get_endpoints('image')[0]['publicURL']
+        self.neutronEndpoint = self.token.get_endpoints('network')[0]['publicURL']
+        self.ovsdb = OVSDB(self.odlendpoint, self.odlusername, self.odlpassword, self.compute_node_address)
+        odl = Node().getOpenflowController(node.openflow_controller)
+        self.odlendpoint = odl.endpoint
+        self.odlusername = odl.username
+        self.odlpassword = odl.password
         
     
     @property
@@ -546,9 +551,9 @@ class HeatOrchestrator(OrchestratorInterface):
         self.ovsdb.createPort(INGRESS_PORT, integration_bridge_uuid)
         
         interface_id = self.ovsdb.getInterfaceUUID(self.ovsdb.getPortUUID(ingress_patch_port), ingress_patch_port)
-        ODL().setPatchPort(interface_id, INGRESS_PORT, ingress_bridge_uuid, self.ovsdb.node_ip, self.ovsdb.ovsdb_port)
+        ODL().setPatchPort(self.odlendpoint, self.odlusername, self.odlpassword, interface_id, INGRESS_PORT, ingress_bridge_uuid, self.ovsdb.node_ip, self.ovsdb.ovsdb_port)
         interface_id = self.ovsdb.getInterfaceUUID(self.ovsdb.getPortUUID(INGRESS_PORT), INGRESS_PORT)
-        ODL().setPatchPort(interface_id, ingress_patch_port, integration_bridge_uuid, self.ovsdb.node_ip, self.ovsdb.ovsdb_port)
+        ODL().setPatchPort(self.odlendpoint, self.odlusername, self.odlpassword, interface_id, ingress_patch_port, integration_bridge_uuid, self.ovsdb.node_ip, self.ovsdb.ovsdb_port)
 
     def createVirtualExitNetwork(self, nf_fg, exit_endpoint, ip_address):
         br_name = EXIT_SWITCH
@@ -577,9 +582,9 @@ class HeatOrchestrator(OrchestratorInterface):
         
         # Set the two port as patch port
         interface_id = self.ovsdb.getInterfaceUUID(self.ovsdb.getPortUUID(port1), port1)
-        ODL().setPatchPort(interface_id, port2, bridge_id_1, self.ovsdb.node_ip, self.ovsdb.ovsdb_port)
+        ODL().setPatchPort(self.odlendpoint, self.odlusername, self.odlpassword, interface_id, port2, bridge_id_1, self.ovsdb.node_ip, self.ovsdb.ovsdb_port)
         interface_id = self.ovsdb.getInterfaceUUID(self.ovsdb.getPortUUID(port2), port2)
-        ODL().setPatchPort(interface_id, port1, bridge_id_2, self.ovsdb.node_ip, self.ovsdb.ovsdb_port)
+        ODL().setPatchPort(self.odlendpoint, self.odlusername, self.odlpassword, interface_id, port1, bridge_id_2, self.ovsdb.node_ip, self.ovsdb.ovsdb_port)
         return port2
             
     def deleteVirtualExitNetwork(self, nf_fg, port1, port2, ip_address):
@@ -684,7 +689,7 @@ class HeatOrchestrator(OrchestratorInterface):
                     "priority":priority,
                     "actions":["DROP"]
                   }
-        ODL().createFlowmod(flowmod, name, DPID)
+        ODL().createFlowmod(self.odlendpoint, self.odlusername, self.odlpassword, flowmod, name, DPID)
       
     def getLinks(self, nffg):
         links = []

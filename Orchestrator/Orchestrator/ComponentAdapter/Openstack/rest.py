@@ -29,47 +29,47 @@ class ODL(object):
     odl_getInterfacesPath="/interface/rows/"
     odl_updateInterfacesPath="/interface/rows/%s"
     odl_createFlowmodPath="/default/node/OF/%s/staticFlow/%s"
-    odl_username = "admin"
-    odl_password = "SDN@Edge_Polito"
+    #odl_username = "admin"
+    #odl_password = "SDN@Edge_Polito"
     timeout = Configuration().TIMEOUT_ODL
     
-    def createFlowmod(self, flowmod, name, node_dpid):   
+    def createFlowmod(self, odl_endpoint, odl_user, odl_pass, flowmod, name, node_dpid):   
         
         data = json.dumps(flowmod)
         
         headers = {'Content-Type': 'application/json', "cache-control": "no-cache"}
-        url = self.endpoint+self.odl_controllerPath+self.odl_flowProgrammerPath+(self.odl_createFlowmodPath % (node_dpid, name))
-        resp = requests.put(url, headers=headers, data=data, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
+        url = odl_endpoint+self.odl_controllerPath+self.odl_flowProgrammerPath+(self.odl_createFlowmodPath % (node_dpid, name))
+        resp = requests.put(url, headers=headers, data=data, auth=(odl_user, odl_pass), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
     
-    def getFlowmod(self, flowmod, name, node_dpid):   
+    def getFlowmod(self, odl_endpoint, odl_user, odl_pass, flowmod, name, node_dpid):   
         
         data = json.dumps(flowmod)
         
         headers = {'Content-Type': 'application/json', "cache-control": "no-cache"}
-        url = self.endpoint+self.odl_controllerPath+self.odl_flowProgrammerPath+(self.odl_createFlowmodPath % (node_dpid, name))
-        resp = requests.get(url, headers=headers, data=data, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
+        url = odl_endpoint+self.odl_controllerPath+self.odl_flowProgrammerPath+(self.odl_createFlowmodPath % (node_dpid, name))
+        resp = requests.get(url, headers=headers, data=data, auth=(odl_user, odl_pass), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
     
-    def deleteFlowmod(self, flowmod, name, node_dpid):   
+    def deleteFlowmod(self, odl_endpoint, odl_user, odl_pass, flowmod, name, node_dpid):   
         
         data = json.dumps(flowmod)
         
         headers = {'Content-Type': 'application/json', "cache-control": "no-cache"}
-        url = self.endpoint+self.odl_controllerPath+self.odl_flowProgrammerPath+(self.odl_createFlowmodPath % (node_dpid, name))
-        resp = requests.delete(url, headers=headers, data=data, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
+        url = odl_endpoint+self.odl_controllerPath+self.odl_flowProgrammerPath+(self.odl_createFlowmodPath % (node_dpid, name))
+        resp = requests.delete(url, headers=headers, data=data, auth=(odl_user, odl_pass), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
     
-    def getNodes(self):
+    def getNodes(self, odl_endpoint, odl_user, odl_pass):
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
-        resp = requests.get(self.endpoint+self.odl_controllerPath+self.odl_connectionManagerPath+self.odl_getNodes, headers=headers, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
+        resp = requests.get(odl_endpoint+self.odl_controllerPath+self.odl_connectionManagerPath+self.odl_getNodes, headers=headers, auth=(odl_user, odl_pass), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
     
-    def getBridges(self, node_ip, node_port):
+    def getBridges(self, odl_endpoint, odl_user, odl_pass, node_ip, node_port):
         '''
         Args:
             node_ip:
@@ -78,11 +78,11 @@ class ODL(object):
                 Port, where the socket in the node, speaking with the controller
         '''
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
-        resp = requests.get(self.endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_getBridgePath, headers=headers, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
+        resp = requests.get(odl_endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_getBridgePath, headers=headers, auth=(odl_user, odl_pass), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
         
-    def getInterfaces(self, port_id, node_ip, node_port):
+    def getInterfaces(self, odl_endpoint, odl_user, odl_pass, port_id, node_ip, node_port):
         '''
         Args:
             port_id:
@@ -93,12 +93,12 @@ class ODL(object):
                 Port, where the socket in the node, speaking with the controller
         '''
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
-        path = self.endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_getInterfacesPath
-        resp = requests.get(path, headers=headers, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
+        path = odl_endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_getInterfacesPath
+        resp = requests.get(path, headers=headers, auth=(odl_user, odl_pass), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
     
-    def getPorts(self, node_ip, node_port):
+    def getPorts(self, odl_endpoint, odl_user, odl_pass, node_ip, node_port):
         '''
         Args:
             node_ip:
@@ -107,11 +107,11 @@ class ODL(object):
                 Port, where the socket in the node, speaking with the controller
         '''
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
-        resp = requests.get(self.endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_getPortPath, headers=headers, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
+        resp = requests.get(odl_endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_getPortPath, headers=headers, auth=(odl_user, odl_pass), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
     
-    def createPort(self, name, bridge_id, node_ip, node_port):
+    def createPort(self, odl_endpoint, odl_user, odl_pass, name, bridge_id, node_ip, node_port):
         '''
         Args:
             name:
@@ -126,11 +126,11 @@ class ODL(object):
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
         body = {"parent_uuid": bridge_id,
                 "row": {"Port": {"name": name}}}
-        resp = requests.post(self.endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_createPortPath, data=json.dumps(body), headers=headers, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
+        resp = requests.post(odl_endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_createPortPath, data=json.dumps(body), headers=headers, auth=(odl_user, odl_pass), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
     
-    def deletePort(self, port_id, node_ip, node_port):
+    def deletePort(self, odl_endpoint, odl_user, odl_pass, port_id, node_ip, node_port):
         '''
         Args:
             name:
@@ -143,11 +143,11 @@ class ODL(object):
                 Port, where the socket in the node, speaking with the controller
         '''
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
-        resp = requests.delete(self.endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+(self.odl_deletePortPath % (port_id)), headers=headers, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
+        resp = requests.delete(odl_endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+(self.odl_deletePortPath % (port_id)), headers=headers, auth=(odl_user, odl_pass), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
         
-    def createBridge(self, name, node_ip, node_port):
+    def createBridge(self, odl_endpoint, odl_user, odl_pass, name, node_ip, node_port):
         '''
         Args:
             name:
@@ -159,11 +159,11 @@ class ODL(object):
         '''
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
         body = {"row": {"Bridge": {"name": name}}}
-        resp = requests.post(self.endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_createBridgPath, data=json.dumps(body), headers=headers, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
+        resp = requests.post(odl_endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_createBridgPath, data=json.dumps(body), headers=headers, auth=(odl_user, odl_pass), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text 
     
-    def deleteBridge(self, bridge_id, node_ip, node_port):  
+    def deleteBridge(self, odl_endpoint, odl_user, odl_pass, bridge_id, node_ip, node_port):  
         '''
         Args:
             bridge_id:
@@ -174,11 +174,11 @@ class ODL(object):
                 Port, where the socket in the node, speaking with the controller
         '''
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
-        resp = requests.delete(self.endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+(self.odl_deleteBridgPath % (bridge_id)), headers=headers, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
+        resp = requests.delete(odl_endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+(self.odl_deleteBridgPath % (bridge_id)), headers=headers, auth=(odl_user, odl_pass), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
         
-    def setPatchPort(self, interface_id, remote_port_name, bridge_id, node_ip, node_port):
+    def setPatchPort(self, odl_endpoint, odl_user, odl_pass, interface_id, remote_port_name, bridge_id, node_ip, node_port):
         '''
         Args:
             interface_id: 
@@ -195,7 +195,7 @@ class ODL(object):
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
         body = { "row": { "Interface": { "type": "patch","options": 
                 [ "map", [ [ "peer", remote_port_name ] ] ] } } }
-        resp = requests.put(self.endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_updateInterfacesPath % (interface_id), data=json.dumps(body), headers=headers, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
+        resp = requests.put(odl_endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_updateInterfacesPath % (interface_id), data=json.dumps(body), headers=headers, auth=(odl_user, odl_pass), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
 

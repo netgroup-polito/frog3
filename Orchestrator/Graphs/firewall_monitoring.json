@@ -2,24 +2,25 @@
   "profile": {
     "VNFs": [
       {
-        "vnf_descriptor": "switch.json",
+        "vnf_descriptor": "firewall_iptables.json",
+        "id": "Firewall",
         "ports": [
           {
-            "id": "L2Port:0",
+            "id": "WAN:0",
             "outgoing_label": {
               "flowrules": [
                 {
                   "action": {
                     "VNF": {
-                      "id": "Ingress_DHCP",
-                      "port": "inout:0"
+                      "id": "Monitor",
+                      "port": "monitor:2"
                     },
                     "type": "output"
                   },
                   "flowspec": {
                     "matches": [
                       {
-                        "priority": "200",
+                        "priority": "32770",
                         "id": "1"
                       }
                     ]
@@ -29,42 +30,73 @@
             }
           },
           {
+            "id": "User:0",
+            "outgoing_label": {
+              "flowrules": [
+                {
+                  "action": {
+                    "VNF": {
+                      "id": "Monitor",
+                      "port": "monitor:3"
+                    },
+                    "type": "output"
+                  },
+                  "flowspec": {
+                    "matches": [
+                      {
+                        "priority": "32770",
+                        "id": "2"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "name": "Firewall"
+      },
+      {
+        "vnf_descriptor": "monitor_sics.json",
+        "id": "Monitor",
+        "ports": [
+          {
             "ingoing_label": {
               "flowrules": [
                 {
                   "action": {
                     "VNF": {
-                      "id": "Ingress_switch",
-                      "port": "L2Port:1"
+                      "id": "Monitor",
+                      "port": "monitor:1"
                     },
                     "type": "output"
                   },
                   "flowspec": {
                     "matches": [
                       {
-                        "priority": "100",
-                        "id": "654"
+                        "priority": "34770",
+                        "id": "3"
                       }
                     ],
-                    "ingress_endpoint": "User_ingress_endpoint_peer"
+                    "ingress_endpoint": "ingress"
                   }
                 }
               ]
             },
-            "id": "L2Port:1",
+            "id": "monitor:1",
             "outgoing_label": {
               "flowrules": [
                 {
                   "action": {
                     "endpoint": {
-                      "port": "User_ingress_endpoint_peer"
+                      "port": "ingress"
                     },
                     "type": "output"
                   },
                   "flowspec": {
                     "matches": [
                       {
-                        "priority": "200",
+                        "priority": "32770",
                         "id": "4"
                       }
                     ]
@@ -79,37 +111,85 @@
                 {
                   "action": {
                     "VNF": {
-                      "id": "Ingress_switch",
-                      "port": "L2Port:2"
+                      "id": "Monitor",
+                      "port": "monitor:0"
                     },
                     "type": "output"
                   },
                   "flowspec": {
                     "matches": [
                       {
-                        "priority": "40000",
-                        "id": "659"
+                        "priority": "32770",
+                        "id": "5"
                       }
                     ],
-                    "ingress_endpoint": "Ingress_endpoint"
+                    "ingress_endpoint": "egress"
                   }
                 }
               ]
             },
-            "id": "L2Port:2",
+            "id": "monitor:0",
             "outgoing_label": {
               "flowrules": [
                 {
                   "action": {
                     "endpoint": {
-                      "port": "Ingress_endpoint"
+                      "port": "egress"
                     },
                     "type": "output"
                   },
                   "flowspec": {
                     "matches": [
                       {
-                        "priority": "40000",
+                        "priority": "32770",
+                        "id": "6"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "id": "monitor:2",
+            "outgoing_label": {
+              "flowrules": [
+                {
+                  "action": {
+                    "VNF": {
+                      "id": "Firewall",
+                      "port": "WAN:0"
+                    },
+                    "type": "output"
+                  },
+                  "flowspec": {
+                    "matches": [
+                      {
+                        "priority": "32770",
+                        "id": "7"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "id": "monitor:3",
+            "outgoing_label": {
+              "flowrules": [
+                {
+                  "action": {
+                    "VNF": {
+                      "id": "Firewall",
+                      "port": "User:0"
+                    },
+                    "type": "output"
+                  },
+                  "flowspec": {
+                    "matches": [
+                      {
+                        "priority": "32770",
                         "id": "8"
                       }
                     ]
@@ -119,52 +199,20 @@
             }
           }
         ],
-        "id": "Ingress_switch",
-        "name": "Control_Switch"
-      },
-      {
-        "vnf_descriptor": "client_dhcp.json",
-        "ports": [
-          {
-            "id": "inout:0",
-            "outgoing_label": {
-              "flowrules": [
-                {
-                  "action": {
-                    "VNF": {
-                      "id": "Ingress_switch",
-                      "port": "L2Port:0"
-                    },
-                    "type": "output"
-                  },
-                  "flowspec": {
-                    "matches": [
-                      {
-                        "priority": "400",
-                        "id": "5"
-                      }
-                    ]
-                  }
-                }
-              ]
-            }
-          }
-        ],
-        "id": "Ingress_DHCP",
-        "name": "dhcp_unique"
+        "name": "Router-Nat"
       }
     ],
     "endpoints": [
       {
-        "id": "User_ingress_endpoint_peer",
-        "name": "USER_INGRESS"
+        "id": "ingress",
+        "name": "INGRESS"
       },
       {
-        "id": "Ingress_endpoint",
-        "name": "INGRESS"
+        "id": "egress",
+        "name": "EGRESS"
       }
     ],
-    "id": "6",
-    "name": "Ingress_NF-FG"
+    "id": "Demo-Turin-2015-day2",
+    "name": "Protected_access_to_the_internet"
   }
 }

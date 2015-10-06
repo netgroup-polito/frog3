@@ -5,6 +5,7 @@ Created on 13/mag/2015
 '''
 
 import json
+import logging
 from Common.config import Configuration
 
 ODL_VERSION = Configuration().ODL_VERSION
@@ -69,10 +70,12 @@ class Flow(object):
                 j_flow['dlSrc'] = self.match.eth_source
             if (self.match.eth_dest is not None):
                 j_flow['dlDst'] = self.match.eth_dest
+            if (self.match.ip_protocol is not None):
+                j_flow['protocol'] = self.match.ip_protocol               
             
-            # to check
             if (self.match.ip_match is True and self.match.ethertype is None):
                 j_flow['etherType'] = "0x800"
+                logging.warning("Hydrogen requires ethertype set in order to perform ip match: ethertype has been set to 0x800")
             
             for action in self.actions:
                 j_action = action.getActionsHydrogen()
@@ -113,6 +116,9 @@ class Flow(object):
                     j_flow['flow']['match']['ipv4-source'] = self.match.ip_source
                 if (self.match.ip_dest is not None):
                     j_flow['flow']['match']['ipv4-destination'] = self.match.ip_dest
+                if (self.match.ip_protocol is not None):
+                    j_flow['flow']['match']['ip-match'] = {}
+                    j_flow['flow']['match']['ip-match']['ip-protocol'] = self.match.ip_protocol
                 if (self.match.vlan_id is not None):
                     j_flow['flow']['match']['vlan-match'] = {}
                     j_flow['flow']['match']['vlan-match']['vlan-id'] = {}
@@ -193,12 +199,13 @@ class Match(object):
         self.ethertype = None
         self.eth_source = None
         self.eth_dest = None
+        self.ip_protocol = None
         self.ip_match = None
         self.ip_source = None
         self.ip_dest = None
         self.tp_match = None
         self.port_source = None
-        self.port_des = None
+        self.port_dest = None
     
     def setInputMatch(self, in_port):
         self.input_port = in_port
@@ -207,11 +214,17 @@ class Match(object):
         self.vlan_id = vlan_id
         self.vlan_id_present = True
         
-    def setEthernetMatch(self, ethertype = None, eth_source = None, eth_dest = None):
+    def setEtherTypeMatch(self, ethertype):
         self.eth_match = True
         self.ethertype = ethertype
+        
+    def setEthernetMatch(self, eth_source = None, eth_dest = None):
+        self.eth_match = True
         self.eth_source = eth_source
         self.eth_dest = eth_dest
+        
+    def setIPProtocol(self, protocol):
+        self.ip_protocol = protocol
         
     def setIPMatch(self, ip_source = None, ip_dest = None):
         self.ip_match = True
@@ -365,20 +378,28 @@ class Endpoint(object):
         self.status = status
         self.remote_graph = remote_graph
         self.remote_id = remote_id
-        self.user_mac = None
+        self.user_source_mac = None
+        self.user_dest_mac = None
         self.user_vlan = None
         self.user_node = None
         self.user_interface = None
-        self.user_ip = None
-    
-    def setUserParams(self, user_mac, user_vlan, user_node, user_interface, user_ip):
-        self.user_mac = user_mac
+        self.user_source_ip = None
+        self.user_dest_ip = None
+        self.user_etherType = None
+        self.user_protocol = None
+        
+    def setUserParams(self, user_source_mac, user_dest_mac, user_vlan, user_node, user_interface, user_source_ip, user_dest_ip, ether_type, user_protocol):
+        self.user_source_mac = user_source_mac
+        self.user_dest_mac = user_dest_mac
         self.user_vlan = user_vlan
         self.user_node = user_node
         self.user_interface = user_interface
+        self.user_source_ip = user_source_ip
+        self.user_dest_ip = user_dest_ip
+        self.user_etherType = ether_type
+        self.user_protocol = user_protocol
         self.connection = True
         self.status = 'new'
-        self.user_ip = user_ip
     
 class ProfileGraph(object):
     '''

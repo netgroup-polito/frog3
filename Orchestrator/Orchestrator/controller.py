@@ -63,9 +63,9 @@ class UpperLayerOrchestratorController(object):
         logging.debug('Instantiated_nffg that we are going to delete: '+instantiated_nffg.getJSON())
         
         # De-instantiate profile
-        orchestrator, node_endpoint = Scheduler(session_id).getInstance(node)
+        orchestrator = Scheduler(session_id).getInstance(node)
         try:
-            orchestrator.deinstantiateProfile(instantiated_nffg, node.domain_id)
+            orchestrator.deinstantiateProfile(instantiated_nffg, node)
         except Exception as ex:
             logging.exception(ex)
             raise ex
@@ -88,26 +88,26 @@ class UpperLayerOrchestratorController(object):
         nf_fg = self.prepareNF_FG(nf_fg)
         
         # Get the component adapter associated  to the node where the nffg was instantiated
-        node = Node().getNode(Graph().getNodeID(session.id))
+        old_node = Node().getNode(Graph().getNodeID(session.id))
         scheduler = Scheduler(session.id, self.userdata)
-        old_orchestrator_instance, old_node_endpoint = scheduler.getInstance(node)
-        orchestrator, new_node_endpoint = scheduler.schedule(nf_fg)
+        orchestrator, new_node = scheduler.schedule(nf_fg)
         
-        if new_node_endpoint != old_node_endpoint:
-            orchestrator.deinstantiateProfile(nf_fg, node.domain_id)
+        if new_node.id != old_node.id:
+            orchestrator.deinstantiateProfile(nf_fg, old_node)
             Graph().delete_graph(session.id)
             Graph().addNFFG(nf_fg, session.id)
-            orchestrator.instantiateProfile(nf_fg, new_node_endpoint)
+            orchestrator.instantiateProfile(nf_fg, new_node)
         else:
             # Update the nffg
             try:
-                orchestrator.updateProfile(nf_fg, old_nf_fg, new_node_endpoint)
+                orchestrator.updateProfile(nf_fg, old_nf_fg, new_node)
             except Exception as ex:
                 logging.exception(ex)
                 Session().set_error(session.id)
                 raise ex
         
         Session().updateStatus(session.id, 'complete')
+        Session().updateSessionNode(self.session_id, new_node.id, new_node.id)
         return session.id
         
     def put(self, nf_fg):
@@ -133,12 +133,12 @@ class UpperLayerOrchestratorController(object):
                 
                 # Take a decision about where we should schedule the serving graph (UN or HEAT), and the node
                 scheduler = Scheduler(session_id, self.userdata)           
-                orchestrator, node_endpoint = scheduler.schedule(nf_fg)
+                orchestrator, node = scheduler.schedule(nf_fg)
                 
                 # Instantiate profile
                 logging.info('Orchestrator - PUT - Call CA to instantiate NF-FG')
                 logging.debug(nf_fg.getJSON())
-                orchestrator.instantiateProfile(nf_fg, node_endpoint)
+                orchestrator.instantiateProfile(nf_fg, node)
                 logging.debug('Orchestrator - PUT - NF-FG instantiated')     
                 
             except Exception as ex:
@@ -148,6 +148,7 @@ class UpperLayerOrchestratorController(object):
                 raise ex
         
         Session().updateStatus(session_id, 'complete')
+        Session().updateSessionNode(self.session_id, node.id, node.id)
                                 
         return session_id
         
@@ -191,8 +192,8 @@ class UpperLayerOrchestratorController(object):
         
         # Get the status of the resources
         scheduler = Scheduler(session_id, self.userdata)  
-        orchestrator, node_endpoint = scheduler.getInstance(node)
-        status = orchestrator.getStatus(session_id, node_endpoint)
+        orchestrator = scheduler.getInstance(node)
+        status = orchestrator.getStatus(session_id, node)
         logging.debug(status)
         return status
 

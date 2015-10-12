@@ -17,25 +17,37 @@ class OrchestratorInterface:
         pass
     
     @abstractmethod
-    def getStatus(self, session_id, node_endpoint):
+    def getStatus(self, session_id, node):
         '''
         Returns the status of the nffg resources
         '''
         pass
     
     @abstractmethod
-    def updateProfile(self, nf_fg_id, new_profile, old_profile):
+    def updateProfile(self, new_nf_fg, old_nf_fg, node):
+        '''
+        Method to use to update a User Profile Graph
+        Args:
+            new_nffg:
+                Object of the Class Common.NF_FG.nf_fg.NF_FG
+            old_nffg:
+                Object of the Class Common.NF_FG.nf_fg.NF_FG
+            node:
+                Object of the class Common.SQL.node.NodeModel
+            Exceptions:
+                Raise some exception to be captured
+        '''
         pass
     
     @abstractmethod
-    def deinstantiateProfile(self, nffg, node_endpoint):
+    def deinstantiateProfile(self, nffg, node):
         '''
         Method used to de-instantiate the User Profile Graph
         Args:
             nffg:
                 Object of the Class Common.NF_FG.nf_fg.NF_FG
             node_endpoint:
-                End point used to contact the infrastructure layer
+                Object of the class Common.SQL.node.NodeModel
             Exceptions:
                 Raise some exception to be captured
         '''
@@ -43,14 +55,14 @@ class OrchestratorInterface:
     
         
     @abstractmethod
-    def instantiateProfile(self,  nffg, node_endpoint):
+    def instantiateProfile(self,  nffg, node):
         '''
         Method to use to instantiate the User Profile Graph
         Args:
             nffg:
                 Object of the Class Common.NF_FG.nf_fg.NF_FG
-            node_endpoint:
-                End point used to contact the infrastructure layer
+            node:
+                Object of the class Common.SQL.node.NodeModel
             Exceptions:
                 Raise some exception to be captured
         '''

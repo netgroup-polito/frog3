@@ -14,10 +14,19 @@ After that, you need also to manually insert every JOLNet node into the orchestr
 
 ```sh
 | ID |  NAME   |    TYPE    |       DOMAIN_ID        |   AVAILABILITY_ZONE   |  OPENSTACK_CONTROLLER  | OPENFLOW_CONTROLLER  |
-  1     node1	  JolnetCA    openflow:xxxxxxxxxxx           Turin              http://1.1.1.1:35557           XYZ 
+  1     node1	  JolnetCA    openflow:xxxxxxxxxxx            Turin              		ABC          			XYZ 
 ```
 
-where the ID can be arbitrary assigned, the DOMAIN_ID is the OpenFlow id of the switch, AVAILABILITY_ZONE is the availability zone of the correspondent OpenStack compute node, OPENSTACK_CONTROLLER is the public authentication endpoint of the OpenStack controller (Keystone) and OPENFLOW_CONTROLLER is the foreign key which remands to the "openflow_controller" table.
+where the ID can be arbitrary assigned, the DOMAIN_ID is the OpenFlow id of the switch, AVAILABILITY_ZONE is the availability zone of the correspondent OpenStack compute node, OPENSTACK_CONTROLLER is the id of the OpenStack controller and OPENFLOW_CONTROLLER is the foreign key which points to the "openflow_controller" table. 
+
+The OpenStack controller is also inserted into this table and its domain id is the public address where the orchestrator will send REST requests (it does not need availability_zone and controllers fields):
+
+```sh
+| ID  |  NAME   |    TYPE    |   DOMAIN_ID    |   AVAILABILITY_ZONE   |  OPENSTACK_CONTROLLER  | OPENFLOW_CONTROLLER  |
+  ABC    ctrl	   JolnetCA       1.1.1.1     
+```
+
+The OpenFlow controller is instead inserted in a dedicated table:
 
 ```sh
 | ID  |       ENDPOINT         |    VERSION     |   USERNAME    |   PASSWORD   |

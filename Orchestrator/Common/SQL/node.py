@@ -62,10 +62,11 @@ class OpenflowControllerModel(Base):
     version = Column(VARCHAR(64))
     username = Column(VARCHAR(64))
     password = Column(VARCHAR(64))
-    
+
+#TODO: to be used into the SLApp DB and not into the orchestrator one    
 class UserLocationModel(Base):
     '''
-    Maps the database table node
+    Maps the database table node (used only by the Service layer)
     '''
     __tablename__ = 'user_location'
     attributes = ['user_id', 'node_id']
@@ -151,7 +152,7 @@ class Node(object):
     def getOpenflowController(self, controller_id):
         session = get_session()
         try:
-            return session.query(OpenflowControllerModel.id).filter_by(id = controller_id).one()
+            return session.query(OpenflowControllerModel).filter_by(id = controller_id).one()
         except Exception as ex:
             logging.error(ex)
             raise ControllerNotFound("Node not found: "+str(controller_id))

@@ -22,37 +22,18 @@ from Orchestrator.ComponentAdapter.OpenstackCommon.authentication import Keyston
 DEBUG_MODE = Configuration().DEBUG_MODE
 
 class JolnetAdapter(OrchestratorInterface):
-    '''
-    Override class of the abstract class OrchestratorInterface
-    '''
     
-    def __init__(self, session_id, userdata, node):
+    def __init__(self, session_id, userdata):
         '''
         Initialize the Jolnet component adapter
         Args:
             session_id:
                 identifier for the current user session
-            node:
-                address of the compute node where to deploy the graph (can change at every graph)
             userdata:
                 credentials to get Keystone token for the user
         '''
         self.session_id = session_id
-        self.token = KeystoneAuthentication(node.openstack_controller, userdata.tenant, userdata.username, userdata.password)
-        self.compute_node_address = node.domain_id
-        self.novaEndpoint = self.token.get_endpoints('compute')[0]['publicURL']
-        self.glanceEndpoint = self.token.get_endpoints('image')[0]['publicURL']
-        self.neutronEndpoint = self.token.get_endpoints('network')[0]['publicURL']
-        odl = Node().getOpenflowController(node.openflow_controller)
-        self.odlendpoint = odl.endpoint
-        self.odlusername = odl.username
-        self.odlpassword = odl.password
-           
-        '''if DEBUG_MODE is True:
-            logging.debug(self.novaEndpoint)
-            logging.debug(self.glanceEndpoint)
-            logging.debug(self.neutronEndpoint)
-            logging.debug(self.odlendpoint)'''
+        self.userdata = userdata
     
     @property
     def URI(self):
@@ -63,17 +44,16 @@ class JolnetAdapter(OrchestratorInterface):
     #########################    Orchestrator interface implementation        ############################
     ######################################################################################################
     '''
-    def getStatus(self, session_id, node_endpoint):
-        self.node_endpoint = node_endpoint
+    def getStatus(self, session_id, node):
+        self.getAuthTokenAndEndpoints(node)
         return self.openstackResourcesStatus(self.token.get_token())
     
-    def instantiateProfile(self, nf_fg, node_endpoint):
+    def instantiateProfile(self, nf_fg, node):
         '''
         Override method of the abstract class for instantiating the user graph
         '''
-        self.node_endpoint = node_endpoint
+        self.getAuthTokenAndEndpoints(node)
         Session().updateUserID(self.session_id, self.token.get_userID())
-        Session().updateSessionNode(self.session_id, node_endpoint.id, node_endpoint.id)
         
         if DEBUG_MODE is True:
             logging.debug("Forwarding graph: " + nf_fg.getJSON())
@@ -88,13 +68,12 @@ class JolnetAdapter(OrchestratorInterface):
             logging.exception(err) 
             raise
     
-    def updateProfile(self, new_nf_fg, old_nf_fg, node_endpoint):
+    def updateProfile(self, new_nf_fg, old_nf_fg, node):
         '''
         Override method of the abstract class for updating the user graph
         '''        
-        self.node_endpoint = node_endpoint
+        self.getAuthTokenAndEndpoints(node)
         Session().updateUserID(self.session_id, self.token.get_userID())
-        Session().updateSessionNode(self.session_id, node_endpoint.id, node_endpoint.id)
         
         try:
             updated_nffg = NFFG_Management().diff(old_nf_fg, new_nf_fg)
@@ -113,11 +92,11 @@ class JolnetAdapter(OrchestratorInterface):
             logging.exception(err) 
             raise
         
-    def deinstantiateProfile(self, nf_fg, node_endpoint):
+    def deinstantiateProfile(self, nf_fg, node):
         '''
         Override method of the abstract class for deleting the user graph
         '''
-        self.node_endpoint = node_endpoint
+        self.getAuthTokenAndEndpoints(node)
         
         if DEBUG_MODE is True:
             logging.debug("Forwarding graph: " + nf_fg.getJSON())
@@ -130,6 +109,27 @@ class JolnetAdapter(OrchestratorInterface):
             logging.exception(err) 
             raise
  
+    '''
+    ######################################################################################################
+    ######################   Authentication towards infrastructure controllers        ####################
+    ######################################################################################################
+    ''' 
+    
+    def getAuthTokenAndEndpoints(self, node):
+        self.node_endpoint = Node().getNode(node.openstack_controller).domain_id
+        self.compute_node_address = node.domain_id
+        
+        self.keystoneEndpoint = 'http://' + self.node_endpoint + ':35357'
+        self.token = KeystoneAuthentication(self.keystoneEndpoint, self.userdata.tenant, self.userdata.username, self.userdata.password)
+        self.novaEndpoint = self.token.get_endpoints('compute')[0]['publicURL']
+        self.glanceEndpoint = self.token.get_endpoints('image')[0]['publicURL']
+        self.neutronEndpoint = self.token.get_endpoints('network')[0]['publicURL']
+        
+        odl = Node().getOpenflowController(node.openflow_controller)
+        self.odlendpoint = odl.endpoint
+        self.odlusername = odl.username
+        self.odlpassword = odl.password
+    
     '''
     ######################################################################################################
     #############################    Resources preparation phase        ##################################

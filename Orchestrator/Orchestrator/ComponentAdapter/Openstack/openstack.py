@@ -17,6 +17,8 @@ from Common.Manifest.manifest import Manifest
 from Orchestrator.ComponentAdapter.Common.nffg_management import NFFG_Management
 from Orchestrator.ComponentAdapter.Openstack.resources import FlowRoute,Net,Port,ProfileGraph,VNF
 from Common.SQL.graph import Graph
+from Common.SQL.session import Session
+from Common.SQL.node import Node
 from Common.exception import NoHeatPortTranslationFound, StackError, NodeNotFound, DeletionTimeout
 from threading import Thread
 from Orchestrator.ComponentAdapter.Openstack.ovsdb import OVSDB
@@ -39,7 +41,7 @@ class HeatOrchestrator(OrchestratorInterface):
     STATUS = ['CREATE_IN_PROGRESS', 'CREATE_COMPLETE', 'CREATE_FAILED',  'DELETE_IN_PROGRESS', 'DELETE_COMPLETE', 'DELETE_FAILED', 'UPDATE_IN_PROGRESS', 'UPDATE_COMPLETE', 'UPDATE_FAILED']
     WRONG_STATUS = ['CREATE_FAILED','DELETE_FAILED', 'UPDATE_FAILED']
     
-    def __init__(self, session_id, userdata, node):
+    def __init__(self, session_id, userdata):
         '''
         Initialized the Heat translation object from the user profile
         params:
@@ -50,22 +52,32 @@ class HeatOrchestrator(OrchestratorInterface):
         '''
         
         self.session_id = session_id
-        self.token = KeystoneAuthentication(node.openstack_controller, userdata.tenant, userdata.username, userdata.password)
-        self.compute_node_address = node.domain_id
-        self._URI = "http://"+self.compute_node_address
-        self.novaEndpoint = self.token.get_endpoints('compute')[0]['publicURL']
-        self.glanceEndpoint = self.token.get_endpoints('image')[0]['publicURL']
-        self.neutronEndpoint = self.token.get_endpoints('network')[0]['publicURL']
-        self.ovsdb = OVSDB(self.odlendpoint, self.odlusername, self.odlpassword, self.compute_node_address)
-        odl = Node().getOpenflowController(node.openflow_controller)
-        self.odlendpoint = odl.endpoint
-        self.odlusername = odl.username
-        self.odlpassword = odl.password
-        
+        self.userdata = userdata       
     
     @property
     def URI(self):
         return self._URI
+    
+    '''
+    ######################################################################################################
+    ######################   Authentication towards infrastructure controllers        ####################
+    ######################################################################################################
+    ''' 
+    
+    def getAuthTokenAndEndpoints(self, node):
+        self.node_endpoint = Node().getNode(node.openstack_controller).domain_id
+        self.compute_node_address = node.domain_id
+        
+        self.keystoneEndpoint = 'http://' + self.node_endpoint + ':35357'
+        self.token = KeystoneAuthentication(self.keystoneEndpoint, self.userdata.tenant, self.userdata.username, self.userdata.password)        
+        self.novaEndpoint = self.token.get_endpoints('compute')[0]['publicURL']
+        self.glanceEndpoint = self.token.get_endpoints('image')[0]['publicURL']
+        self.neutronEndpoint = self.token.get_endpoints('network')[0]['publicURL']
+        
+        odl = Node().getOpenflowController(node.openflow_controller)
+        self.odlendpoint = odl.endpoint
+        self.odlusername = odl.username
+        self.odlpassword = odl.password
     
     '''
     '''
@@ -73,15 +85,15 @@ class HeatOrchestrator(OrchestratorInterface):
     #########################    Orchestrator interface implementation        ############################
     ######################################################################################################
     
-    def getStatus(self, session_id, node_endpoint):
-        self.node_endpoint = node_endpoint
+    def getStatus(self, session_id, node):
+        self.getAuthTokenAndEndpoints(node)
         return self.openstackResourcesStatus(self.token.get_token())
     
-    def deinstantiateProfile(self, nffg, node_endpoint):
+    def deinstantiateProfile(self, nffg, node):
         '''
         Override method of the abstract class for deleting the user Stack
         '''
-        self.node_endpoint = node_endpoint
+        self.getAuthTokenAndEndpoints(node)
 
         token_id = self.token.get_token()
     
@@ -91,11 +103,13 @@ class HeatOrchestrator(OrchestratorInterface):
         # Disconnect exit switch from graph
         self.deleteEndpoints(nffg) 
     
-    def instantiateProfile(self, nffg, node_endpoint):
+    def instantiateProfile(self, nffg, node):
         '''
         Override method of the abstract class for instantiating the user Stack
         '''
-        self.node_endpoint = node_endpoint   
+        self.getAuthTokenAndEndpoints(node)
+        Session().updateUserID(self.session_id, self.token.get_userID())
+        
         try:            
             # Create a drop flow that match all packets, to avoid loop
             # when ODL doesn't set properly the tag vlan
@@ -132,13 +146,14 @@ class HeatOrchestrator(OrchestratorInterface):
             #set_error(self.token.get_userID())  
             raise
   
-    def updateProfile(self, new_nf_fg, old_nf_fg, node_endpoint):
+    def updateProfile(self, new_nf_fg, old_nf_fg, node):
         updated_nffg = NFFG_Management().diff(old_nf_fg, new_nf_fg)
         token = self.token.get_token()
         logging.debug("diff: "+updated_nffg.getJSON())
         
-        self.node_endpoint = node_endpoint   
+        self.getAuthTokenAndEndpoints(node) 
         token_id = self.token.get_token()
+        Session().updateUserID(self.session_id, self.token.get_userID())
         
         # Delete VNFs
         for vnf in updated_nffg.listVNF[:]:

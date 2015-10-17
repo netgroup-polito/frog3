@@ -19,7 +19,7 @@ from Common.NF_FG.nf_fg_managment import NF_FG_Management
 
 '''
     NEWS: From now on, CAs are in charge of getting users tokens from Keystone (if needed)
-    Moreover, they should insert Keystone internal id into the Session table (user_id),
+    Moreover, they should insert Keystone user's internal id into the Session table (user_id),
     exactly like they already do with other OpenStack objects...
 '''
 
@@ -63,7 +63,7 @@ class UpperLayerOrchestratorController(object):
         logging.debug('Instantiated_nffg that we are going to delete: '+instantiated_nffg.getJSON())
         
         # De-instantiate profile
-        orchestrator = Scheduler(session_id).getInstance(node)
+        orchestrator = Scheduler(session_id, self.userdata).getInstance(node)
         try:
             orchestrator.deinstantiateProfile(instantiated_nffg, node)
         except Exception as ex:

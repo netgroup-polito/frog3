@@ -4,19 +4,17 @@
     "endpoints": [
          {
             "name": "EGRESS",
-            "attached": false,
             "connection": true,
             "type": "vlan-egress",
             "id": "288",
-            "interface": "openflow:44838630154304:5102",
+            "node": "openflow:44838630154304",
+            "interface": "5102",
             "remote_graph": "0",
-            "remote_graph_name": "Jolnet_ISP_Graph",
-            "remote_id": "288",
-            "remote_interface": "openflow:110953238266560:5098"
+            "remote_graph_name": "Jolnet ISP Graph",
+            "remote_id": "288"      
          }
     ],
-    "id": "8",
-    "name": "Jolnet_Only_flows",
-    "availability_zone": "AZ_TN"
+    "id": "10",
+    "name": "Jolnet Test Graph"
   }
 }

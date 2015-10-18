@@ -5,12 +5,6 @@ Created on 13/apr/2015
 '''
 import requests
 import json
-from Common.config import Configuration
-
-ODL_ENDPOINT = Configuration().ODL_ENDPOINT
-ODL_ENDPOINT2 = Configuration().ODL_ENDPOINT2
-ODL_USER = Configuration().ODL_USER
-ODL_PASS = Configuration().ODL_PASSWORD
 
 '''
 ######################################################################################################
@@ -18,41 +12,44 @@ ODL_PASS = Configuration().ODL_PASSWORD
 ######################################################################################################
 '''
 class ODL(object):
-    endpoint8080 = ODL_ENDPOINT
-    endpoint8181 = ODL_ENDPOINT2
-    odl_nodes_path = "/restconf/operational/opendaylight-inventory:nodes"
-    odl_topology_path = "/restconf/operational/network-topology:network-topology/"
-    odl_flows_path = "/restconf/config/opendaylight-inventory:nodes"
-    odl_node="/node"
-    odl_flow="/table/0/flow/"
     
-    #Credential for authentication on OpenDaylight controller
-    odl_user = ODL_USER
-    odl_pass = ODL_PASS
+    def __init__(self, version):
+        if version == "Hydrogen":
+            self.odl_nodes_path = "/controller/nb/v2/switchmanager/default/nodes"
+            self.odl_topology_path = "/controller/nb/v2/topology/default"
+            self.odl_flows_path = "/controller/nb/v2/flowprogrammer/default"
+            self.odl_node="/node/OF"
+            self.odl_flow="/staticFlow/"     
+        else:
+            self.odl_nodes_path = "/restconf/operational/opendaylight-inventory:nodes"
+            self.odl_topology_path = "/restconf/operational/network-topology:network-topology/"
+            self.odl_flows_path = "/restconf/config/opendaylight-inventory:nodes"
+            self.odl_node="/node"
+            self.odl_flow="/table/0/flow/"
     
-    def getNodes(self):
+    def getNodes(self, odl_endpoint, odl_user, odl_pass):
         '''
         Deprecated with Cisco switches because response is not a valid JSON
         '''
         headers = {'Accept': 'application/json'}
-        url = self.endpoint8080+self.odl_nodes_path
-        resp = requests.get(url, headers=headers, auth=(self.odl_user, self.odl_pass))
+        url = odl_endpoint+self.odl_nodes_path
+        resp = requests.get(url, headers=headers, auth=(odl_user, odl_pass))
         resp.raise_for_status()
         return resp.text
     
-    def getTopology(self):
+    def getTopology(self, odl_endpoint, odl_user, odl_pass):
         '''
         Get the entire topology comprensive of hosts, switches and links (JSON)
         Exceptions:
             raise the requests.HTTPError exception connected to the REST call in case of HTTP error
         '''
         headers = {'Accept': 'application/json'}
-        url = self.endpoint8080+self.odl_topology_path
-        resp = requests.get(url, headers=headers, auth=(self.odl_user, self.odl_pass))
+        url = odl_endpoint+self.odl_topology_path
+        resp = requests.get(url, headers=headers, auth=(odl_user, odl_pass))
         resp.raise_for_status()
         return resp.text
     
-    def createFlow(self, jsonFlow, switch_id, flow_id):
+    def createFlow(self, odl_endpoint, odl_user, odl_pass, jsonFlow, switch_id, flow_id):
         '''
         Create a flow on the switch selected (Currently using OF1.0)
         Args:
@@ -66,12 +63,12 @@ class ODL(object):
             raise the requests.HTTPError exception connected to the REST call in case of HTTP error
         '''
         headers = {'Accept': 'application/json', 'Content-type':'application/json'}
-        url = self.endpoint8181+self.odl_flows_path+self.odl_node+"/"+str(switch_id)+self.odl_flow+str(flow_id)
-        resp = requests.put(url,jsonFlow,headers=headers, auth=(self.odl_user, self.odl_pass))
+        url = odl_endpoint+self.odl_flows_path+self.odl_node+"/"+str(switch_id)+self.odl_flow+str(flow_id)
+        resp = requests.put(url,jsonFlow,headers=headers, auth=(odl_user, odl_pass))
         resp.raise_for_status()
         return resp.text
     
-    def deleteFlow(self, switch_id, flow_id):
+    def deleteFlow(self, odl_endpoint, odl_user, odl_pass, switch_id, flow_id):
         '''
         Delete a flow
         Args:
@@ -83,8 +80,8 @@ class ODL(object):
             raise the requests.HTTPError exception connected to the REST call in case of HTTP error
         '''
         headers = {'Accept': 'application/json', 'Content-type':'application/json'}
-        url = self.endpoint8181+self.odl_flows_path+self.odl_node+"/"+switch_id+self.odl_flow+str(flow_id)
-        resp = requests.delete(url,headers=headers, auth=(self.odl_user, self.odl_pass))
+        url = odl_endpoint+self.odl_flows_path+self.odl_node+"/"+switch_id+self.odl_flow+str(flow_id)
+        resp = requests.delete(url,headers=headers, auth=(odl_user, odl_pass))
         resp.raise_for_status()
         return resp.text
 
@@ -94,6 +91,9 @@ class ODL(object):
 ######################################################################################################
 '''
 class Heat(object):
+    ''' 
+    Class (no longer) used to call the Heat Openstack API
+    '''
     getStackPath="/stacks"
     createStackPath="/stacks"
     updateStackPath="/stacks/%s/%s"
@@ -263,6 +263,7 @@ class Nova(object):
     getHostAggregateListPath="/os-aggregates"
     addComputeNodeToHostAggregatePath = "/os-aggregates/%s/action"
     addServer = "/servers"
+    attachInterface = "/servers/%s/os-interface"
     
     def getAvailabilityZones(self, novaEndpoint, token):
         """
@@ -383,12 +384,14 @@ class Nova(object):
         resp = requests.delete(novaEndpoint + self.addServer + "/" + server_id, headers=headers)
         resp.raise_for_status()
         return resp
-
-'''
-######################################################################################################
-##############################    OpenStack Glance REST calls        #################################
-######################################################################################################
-'''       
+    
+    def attachPort(self, novaEndpoint, token, port_id, server_id):
+        data = {"interfaceAttachment": {"port_id": port_id}}
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.post(novaEndpoint + (self.attachInterface % server_id), data=json.dumps(data), headers=headers)
+        resp.raise_for_status()
+        return json.loads(resp.text)
+       
 class Glance(object):
 
     def getImage(self, imageURI, token):
@@ -415,7 +418,14 @@ class Glance(object):
 '''
 class Neutron(object):
     get_networks = "v2.0/networks"
+    get_network_status = "/v2.0/networks/%s"
+    create_network = "/v2.0/networks"
+    delete_network = "/v2.0/networks/%s"
+    create_subnet = "/v2.0/subnets"
+    delete_subnet = "/v2.0/subnets/%s"
+    get_subnet_status = "/v2.0/subnets/%s"
     get_ports = "v2.0/ports"
+    get_port_status = "/v2.0/ports/%s"
     
     def getNetworks(self, neutronEndpoint, token):
         '''
@@ -432,6 +442,51 @@ class Neutron(object):
         resp = requests.get(neutronEndpoint + self.get_networks, headers=headers)
         resp.raise_for_status()
         return resp.text
+    
+    def createNetwork(self, neutronEndpoint, token, network_data):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.post(neutronEndpoint + self.create_network, data=json.dumps(network_data), headers=headers)
+        resp.raise_for_status()
+        return json.loads(resp.text)
+    
+    def deleteNetwork(self, neutronEndpoint, token, network_id):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.delete(neutronEndpoint + (self.delete_network % network_id), headers=headers)
+        if resp.status_code == 404:
+            return None
+        resp.raise_for_status()
+        return resp
+    
+    def getNetworkStatus(self, neutronEndpoint, token, network_id):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.get(neutronEndpoint + (self.get_network_status % network_id), headers=headers)
+        if resp.status_code == 404:
+            return 'not_found'
+        resp.raise_for_status()
+        data = json.loads(resp.text)
+        return data['network']['status']
+    
+    def createSubNet(self, neutronEndpoint, token, subnet_data):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.post(neutronEndpoint + self.create_subnet, data=json.dumps(subnet_data), headers=headers)
+        resp.raise_for_status()
+        return json.loads(resp.text)
+    
+    def deleteSubNet(self, neutronEndpoint, token, subnet_id):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.delete(neutronEndpoint + (self.delete_subnet %  subnet_id), headers=headers)
+        if resp.status_code == 404:
+            return None
+        resp.raise_for_status()
+        return resp
+    
+    def getSubNetStatus(self, neutronEndpoint, token, subnet_id):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.get(neutronEndpoint + (self.get_subnet_status % subnet_id), headers=headers)
+        if resp.status_code == 404:
+            return 'not_found'
+        resp.raise_for_status()
+        return 'ACTIVE'
     
     def getPorts(self, neutronEndpoint, token):
         '''
@@ -485,4 +540,11 @@ class Neutron(object):
         resp.raise_for_status()
         return resp
     
-    #TODO: API v2 calls for Networks creation and deletion 
+    def getPortStatus(self, neutronEndpoint, token, port_id):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.get(neutronEndpoint + (self.get_port_status % port_id), headers=headers)
+        if resp.status_code == 404:
+            return 'not_found'
+        resp.raise_for_status()
+        data = json.loads(resp.text)
+        return data['port']['status']

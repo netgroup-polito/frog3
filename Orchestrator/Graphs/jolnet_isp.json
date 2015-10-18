@@ -4,89 +4,24 @@
       {
         "vnf_descriptor": "jolnet_switch.json",
         "ports": [
-            {
-	    "ingoing_label": {
-              "flowrules": [
-                {
-                  "action": {
-                    "VNF": {
-                      "id": "endpoint_switch",
-                      "port": "L2Port:0"
-                    },
-                    "type": "output"
-                  },
-                  "flowspec": {
-                    "matches": [
-                      {
-                        "priority": "100",
-                        "id": "exp297"
-                      }
-                    ],
-                    "ingress_endpoint": "282"
-                  }
-                }
-              ]
-            },
+          {
             "id": "L2Port:0",
             "outgoing_label": {
               "flowrules": [
                 {
+                  "id": "0",
                   "action": {
                     "endpoint": {
-                      "id": "297"
-                    },
-                    "type": "endpoint"
-                  },
-                  "flowspec": {
-                    "matches": [
-                      {
-                        "priority": "100",
-                        "id": "exp297"
-                      }
-                    ]
-                  }
-                }
-              ]
-            }
-          },
-          {
-	    "ingoing_label": {
-              "flowrules": [
-                {
-                  "action": {
-                    "VNF": {
-                      "id": "endpoint_switch",
-                      "port": "L2Port:1"
+                      "id": "288"
                     },
                     "type": "output"
                   },
                   "flowspec": {
                     "matches": [
                       {
-                        "priority": "100",
-                        "id": "exp288"
-                      }
-                    ],
-                    "ingress_endpoint": "288"
-                  }
-                }
-              ]
-            },
-            "id": "L2Port:1",
-            "outgoing_label": {
-              "flowrules": [
-                {
-                  "action": {
-                    "endpoint": {
-                      "id": "288"
-                    },
-                    "type": "endpoint"
-                  },
-                  "flowspec": {
-                    "matches": [
-                      {
-                        "priority": "100",
-                        "id": "exp288"
+                        "id": "0",
+                        "priority": "100",                        
+                        "vlanId":"288"
                       }
                     ]
                   }
@@ -95,10 +30,11 @@
             }
           },
            {
-            "id": "L2Port:2",
+            "id": "L2Port:1",
             "outgoing_label": {
               "flowrules": [
                 {
+                  "id": "1",
                   "action": {
                     "VNF": {
                       "id": "dhcp_ISP",
@@ -109,8 +45,9 @@
                   "flowspec": {
                     "matches": [
                       {
-                        "priority": "100",
-                        "id": "exp296"
+                        "id": "1",
+                        "priority": "100",                       
+                        "vlanId":"296"
                       }
                     ]
                   }
@@ -130,18 +67,20 @@
                   "outgoing_label":{
                      "flowrules":[
                         {
+                           "id":"10",
                            "action":{
                               "VNF":{
-                                 "id":"Switch",
-                                 "port":"L2Port:2"
+                                 "id":"endpoint_switch",
+                                 "port":"L2Port:1"
                               },
                               "type":"output"
                            },
                            "flowspec":{
                               "matches":[
                                  {
-                                    "priority":"100",
-                                    "id":"exp296"
+                                    "id": "10",
+                                    "priority":"100",                                   
+                                    "vlanId":"296"
                                  }
                               ]
                            }
@@ -156,20 +95,15 @@
     ],
     "endpoints": [
       {
-        "edge": true,
-        "attached": false,
-        "id": "1",
-        "name": "ISP_INGRESS_EDGE_ENDPOINT"
-      },
-      {
-        "edge": true,
-        "attached": false,
-        "id": "2",
-        "name": "ISP_INGRESS_EDGE_ENDPOINT"
-      }
+        "name": "INGRESS",
+        "connection": false,
+        "type": "vlan-ingress",
+        "id": "288",
+        "node": "openflow:110953238267840",
+        "interface": "5097" 
+     }
     ],
     "id": "0",
-    "name": "Jolnet_ISP",
-    "availability_zone": "AZ_TO"
+    "name": "Jolnet ISP Graph"
   }
 }

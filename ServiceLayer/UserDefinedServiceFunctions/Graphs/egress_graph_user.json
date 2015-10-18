@@ -1,0 +1,119 @@
+{
+  "profile": {
+    "VNFs": [
+      {
+        "vnf_descriptor": "client_nat.json",
+        "ports": [
+          {
+            "ingoing_label": {
+              "flowrules": [
+                {
+                  "action": {
+                    "VNF": {
+                      "id": "Egress_NAT",
+                      "port": "User:0"
+                    },
+                    "type": "output"
+                  },
+                  "flowspec": {
+                    "matches": [
+                      {
+                        "priority": "100",
+                        "id": "12311"
+                      }
+                    ],
+                    "ingress_endpoint": "User_egress_endpoint_peer"
+                  },
+                  "id": "12311"
+                }
+              ]
+            },
+            "id": "User:0",
+            "outgoing_label": {
+              "flowrules": [
+                {
+                  "action": {
+                    "endpoint": {
+                      "port": "User_egress_endpoint_peer"
+                    },
+                    "type": "output"
+                  },
+                  "flowspec": {
+                    "matches": [
+                      {
+                        "priority": "2",
+                        "id": "6854"
+                      }
+                    ]
+                  },
+                  "id": "6854"
+                }
+              ]
+            }
+          },
+          {
+            "ingoing_label": {
+              "flowrules": [
+                {
+                  "action": {
+                    "VNF": {
+                      "id": "Egress_NAT",
+                      "port": "Internet:0"
+                    },
+                    "type": "output"
+                  },
+                  "flowspec": {
+                    "matches": [
+                      {
+                        "priority": "100",
+                        "id": "9875"
+                      }
+                    ],
+                    "ingress_endpoint": "Egress_endpoint"
+                  },
+                  "id": "9875"
+                }
+              ]
+            },
+            "id": "Internet:0",
+            "outgoing_label": {
+              "flowrules": [
+                {
+                  "action": {
+                    "endpoint": {
+                      "port": "Egress_endpoint"
+                    },
+                    "type": "output"
+                  },
+                  "flowspec": {
+                    "matches": [
+                      {
+                        "priority": "2",
+                        "id": "11222"
+                      }
+                    ]
+                  },
+                  "id": "11222"
+                }
+              ]
+            }
+          }
+        ],
+        "id": "Egress_NAT",
+        "name": "nat_users"
+      }
+    ],
+    "endpoints": [
+      {
+        "id": "User_egress_endpoint_peer",
+        "name": "USER_EGRESS"
+      },
+      {
+        "id": "Egress_endpoint",
+        "name": "EGRESS"
+      }
+    ],
+    "id": "6",
+    "name": "Egress_NF-FG"
+  }
+}

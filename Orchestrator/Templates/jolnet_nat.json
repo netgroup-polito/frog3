@@ -1,5 +1,5 @@
 {
-	"name": "jolnet_switch",
+	"name": "jolnet_dhcp",
 	"expandable": false,
 	"uri": "http://jolnet-controller:9292/v2/images/5cd69d2e-f6dc-4dd6-8348-e0bfb3a0e286",
 	"vnf-type": "virtual-machine",
@@ -17,8 +17,8 @@
 	},
 	"ports": [
 		{
-			"position": "0-N",
-			"label": "L2Port",
+            "position": "0-0",
+			"label": "inout",
 			"min": "1",
 			"ipv4-config": "none",
       		"ipv6-config": "none",

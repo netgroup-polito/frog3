@@ -5,6 +5,11 @@ Created on 13/mag/2015
 '''
 
 import json
+import logging
+from Common.config import Configuration
+
+ODL_VERSION = Configuration().ODL_VERSION
+
 
 '''
 ######################################################################################################
@@ -49,58 +54,105 @@ class Flow(object):
         self.actions = actions
         self.match = match
     
-    def getJSON(self):
+    def getJSON(self, node = None):
         '''
-        Get a JSON structure representing the flow
-        It is ready to be passed to OpenDaylight REST API
+        Gets the JSON. In Hydrogen returns the JSON associated to the given node
+        Args:
+            node:
+                The id of the node related to this JSON (only Hydrogen)
         '''
         j_flow = {}
         j_list_action = []
-        
-        j_flow['flow'] = {}
-        j_flow['flow']['strict'] = self.strict
-        j_flow['flow']['flow-name'] = self.name
-        j_flow['flow']['id'] = self.flow_id
-        j_flow['flow']['table_id'] = self.table_id
-        j_flow['flow']['priority'] = self.priority
-        j_flow['flow']['installHw'] = self.installHw
-        j_flow['flow']['hard-timeout'] = self.hard_timeout
-        j_flow['flow']['idle-timeout'] = self.idle_timeout
-        
-        j_flow['flow']['instructions'] = {}
-        j_flow['flow']['instructions']['instruction'] = {}
-        j_flow['flow']['instructions']['instruction']['order'] = str(0)
-        j_flow['flow']['instructions']['instruction']['apply-actions'] = {}
-        
-        i = 0
-        for action in self.actions:
-            j_action = action.getActions(i)
-            j_list_action.append(j_action)
-            i = i + 1
-               
-        j_flow['flow']['instructions']['instruction']['apply-actions']['action'] = j_list_action
-        
-        if (self.match is not None):
-            j_flow['flow']['match'] = {}
-            
+
+        if ODL_VERSION == "Hydrogen":
+            j_flow['name'] = self.flow_id
+            j_flow['node'] = {}
+            j_flow['node']['id']= node
+            j_flow['node']['type']="OF"
+            j_flow['priority'] = self.priority
+            j_flow['installInHw'] = self.installHw
+            j_flow['hardTimeout'] = self.hard_timeout
+            j_flow['idleTimeout'] = self.idle_timeout
+
             if (self.match.input_port is not None):
-                j_flow['flow']['match']['in-port'] = self.match.input_port
+                j_flow['ingressPort'] = self.match.input_port                                    
+            if (self.match.ip_source is not None):
+                j_flow['nwSrc'] = self.match.ip_source
+            if (self.match.ip_dest is not None):
+                j_flow['nwDst'] = self.match.ip_dest
             if (self.match.vlan_id is not None):
-                j_flow['flow']['match']['vlan-match'] = {}
-                j_flow['flow']['match']['vlan-match']['vlan-id'] = {}
-                j_flow['flow']['match']['vlan-match']['vlan-id']['vlan-id'] = self.match.vlan_id
-                j_flow['flow']['match']['vlan-match']['vlan-id']['vlan-id-present'] = self.match.vlan_id_present
-            if (self.match.eth_match is True):
-                j_flow['flow']['match']['ethernet-match'] = {}
-                if (self.match.ethertype is not None):
-                    j_flow['flow']['match']['ethernet-match']['ethernet-type'] = {}
-                    j_flow['flow']['match']['ethernet-match']['ethernet-type']['type'] = self.match.ethertype
-                if (self.match.eth_source is not None):
-                    j_flow['flow']['match']['ethernet-match']['ethernet-source'] = {}
-                    j_flow['flow']['match']['ethernet-match']['ethernet-source']['address'] = self.match.eth_source
-                if (self.match.eth_dest is not None):
-                    j_flow['flow']['match']['ethernet-match']['ethernet-destination'] = {}
-                    j_flow['flow']['match']['ethernet-match']['ethernet-destination']['address'] = self.match.eth_dest
+                j_flow['vlanId'] = self.match.vlan_id
+            if (self.match.ethertype is not None):
+                j_flow['etherType'] = self.match.ethertype
+            if (self.match.eth_source is not None):
+                j_flow['dlSrc'] = self.match.eth_source
+            if (self.match.eth_dest is not None):
+                j_flow['dlDst'] = self.match.eth_dest
+            if (self.match.ip_protocol is not None):
+                j_flow['protocol'] = self.match.ip_protocol               
+            
+            if (self.match.ip_match is True and self.match.ethertype is None):
+                j_flow['etherType'] = "0x800"
+                logging.warning("Hydrogen requires ethertype set in order to perform ip match: ethertype has been set to 0x800")
+            
+            for action in self.actions:
+                j_action = action.getActionsHydrogen()
+                j_list_action.append(j_action)
+                
+            j_flow['actions'] = j_list_action;
+
+        else:
+            j_flow['flow'] = {}
+            j_flow['flow']['strict'] = self.strict
+            j_flow['flow']['flow-name'] = self.name
+            j_flow['flow']['id'] = self.flow_id
+            j_flow['flow']['table_id'] = self.table_id
+            j_flow['flow']['priority'] = self.priority
+            j_flow['flow']['installHw'] = self.installHw
+            j_flow['flow']['hard-timeout'] = self.hard_timeout
+            j_flow['flow']['idle-timeout'] = self.idle_timeout
+            
+            j_flow['flow']['instructions'] = {}
+            j_flow['flow']['instructions']['instruction'] = {}
+            j_flow['flow']['instructions']['instruction']['order'] = str(0)
+            j_flow['flow']['instructions']['instruction']['apply-actions'] = {}
+            
+            i = 0
+            for action in self.actions:
+                j_action = action.getActions(i)
+                j_list_action.append(j_action)
+                i = i + 1
+                   
+            j_flow['flow']['instructions']['instruction']['apply-actions']['action'] = j_list_action
+            
+            if (self.match is not None):
+                j_flow['flow']['match'] = {}
+                
+                if (self.match.input_port is not None):
+                    j_flow['flow']['match']['in-port'] = self.match.input_port
+                if (self.match.ip_source is not None):
+                    j_flow['flow']['match']['ipv4-source'] = self.match.ip_source
+                if (self.match.ip_dest is not None):
+                    j_flow['flow']['match']['ipv4-destination'] = self.match.ip_dest
+                if (self.match.ip_protocol is not None):
+                    j_flow['flow']['match']['ip-match'] = {}
+                    j_flow['flow']['match']['ip-match']['ip-protocol'] = self.match.ip_protocol
+                if (self.match.vlan_id is not None):
+                    j_flow['flow']['match']['vlan-match'] = {}
+                    j_flow['flow']['match']['vlan-match']['vlan-id'] = {}
+                    j_flow['flow']['match']['vlan-match']['vlan-id']['vlan-id'] = self.match.vlan_id
+                    j_flow['flow']['match']['vlan-match']['vlan-id']['vlan-id-present'] = self.match.vlan_id_present
+                if (self.match.eth_match is True):
+                    j_flow['flow']['match']['ethernet-match'] = {}
+                    if (self.match.ethertype is not None):
+                        j_flow['flow']['match']['ethernet-match']['ethernet-type'] = {}
+                        j_flow['flow']['match']['ethernet-match']['ethernet-type']['type'] = self.match.ethertype
+                    if (self.match.eth_source is not None):
+                        j_flow['flow']['match']['ethernet-match']['ethernet-source'] = {}
+                        j_flow['flow']['match']['ethernet-match']['ethernet-source']['address'] = self.match.eth_source
+                    if (self.match.eth_dest is not None):
+                        j_flow['flow']['match']['ethernet-match']['ethernet-destination'] = {}
+                        j_flow['flow']['match']['ethernet-match']['ethernet-destination']['address'] = self.match.eth_dest
         
         return json.dumps(j_flow)
 
@@ -139,6 +191,17 @@ class Action(object):
         self.action_type = "vlan-match"
         self.vlan_id = vlan_id
         self.vlan_id_present = True
+        
+    def getActionsHydrogen(self):
+        '''
+        Returns actions formatted for Hydrogen
+        '''
+        j_action = None
+        if (self.action_type == "output-action"):
+            j_action = "OUTPUT="+self.output_port
+        elif (self.action_type == "vlan-match"):
+            j_action = "SET_VLAN_ID="+self.vlan_id
+        return j_action
     
     def getActions(self, order):
         '''
@@ -176,6 +239,13 @@ class Match(object):
         self.ethertype = None
         self.eth_source = None
         self.eth_dest = None
+        self.ip_protocol = None
+        self.ip_match = None
+        self.ip_source = None
+        self.ip_dest = None
+        self.tp_match = None
+        self.port_source = None
+        self.port_dest = None
     
     def setInputMatch(self, in_port):
         '''
@@ -196,17 +266,30 @@ class Match(object):
         self.vlan_id = vlan_id
         self.vlan_id_present = True
         
-    def setEthernetMatch(self, ethertype = None, eth_source = None, eth_dest = None):
-        '''
-        Define this Match as an ethernet address (source or dest) matching
-        Args:
-            in_port:
-                the input port identifier
-        '''
+    def setEtherTypeMatch(self, ethertype):
         self.eth_match = True
         self.ethertype = ethertype
+        
+    def setEthernetMatch(self, eth_source = None, eth_dest = None):
+        self.eth_match = True
         self.eth_source = eth_source
         self.eth_dest = eth_dest
+        
+    def setIPProtocol(self, protocol):
+        self.ip_protocol = protocol
+        
+    def setIPMatch(self, ip_source = None, ip_dest = None):
+        self.ip_match = True
+        self.ip_source = ip_source
+        self.ip_dest = ip_dest
+        
+    def setTpMatch(self, port_source = None, port_dest = None):
+        '''
+        Sets a transport protocol match
+        '''
+        self.tp_match = True
+        self.port_source = port_source
+        self.port_dest = port_dest
     
 '''
 ######################################################################################################
@@ -228,8 +311,11 @@ class VNFTemplate(object):
             tmp = int(port['position'].split("-")[0])
             self.ports_label[port['label']] = tmp
 
-class Port(object):  
-    def __init__(self, portTemplate, VNFId):
+class Port(object):
+    '''
+    Class that contains the port data for the VNF
+    '''    
+    def __init__(self, portTemplate, VNFId, status='new'):
         '''
         Constructor for the port
         params:
@@ -237,20 +323,24 @@ class Port(object):
                 The template of the port from the user profile graph
             VNFId:
                 The Id of the VNF associated to that port
+            status:
+                useful when updating graphs, can be new, already_present or to_be_deleted
         '''
         self.net = None
+        self.vlan = None
         self.name = portTemplate.id
         self.VNFId = VNFId
         self.port_id = None
+        self.status = status
+        self.device_id = None
     
-    def setNetwork(self, net_id):
-        '''
-        Set the OpenStack network id to a port object
-        Args:
-            net_id:
-                Network id retrieved through Neutron REST API call
-        '''
+    def setNetwork(self, net_id, vlan_id):
+        #Network id retrieved through Neutron REST API call
         self.net = net_id
+        self.vlan = vlan_id
+        
+    def setDeviceId(self, device_id):
+        self.device_id = device_id
     
     def setId(self, port_id):
         '''
@@ -261,17 +351,6 @@ class Port(object):
         '''
         self.port_id = port_id
     
-    def getResourceTemplate(self):
-        '''
-        Get the Heat resource template of the port
-        '''
-        resource = {}
-        resource["type"] = "OS::Neutron::Port"
-        resource['properties'] = {}
-        resource['properties']['name'] = self.VNFId+self.name
-        resource['properties']['network_id'] = self.net        
-        return resource
-    
     def getResourceJSON(self):
         '''
         Get the JSON representation of the port
@@ -280,23 +359,30 @@ class Port(object):
         resource['port'] = {}
         resource['port']['name'] = self.VNFId+self.name
         resource['port']['network_id'] = self.net
+        if self.device_id is not None:
+            resource['port']['device_id'] = self.device_id
         return resource
 
 class VNF(object):
-    def __init__(self, VNFId, vnf, image, flavor, availability_zone):
+    '''
+    Class that contains the VNF data that will be used on the profile generation
+    '''
+    def __init__(self, VNFId, vnf, image, flavor, availability_zone, status='new'):
         '''
-        Constructor for the VNF (params obtained from FG completed with the template)
+        Constructor for the vnf
         params:
             VNFId:
-                VNF identifier
+                The Id of the VNF
             vnf:
-                JSON representation of the VNF
+                the VNF object extracted from the nf_fg
             image:
-                URI of the image on Glance
+                the URI of the image (taken from the Template)
             flavor:
-                OpenStack flavor to be used for this VNF
+                the flavor which best suits this VNF
             availability_zone:
-                OpenStack zone where the VNF will be instantiated
+                the zone where to place it
+            status:
+                useful when updating graphs, can be new, already_present or to_be_deleted
         '''
         self.availability_zone = availability_zone
         self._id = VNFId
@@ -305,10 +391,15 @@ class VNF(object):
         self.flavor = flavor
         self.URIImage = image
         self._OSid = None
+        self.status = status
         
         template_info = VNFTemplate(vnf)
         for port in vnf.listPort:
-            self.ports[port.id] = Port(port, VNFId)
+            if port.status is None:
+                status = "new"
+            else:
+                status = port.status
+            self.ports[port.id] = Port(port, VNFId, status)
             position = template_info.ports_label[port.id.split(":")[0]] + int(port.id.split(":")[1])
             self.listPort.insert(position,self.ports[port.id])
         
@@ -323,23 +414,6 @@ class VNF(object):
     @OSid.setter
     def OSid(self, value):
         self._OSid = value
-    
-    def getResourceTemplate(self):
-        '''
-        Return the Heat resource template of the VNF
-        '''
-        resource = {}
-        resource["type"] = "OS::Nova::Server"
-        resource['properties'] = {}
-        resource['properties']['flavor'] = self.flavor['name']
-        resource['properties']['image'] = self.URIImage['name']
-        resource['properties']['name'] = self.id
-        resource['properties']['availability_zone'] = self.availability_zone
-        resource['properties']['networks'] = []
-        
-        for port in self.listPort:
-            resource['properties']['networks'].append({ "port": { "Ref": self.id+port.name}})
-        return resource
     
     def getResourceJSON(self):
         '''
@@ -357,6 +431,43 @@ class VNF(object):
             if port.port_id is not None:
                 resource['server']['networks'].append({ "port": port.port_id})
         return resource
+
+class Endpoint(object):
+    '''
+    Class that contains the endpoints data
+    '''
+    def __init__(self, end_id, name, connection, end_type, node, interface, status, remote_graph = None, remote_id = None):
+        self.id = end_id
+        self.name = name
+        self.connection = connection
+        self.type = end_type
+        self.node = node
+        self.interface = interface
+        self.status = status
+        self.remote_graph = remote_graph
+        self.remote_id = remote_id
+        self.user_source_mac = None
+        self.user_dest_mac = None
+        self.user_vlan = None
+        self.user_node = None
+        self.user_interface = None
+        self.user_source_ip = None
+        self.user_dest_ip = None
+        self.user_etherType = None
+        self.user_protocol = None
+        
+    def setUserParams(self, user_source_mac, user_dest_mac, user_vlan, user_node, user_interface, user_source_ip, user_dest_ip, ether_type, user_protocol):
+        self.user_source_mac = user_source_mac
+        self.user_dest_mac = user_dest_mac
+        self.user_vlan = user_vlan
+        self.user_node = user_node
+        self.user_interface = user_interface
+        self.user_source_ip = user_source_ip
+        self.user_dest_ip = user_dest_ip
+        self.user_etherType = ether_type
+        self.user_protocol = user_protocol
+        self.connection = True
+        self.status = 'new'
     
 class ProfileGraph(object):
     def __init__(self):
@@ -365,6 +476,7 @@ class ProfileGraph(object):
         '''
         self._id = None
         self.functions = {}
+        self.endpoints = {}
     
     @property
     def id(self):
@@ -378,22 +490,33 @@ class ProfileGraph(object):
     
     def addVNF(self, vnf):
         '''
-        Add a new edge to the graph: it is a VNF object
+        Add a new vnf to the graph
         '''
         self.functions[vnf.id] = vnf
     
-    def getStackTemplate(self):
+    def addEndpoint(self, endpoint):
         '''
-        Return the Heat template of the graph
+        Add a new endpoint to the graph
         '''
-        stackTemplate = {}
-        stackTemplate["heat_template_version"] = "2013-05-23"
-        stackTemplate['resources'] = {}
+        self.endpoints[endpoint.id] = endpoint
         
-        for vnf in self.functions.values():
-            stackTemplate['resources'][vnf.id] = vnf.getResourceTemplate()
-            for port in vnf.listPort:
-                if port.net is not None:
-                    stackTemplate['resources'][vnf.id+port.name] = port.getResourceTemplate()
-                
-        return stackTemplate
+    def getIngressEndpoint(self, endpoint_id):
+        for endpoint in self.endpoints.values():
+            if endpoint.type == "vlan-ingress":   
+                if endpoint.id == endpoint_id:
+                    return endpoint
+    
+    def getVlanEgressEndpoints(self):
+        endpoints = []
+        for endpoint in self.endpoints.values():
+            if endpoint.type == "vlan-egress":   
+                endpoints.append(endpoint)
+        return endpoints
+    
+    def getVlanIngressEndpoints(self):
+        endpoints = []
+        for endpoint in self.endpoints.values():
+            if endpoint.type == "vlan-ingress":   
+                endpoints.append(endpoint)
+        return endpoints
+    

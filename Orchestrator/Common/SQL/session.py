@@ -3,312 +3,251 @@ Created on Oct 1, 2014
 
 @author: fabiomignini
 '''
-from sqlalchemy import Column, DateTime, func, VARCHAR, Text, not_
-import sqlalchemy
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import Column, DateTime, func, VARCHAR, Text, not_, desc
+from Common.SQL.sql import get_session
 from sqlalchemy.ext.declarative import declarative_base
-
-import datetime
-import json
-import logging
-
-
-from Common.config import Configuration
-
 from Common.exception import sessionNotFound
 
 
-
-
+import datetime
+import logging
 
 Base = declarative_base()
-sqlserver = Configuration().CONNECTION
 
-class Session(Base):
+class SessionModel(Base):
     '''
     Maps the database table session
-    
-    id VARCHAR(64), user_id VARCHAR(64), session_info Text, infrastructure Text, started DATETIME, ended DATETIME
     '''
     __tablename__ = 'session'
-    attributes = ['id', 'user_id', 'mac_address','session_info','profile','infrastructure',
-                  'ingress_node','egress_node','started','last_update','error','ended']
+    attributes = ['id', 'user_id', 'service_graph_id', 'service_graph_name', 'ingress_node','egress_node','status','started_at',
+                  'last_update','error','ended']
     id = Column(VARCHAR(64), primary_key=True)
     user_id = Column(VARCHAR(64))
-    mac_address = Column(Text)
-    session_info = Column(Text)
-    profile = Column(Text)
-    infrastructure = Column(Text)
+    service_graph_id = Column(Text)
+    service_graph_name = Column(Text)
     ingress_node = Column(Text)
     egress_node = Column(Text)
-    started = Column(DateTime)
+    status = Column(Text)
+    started_at = Column(Text)
     last_update = Column(DateTime, default=func.now())
-    error = Column(DateTime)
+    error = Column(Text)
     ended = Column(DateTime)
     
-class Profile(Base):
-    __tablename__ = 'profile'
-    attributes = ['id', 'profile']
-    id = Column(VARCHAR(64), primary_key=True)
-    profile = Column(Text)
+ 
+class UserDeviceModel(Base):
+    '''
+    Maps the database table user_device
+    '''
+    __tablename__ = 'user_device'
+    attributes = ['session_id', 'mac_address']
+    session_id = Column(VARCHAR(64), primary_key=True)
+    mac_address = Column(VARCHAR(64), primary_key=True)
+
+class Session(object):
+    def __init__(self):
+        pass
     
-def checkEgressNode(node, profile):
-    """
-    Return False if the only ingress point in the node
-    is that that we are deleting
-    """
-    session = get_session()
-    s = session()
-    egs = s.query(Session).filter_by(egress_node = node).filter(not_(Session.profile.contains(profile))).all()
-    if egs is not None and len(egs) == 0:
-        return False
-    return True 
+    def inizializeSession(self, session_id, user_id, service_graph_id, service_graph_name):
+        '''
+        inizialize the session in db
+        '''
+        session = get_session()  
+        with session.begin():
+            session_ref = SessionModel(id=session_id, user_id = user_id, service_graph_id = service_graph_id, 
+                                started_at = datetime.datetime.now(), service_graph_name=service_graph_name,
+                                last_update = datetime.datetime.now(), status='inizialization')
+            session.add(session_ref)
+        pass
 
-def checkIngressNode(node, profile):
-    """
-    Return False if the only ingress point in the node
-    is that that we are deleting
-    """
-    session = get_session()
-    s = session()
-    ings = s.query(Session).filter_by(ingress_node = node).filter(not_(Session.profile.contains(profile))).all()
-    if ings is not None and len(ings) == 0:
-        return False
-    return True 
+    def updateStatus(self, session_id, status):
+        session = get_session()  
+        with session.begin():
+            session.query(SessionModel).filter_by(id = session_id).filter_by(ended = None).filter_by(error = None).update({"last_update":datetime.datetime.now(), 'status':status})
 
-def get_instantiated_profile(user_id):
-    profile_id = get_profile_id_from_active_user_session(user_id)
-    profile = get_profile(profile_id)    
-    return profile
-
-def get_profile_by_id(profile_id):
-    profile = get_profile(profile_id)    
-    return profile
-
-def get_profile(graph_id):
-    session = get_session()
-    s = session()
-    dt = s.query(Profile.profile).filter_by(id = graph_id).first()
-    return dt[0]
-
-def del_mac_address_in_the_session(mac_address, session_id):
-    session = get_session()
-    s = session()
-    #mettere un order by
-    dt = s.query(Session).filter_by(id = session_id).filter_by(ended = None).filter_by(error = None).first()
-    if dt is not None:
-        if dt.mac_address is not None:
-            devices = json.loads(dt.mac_address)
-            devices.remove(mac_address)
-        else:
+    def updateUserID(self, session_id, user_id):
+        session = get_session()  
+        with session.begin():
+            session.query(SessionModel).filter_by(id = session_id).filter_by(ended = None).filter_by(error = None).update({"user_id":user_id})
+    
+    def updateSessionNode(self, session_id, ingress_node, egress_node):
+        '''
+        store the session in db
+        '''
+        session = get_session()  
+        with session.begin():
+            session.query(SessionModel).filter_by(id = session_id).filter_by(ended = None).filter_by(error = None).update({"last_update":datetime.datetime.now(), "ingress_node":ingress_node, "egress_node": egress_node})
+    
+    def updateSession(self, session_id, ingress_node, egress_node, status):
+        '''
+        store the session in db
+        '''
+        session = get_session()  
+        with session.begin():
+            session.query(SessionModel).filter_by(id = session_id).filter_by(ended = None).filter_by(error = None).update({"last_update":datetime.datetime.now(), "ingress_node":ingress_node, "egress_node": egress_node, 'status':status})
+                
+    '''   
+    def update_session(self, service_graph_id, profile, infrastructure):
+        session = get_session()  
+        with session.begin():
+            session.query(SessionModel).filter_by(service_graph_id = service_graph_id).filter_by(ended = None).filter_by(error = None).update({"last_update":datetime.datetime.now()})
+    '''
+            
+    def get_active_user_session(self, user_id):
+        '''
+        returns if exists an active session of the user
+        '''
+        session = get_session()
+        session_ref = session.query(SessionModel).filter_by(user_id = user_id).filter_by(ended = None).filter_by(error = None).first()
+        if session_ref is None:
             raise sessionNotFound("Session Not Found")
-        logging.info("devices deleted from db: \n"+str(mac_address))
-        logging.info("devices that are still in db: \n"+str(devices))
-        s.query(Session).filter_by(id = session_id).filter_by(ended = None).filter_by(error = None).update({"mac_address":json.dumps(devices)})
-        s.commit()
-    else:
-        raise sessionNotFound("Session Not Found")
+        return session_ref
     
-def add_mac_address_in_the_session(mac_address, session_id):
-    session = get_session()
-    s = session()
-    #mettere un order by
-    dt = s.query(Session).filter_by(id = session_id).filter_by(ended = None).filter_by(error = None).first()
-    if dt is not None:
-        if dt.mac_address is not None:
-            devices = json.loads(dt.mac_address)
-            devices.append(mac_address)
+    def get_active_user_device_session(self, user_id, mac_address = None, error_aware=True):
+        '''
+        returns if exists an active session of the user connected on the port of the switch passed
+        '''
+        session = get_session()
+        if error_aware is True:
+            user_session = session.query(SessionModel).filter_by(user_id = user_id).filter_by(ended = None).filter_by(error = None).first()
         else:
-            devices = []
-            devices.append(mac_address)
-        logging.info("devices: \n"+str(devices))
-        s.query(Session).filter_by(id = session_id).filter_by(ended = None).filter_by(error = None).update({"mac_address":json.dumps(devices)})
-        s.commit()
-    else:
-        raise sessionNotFound("Session Not Found")
-    
-def update_session(nf_fg_id, profile, infrastructure):
-    session = get_session()  
-    s = session()
-    dt_profile = s.query(Profile).filter_by(id = nf_fg_id).first()
-    if dt_profile is not None:
-        s.query(Profile).filter_by(id = nf_fg_id).update({"profile":profile}, synchronize_session = False)
-    else:
-        profile_id = Profile(id=nf_fg_id, profile=profile)
-        s.add(profile_id)
-    dt_session = s.query(Session).filter_by(profile = nf_fg_id).filter_by(ended = None).filter_by(error = None).first()
-    if dt_session is not None:
-        s.query(Session).filter_by(profile = nf_fg_id).filter_by(ended = None).filter_by(error = None).update({"last_update":datetime.datetime.now()})
-    else:
-        raise sessionNotFound("Session Not Found")
-    s.commit()
-    return dt_session.id
-
-def add_session(session_id, user_id, nf_fg_id, profile, infrastructure, ingress_node, egress_node, user_mac = None, session_info = None):
-    '''
-    store the session in db
-    '''
-
-    # If isn't an update of NF-FG for another user device 
-    session = get_session()  
-    s = session()
-    dt_profile = s.query(Profile).filter_by(id = nf_fg_id).first()
-    if dt_profile is not None:
-        s.query(Profile).filter_by(id = nf_fg_id).update({"profile":profile}, synchronize_session = False)
-    else:
-        profile_id = Profile(id=nf_fg_id, profile=profile)
-        s.add(profile_id)
-    session_id = Session(id=session_id, user_id = user_id, mac_address=user_mac, session_info = session_info,
-                          profile=nf_fg_id, infrastructure = infrastructure, ingress_node = ingress_node,
-                           egress_node = egress_node, started = datetime.datetime.now())
-    
-    
-    
-    s.add(session_id)
-    s.commit()  
-
-def updateProfile(profile_id, profile):     
-    session = get_session()
-    s = session()
-    s.query(Profile).filter_by(id=profile_id).update({"profile":profile}, synchronize_session = False)
-    s.commit() 
-    
-def get_active_user_devices(user_id):
-    session = get_session()
-    s = session()
-    mac_address = s.query(Session.mac_address).filter_by(user_id = user_id).filter_by(ended = None).filter_by(error = None).first()
-    if mac_address is not None:
-        return mac_address[0]
-    else:
-        return None
-   
-def get_profile_id_from_active_user_session(user_id):
-    session = get_session()
-    s = session()
-    dt = s.query(Session.profile).filter_by(user_id = user_id).filter_by(ended = None).filter_by(error = None).first()
-    
-    if dt is None:
-        raise sessionNotFound("Session Not Found")
-    return dt[0]
-
-def get_active_user_session_by_nf_fg_id(graph_id):
-    session = get_session()
-    s = session()
-    dt = s.query(Session).filter_by(profile = graph_id).filter_by(ended = None).filter_by(error = None).first()
-    if dt is None:
-        raise sessionNotFound("Session Not Found")
-    return dt
-
-def get_active_user_session(user_id):
-    '''
-    returns if exists an active session of the user
-    '''
-    session = get_session()
-    s = session()
-    dt = s.query(Session).filter_by(user_id = user_id).filter_by(ended = None).filter_by(error = None).first()
-    if dt is None:
-        raise sessionNotFound("Session Not Found")
-    return dt
-    
-def get_active_user_device_session(user_id, mac_address = None):
-    '''
-    returns if exists an active session of the user connected on the port of the switch passed
-    '''
-    session = get_session()
-    s = session()
-    user_sessions = s.query(Session).filter_by(user_id = user_id).filter_by(ended = None).filter_by(error = None).all()
-
-    logging.debug("MAC address:"+str(mac_address))
-    for user_session in user_sessions:
-        if mac_address is not None:
-            if user_session.mac_address is not None:
-                for mac in json.loads(user_session.mac_address):
-                    if mac == mac_address:
-                        return len(json.loads(user_session.
-                            mac_address)), user_session
-        elif mac_address is None:
+            user_session = session.query(SessionModel).filter_by(user_id = user_id).filter_by(ended = None).first()
+        if user_session is None:
+            raise sessionNotFound("Session Not Found")
+        if mac_address is None:
             return 1, user_session
-
-    raise sessionNotFound("Session Not Found")
-
-
-def get_active_user_session_from_id(session_id):
-    session = get_session()
-    s = session() 
+        logging.debug("MAC address:"+str(mac_address))
+        devices = session.query(UserDeviceModel).filter_by(session_id = user_session.id).all()
+        for device in devices:
+            logging.debug("device MAC address:"+str(device.mac_address)+" MAC address:"+str(mac_address))
+            if device.mac_address == mac_address:
+                return len(devices), user_session
+        raise sessionNotFound("Device not found in the user session")
     
-    user_session = s.query(Session).filter_by(id=session_id).filter_by(ended = None).filter_by(error = None).first()
-    if not user_session:
-        logging.debug("Query - no results")
-        raise sessionNotFound("Session Not Found") 
-    s.commit()
-    return user_session
-
-def get_active_user_session_info_from_id(session_id):
-    session = get_session()
-    s = session() 
+    def set_ended(self, session_id):
+        '''
+        Set the ended status for the session identified with session_id
+        '''
+        session = get_session() 
+        with session.begin():       
+            session.query(SessionModel).filter_by(id=session_id).update({"ended":datetime.datetime.now()}, synchronize_session = False)
     
-    user_session = s.query(Session).filter_by(id=session_id).filter_by(ended = None).filter_by(error = None).first()
-    if not user_session:
-        logging.debug("Query - no results")
-        raise sessionNotFound("Session Not Found")
-    infrastructure = user_session.infrastructure
-    profile = user_session.profile 
-    s.commit()
-    return infrastructure, profile
+    def set_error_by_nffg_id(self, nffg_id):
+        '''
+        Set the error status for the active session associated to the nffg id passed
+        '''
+        session = get_session()
+        with session.begin():     
+            logging.debug("Put session for nffg "+str(nffg_id)+" in error")
+            session.query(SessionModel).filter_by(service_graph_id=nffg_id).filter_by(ended = None).filter_by(error = None).update({"error":datetime.datetime.now()}, synchronize_session = False)
+        
+    def set_error(self, session_id):
+        '''
+        Set the error status for the active session associated to the user id passed
+        '''
+        session = get_session()
+        with session.begin():
+            logging.debug("Put session for session "+str(session_id)+" in error")
+            session.query(SessionModel).filter_by(id=session_id).filter_by(ended = None).filter_by(error = None).update({"error":datetime.datetime.now()}, synchronize_session = False)
     
-def set_ended(session_id):
-    session = get_session()
-    s = session() 
-    
-    s.query(Session).filter_by(id=session_id).update({"ended":datetime.datetime.now()}, synchronize_session = False)
-    s.commit()
-    
-def set_error(user_id):
-    session = get_session()
-    s = session() 
-    logging.debug("Session - set_error - user_id: "+str(user_id))
-    query  = s.query(Session).filter_by(user_id=user_id).filter_by(ended = None).filter_by(error = None)
-    logging.debug("Session - set_error - query: "+str(query))
-    res = s.query(Session).filter_by(user_id=user_id).filter_by(ended = None).filter_by(error = None).update({"error":datetime.datetime.now()}, synchronize_session = False)
-    logging.debug("Session - set_error - update result: "+str(res))
-    s.commit()
-
-def checkDeviceSession(user_id, mac_address):
-    '''
-    return true if there is already an active session of the user with this mac
-    '''
-    session = get_session()
-    s = session()
-    user_sessions =s.query(Session).filter_by(user_id = user_id).filter_by(ended = None).filter_by(error = None).all()
-    for user_session in user_sessions:
-        if user_session.mac_address is not None:
-            for mac in json.loads(user_session.mac_address):
-                if mac == mac_address:
+    def checkSession(self, user_id, token, graph_id = None):
+        '''
+        return true if there is already an active session of the user
+        '''
+        session = get_session()
+        if graph_id is None:
+            user_session = session.query(SessionModel).filter_by(user_id = user_id).filter_by(ended = None).filter_by(error = None).first()
+        else:
+            # TODO:
+            raise NotImplemented()
+        
+        if user_session is None:
+            return False
+        else:
+            return True
+        
+    def checkDeviceSession(self, user_id, mac_address):
+        '''
+        return true if there is already an active session of the user with this mac
+        '''
+        session = get_session()
+        user_sessions =session.query(SessionModel).filter_by(user_id = user_id).filter_by(ended = None).filter_by(error = None).all()
+        for user_session in user_sessions:
+            devices = session.query(UserDeviceModel).filter_by(session_id = user_session.id).all()
+            for device in devices:
+                if device.mac_address == mac_address:
                     return True
-    return False
+        return False
+        
+    def add_mac_address_in_the_session(self, mac_address, session_id):
+        session = get_session()
+        with session.begin():     
+            user_device_ref = UserDeviceModel(session_id = session_id, mac_address=mac_address)
+            session.add(user_device_ref)
     
-def checkSession(user_id, token, profile = None):
-    '''
-    return true if there is already an active session of the user
-    '''
-    session = get_session()
-    s = session()
-    if profile is None:
-        user_session = s.query(Session).filter_by(user_id = user_id).filter_by(ended = None).filter_by(error = None).first()
-    else:
-        user_session = s.query(Session).filter_by(user_id = user_id).filter_by(profile = profile).filter_by(ended = None).filter_by(error = None).first()
-    
-    if user_session is None:
-        res = False
-    else:
-        res = True
-    return res, user_session
-     
-def create_session():
-    engine = sqlalchemy.create_engine(sqlserver) # connect to server
-    session = sessionmaker()
-    session.configure(bind=engine)
-    return session
+    def del_mac_address_in_the_session(self, mac_address, session_id):
+        session = get_session()
+        with session.begin():     
+            session.query(UserDeviceModel).filter_by(session_id = session_id).filter_by(mac_address=mac_address).delete()
 
-def get_session():
-    return create_session()
+    def get_active_user_devices(self, user_id):
+        session = get_session()
+        user_sessions = session.query(SessionModel.id).filter_by(user_id = user_id).filter_by(ended = None).filter_by(error = None).all()
+        mac_addresses = []
+        for user_session in user_sessions:
+            devices = session.query(UserDeviceModel).filter_by(session_id = user_session.id).all()
+            for device in devices:
+                mac_addresses.append(device.mac_address)
+        return mac_addresses
+    
+    def get_active_user_session_from_id(self, session_id):
+        session = get_session()
+        with session.begin():  
+            user_session = session.query(SessionModel).filter_by(id=session_id).filter_by(ended = None).filter_by(error = None).first()
+            if not user_session:
+                raise sessionNotFound("Session Not Found") 
+        return user_session
+    
+    def get_active_user_session_by_nf_fg_id(self, service_graph_id, error_aware=True):
+        session = get_session()
+        if error_aware:
+            session_ref = session.query(SessionModel).filter_by(service_graph_id = service_graph_id).filter_by(ended = None).filter_by(error = None).first()
+        else:
+            session_ref = session.query(SessionModel).filter_by(service_graph_id = service_graph_id).filter_by(ended = None).order_by(desc(SessionModel.started_at)).first()
+        if session_ref is None:
+            raise sessionNotFound("Session Not Found, for servce graph id: "+str(service_graph_id))
+        return session_ref
+    
+    def get_profile_id_from_active_user_session(self, user_id):
+        session = get_session()
+        session_ref = session.query(SessionModel.service_graph_id).filter_by(user_id = user_id).filter_by(ended = None).filter_by(error = None).first()
+        
+        if session_ref is None:
+            raise sessionNotFound("Session Not Found")
+        return session_ref.service_graph_id
+    
+    def get_service_graph_info(self,session_id):
+        session = get_session()
+        return session.query(SessionModel.service_graph_id, SessionModel.service_graph_name).filter_by(id = session_id).one()
+        
+        
+    def checkEgressNode(self, node, profile):
+        """
+        Return False if the only ingress point in the node
+        is that that we are deleting
+        """
+        session = get_session()
+        egs = session.query(SessionModel).filter_by(egress_node = node).filter(not_(Session.profile.contains(profile))).all()
+        if egs is not None and len(egs) == 0:
+            return False
+        return True 
+
+    def checkIngressNode(self, node, profile):
+        """
+        Return False if the only ingress point in the node
+        is that that we are deleting
+        """
+        session = get_session()
+        ings = session.query(SessionModel).filter_by(ingress_node = node).filter(not_(Session.profile.contains(profile))).all()
+        if ings is not None and len(ings) == 0:
+            return False
+        return True

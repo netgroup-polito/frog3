@@ -9,12 +9,12 @@ import json
 import logging
 
 from Common.config import Configuration
-ODL_ENDPOINT = Configuration().ODL_ENDPOINT
+#ODL_ENDPOINT = Configuration().ODL_ENDPOINT
 
 
 class ODL(object):
     
-    endpoint = ODL_ENDPOINT
+    #endpoint = ODL_ENDPOINT
     odl_controllerPath="/controller/nb/v2"
     odl_connectionManagerPath="/connectionmanager"
     odl_flowProgrammerPath="/flowprogrammer"
@@ -29,47 +29,47 @@ class ODL(object):
     odl_getInterfacesPath="/interface/rows/"
     odl_updateInterfacesPath="/interface/rows/%s"
     odl_createFlowmodPath="/default/node/OF/%s/staticFlow/%s"
-    odl_username = "admin"
-    odl_password = "SDN@Edge_Polito"
+    #odl_username = "admin"
+    #odl_password = "SDN@Edge_Polito"
     timeout = Configuration().TIMEOUT_ODL
     
-    def createFlowmod(self, flowmod, name, node_dpid):   
+    def createFlowmod(self, odl_endpoint, odl_user, odl_pass, flowmod, name, node_dpid):   
         
         data = json.dumps(flowmod)
         
         headers = {'Content-Type': 'application/json', "cache-control": "no-cache"}
-        url = self.endpoint+self.odl_controllerPath+self.odl_flowProgrammerPath+(self.odl_createFlowmodPath % (node_dpid, name))
-        resp = requests.put(url, headers=headers, data=data, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
+        url = odl_endpoint+self.odl_controllerPath+self.odl_flowProgrammerPath+(self.odl_createFlowmodPath % (node_dpid, name))
+        resp = requests.put(url, headers=headers, data=data, auth=(odl_user, odl_pass), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
     
-    def getFlowmod(self, flowmod, name, node_dpid):   
+    def getFlowmod(self, odl_endpoint, odl_user, odl_pass, flowmod, name, node_dpid):   
         
         data = json.dumps(flowmod)
         
         headers = {'Content-Type': 'application/json', "cache-control": "no-cache"}
-        url = self.endpoint+self.odl_controllerPath+self.odl_flowProgrammerPath+(self.odl_createFlowmodPath % (node_dpid, name))
-        resp = requests.get(url, headers=headers, data=data, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
+        url = odl_endpoint+self.odl_controllerPath+self.odl_flowProgrammerPath+(self.odl_createFlowmodPath % (node_dpid, name))
+        resp = requests.get(url, headers=headers, data=data, auth=(odl_user, odl_pass), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
     
-    def deleteFlowmod(self, flowmod, name, node_dpid):   
+    def deleteFlowmod(self, odl_endpoint, odl_user, odl_pass, flowmod, name, node_dpid):   
         
         data = json.dumps(flowmod)
         
         headers = {'Content-Type': 'application/json', "cache-control": "no-cache"}
-        url = self.endpoint+self.odl_controllerPath+self.odl_flowProgrammerPath+(self.odl_createFlowmodPath % (node_dpid, name))
-        resp = requests.delete(url, headers=headers, data=data, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
+        url = odl_endpoint+self.odl_controllerPath+self.odl_flowProgrammerPath+(self.odl_createFlowmodPath % (node_dpid, name))
+        resp = requests.delete(url, headers=headers, data=data, auth=(odl_user, odl_pass), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
     
-    def getNodes(self):
+    def getNodes(self, odl_endpoint, odl_user, odl_pass):
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
-        resp = requests.get(self.endpoint+self.odl_controllerPath+self.odl_connectionManagerPath+self.odl_getNodes, headers=headers, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
+        resp = requests.get(odl_endpoint+self.odl_controllerPath+self.odl_connectionManagerPath+self.odl_getNodes, headers=headers, auth=(odl_user, odl_pass), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
     
-    def getBridges(self, node_ip, node_port):
+    def getBridges(self, odl_endpoint, odl_user, odl_pass, node_ip, node_port):
         '''
         Args:
             node_ip:
@@ -78,11 +78,11 @@ class ODL(object):
                 Port, where the socket in the node, speaking with the controller
         '''
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
-        resp = requests.get(self.endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_getBridgePath, headers=headers, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
+        resp = requests.get(odl_endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_getBridgePath, headers=headers, auth=(odl_user, odl_pass), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
         
-    def getInterfaces(self, port_id, node_ip, node_port):
+    def getInterfaces(self, odl_endpoint, odl_user, odl_pass, port_id, node_ip, node_port):
         '''
         Args:
             port_id:
@@ -93,12 +93,12 @@ class ODL(object):
                 Port, where the socket in the node, speaking with the controller
         '''
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
-        path = self.endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_getInterfacesPath
-        resp = requests.get(path, headers=headers, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
+        path = odl_endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_getInterfacesPath
+        resp = requests.get(path, headers=headers, auth=(odl_user, odl_pass), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
     
-    def getPorts(self, node_ip, node_port):
+    def getPorts(self, odl_endpoint, odl_user, odl_pass, node_ip, node_port):
         '''
         Args:
             node_ip:
@@ -107,11 +107,11 @@ class ODL(object):
                 Port, where the socket in the node, speaking with the controller
         '''
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
-        resp = requests.get(self.endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_getPortPath, headers=headers, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
+        resp = requests.get(odl_endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_getPortPath, headers=headers, auth=(odl_user, odl_pass), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
     
-    def createPort(self, name, bridge_id, node_ip, node_port):
+    def createPort(self, odl_endpoint, odl_user, odl_pass, name, bridge_id, node_ip, node_port):
         '''
         Args:
             name:
@@ -126,11 +126,11 @@ class ODL(object):
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
         body = {"parent_uuid": bridge_id,
                 "row": {"Port": {"name": name}}}
-        resp = requests.post(self.endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_createPortPath, data=json.dumps(body), headers=headers, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
+        resp = requests.post(odl_endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_createPortPath, data=json.dumps(body), headers=headers, auth=(odl_user, odl_pass), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
     
-    def deletePort(self, port_id, node_ip, node_port):
+    def deletePort(self, odl_endpoint, odl_user, odl_pass, port_id, node_ip, node_port):
         '''
         Args:
             name:
@@ -143,11 +143,11 @@ class ODL(object):
                 Port, where the socket in the node, speaking with the controller
         '''
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
-        resp = requests.delete(self.endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+(self.odl_deletePortPath % (port_id)), headers=headers, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
+        resp = requests.delete(odl_endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+(self.odl_deletePortPath % (port_id)), headers=headers, auth=(odl_user, odl_pass), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
         
-    def createBridge(self, name, node_ip, node_port):
+    def createBridge(self, odl_endpoint, odl_user, odl_pass, name, node_ip, node_port):
         '''
         Args:
             name:
@@ -159,11 +159,11 @@ class ODL(object):
         '''
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
         body = {"row": {"Bridge": {"name": name}}}
-        resp = requests.post(self.endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_createBridgPath, data=json.dumps(body), headers=headers, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
+        resp = requests.post(odl_endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_createBridgPath, data=json.dumps(body), headers=headers, auth=(odl_user, odl_pass), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text 
     
-    def deleteBridge(self, bridge_id, node_ip, node_port):  
+    def deleteBridge(self, odl_endpoint, odl_user, odl_pass, bridge_id, node_ip, node_port):  
         '''
         Args:
             bridge_id:
@@ -174,11 +174,11 @@ class ODL(object):
                 Port, where the socket in the node, speaking with the controller
         '''
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
-        resp = requests.delete(self.endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+(self.odl_deleteBridgPath % (bridge_id)), headers=headers, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
+        resp = requests.delete(odl_endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+(self.odl_deleteBridgPath % (bridge_id)), headers=headers, auth=(odl_user, odl_pass), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
         
-    def setPatchPort(self, interface_id, remote_port_name, bridge_id, node_ip, node_port):
+    def setPatchPort(self, odl_endpoint, odl_user, odl_pass, interface_id, remote_port_name, bridge_id, node_ip, node_port):
         '''
         Args:
             interface_id: 
@@ -195,7 +195,7 @@ class ODL(object):
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
         body = { "row": { "Interface": { "type": "patch","options": 
                 [ "map", [ [ "peer", remote_port_name ] ] ] } } }
-        resp = requests.put(self.endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_updateInterfacesPath % (interface_id), data=json.dumps(body), headers=headers, auth=(self.odl_username, self.odl_password), timeout=self.timeout)
+        resp = requests.put(odl_endpoint+(self.odl_ovsdbPath % (node_ip, node_port))+self.odl_updateInterfacesPath % (interface_id), data=json.dumps(body), headers=headers, auth=(odl_user, odl_pass), timeout=self.timeout)
         resp.raise_for_status()
         return resp.text
 
@@ -390,8 +390,16 @@ class Nova(object):
     getAvailabilityZonesPath="/os-availability-zone/detail"
     getHostAggregateListPath="/os-aggregates"
     addComputeNodeToHostAggregatePath = "/os-aggregates/%s/action"
+    attachInterface = "/servers/%s/os-interface"
+    addServer = "/servers"
     timeout = Configuration().TIMEOUT_NOVA
     
+    def attachPort(self, novaEndpoint, token, port_id, server_id):
+        data = {"interfaceAttachment": {"port_id": port_id}}
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.post(novaEndpoint + (self.attachInterface % server_id), data=json.dumps(data), headers=headers)
+        resp.raise_for_status()
+        return json.loads(resp.text)
     
     def addComputeNodeToHostAggregate(self, novaEndpoint, token, host_aggregate_id, hostname):
         '''
@@ -550,14 +558,37 @@ class Nova(object):
         resp.raise_for_status()
         flavor = json.loads(resp.text)
         return flavor
-       
+    
+    def createServer(self, novaEndpoint, token, server_data):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.post(novaEndpoint + self.addServer, data=json.dumps(server_data), headers=headers)
+        resp.raise_for_status()
+        return json.loads(resp.text)
+    
+    def getServerStatus(self, novaEndpoint, token, server_id):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.get(novaEndpoint + self.addServer + "/" + server_id, headers=headers)
+        if resp.status_code == 404:
+            return 'not_found'
+        resp.raise_for_status()
+        data = json.loads(resp.text)
+        return data['server']['status']
+    
+    def deleteServer(self, novaEndpoint, token, server_id):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.delete(novaEndpoint + self.addServer + "/" + server_id, headers=headers)
+        if resp.status_code == 404:
+            return None
+        resp.raise_for_status()
+        return resp
+          
 class Glance(object):
     '''
     Class used for Glance API
     '''
     timeout = Configuration().TIMEOUT_GLANCE
     
-    def get_image_name(self, imageURI, token):
+    def get_image(self, imageURI, token):
         '''
         Return the name of an image from the URI
         '''         
@@ -565,5 +596,123 @@ class Glance(object):
         resp = requests.get(imageURI, headers=headers, timeout=self.timeout)
         resp.raise_for_status()
         data = json.loads(resp.text)
-        return data['name']
+        return data
         
+class Neutron(object):
+    '''
+    Class used for Neutron API
+    '''
+    get_networks = "/v2.0/networks"
+    create_network = "/v2.0/networks"
+    get_ports = "/v2.0/ports"
+    create_subnet = "/v2.0/subnets"
+    create_flowrule = "/v2.0/flowrules"
+    delete_flowrule = "/v2.0/flowrules/%s"
+    delete_network = "/v2.0/networks/%s"
+    delete_subnet = "/v2.0/subnets/%s"
+    get_network_status = "/v2.0/networks/%s"
+    get_subnet_status = "/v2.0/subnets/%s"
+    get_port_status = "/v2.0/ports/%s"
+    get_flowrule_status = "/v2.0/flowrules/%s"
+    
+    def getFlowruleStatus(self, neutronEndpoint, token, flowrule_id):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.get(neutronEndpoint + (self.get_flowrule_status % flowrule_id), headers=headers)
+        if resp.status_code == 404 or resp.status_code == 500:
+            return 'not_found'
+        resp.raise_for_status()
+        return 'ACTIVE'
+    
+    def createFlowrule(self, neutronEndpoint, token, flowroute_data):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.post(neutronEndpoint + self.create_flowrule, data=json.dumps(flowroute_data), headers=headers)
+        resp.raise_for_status()
+        return json.loads(resp.text)
+    
+    def deleteFlowrule(self, neutronEndpoint, token, flowrule_id):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        path = neutronEndpoint + (self.delete_flowrule % flowrule_id)
+        logging.debug(path)
+        resp = requests.delete(path, headers=headers)
+        return resp
+
+    def createNetwork(self, neutronEndpoint, token, network_data):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        logging.debug(neutronEndpoint + self.create_network)
+        resp = requests.post(neutronEndpoint + self.create_network, data=json.dumps(network_data), headers=headers)
+        resp.raise_for_status()
+        return json.loads(resp.text)
+    
+    def deleteNetwork(self, neutronEndpoint, token, network_id):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.delete(neutronEndpoint + (self.delete_network % network_id), headers=headers)
+        if resp.status_code == 404:
+            return None
+        resp.raise_for_status()
+        return resp
+    
+    def getNetworkStatus(self, neutronEndpoint, token, network_id):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.get(neutronEndpoint + (self.get_network_status % network_id), headers=headers)
+        if resp.status_code == 404:
+            return 'not_found'
+        resp.raise_for_status()
+        data = json.loads(resp.text)
+        return data['network']['status']
+    
+    def createSubNet(self, neutronEndpoint, token, subnet_data):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.post(neutronEndpoint + self.create_subnet, data=json.dumps(subnet_data), headers=headers)
+        resp.raise_for_status()
+        return json.loads(resp.text)
+    
+    def deleteSubNet(self, neutronEndpoint, token, subnet_id):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.delete(neutronEndpoint + (self.delete_subnet %  subnet_id), headers=headers)
+        if resp.status_code == 404:
+            return None
+        resp.raise_for_status()
+        return resp
+    
+    def getSubNetStatus(self, neutronEndpoint, token, subnet_id):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.get(neutronEndpoint + (self.get_subnet_status % subnet_id), headers=headers)
+        if resp.status_code == 404:
+            return 'not_found'
+        resp.raise_for_status()
+        return 'ACTIVE'
+    
+    def getNetworks(self, neutronEndpoint, token):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.get(neutronEndpoint + self.get_networks, headers=headers)
+        resp.raise_for_status()
+        return resp.text
+    
+    def getPorts(self, neutronEndpoint, token):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.get(neutronEndpoint + self.get_ports, headers=headers)
+        resp.raise_for_status()
+        return resp.text
+    
+    def createPort(self, neutronEndpoint, token, port_data):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.post(neutronEndpoint + self.get_ports, data=json.dumps(port_data), headers=headers)
+        resp.raise_for_status()
+        return json.loads(resp.text)
+    
+    def deletePort(self, neutronEndpoint, token, port_id):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.delete(neutronEndpoint + self.get_ports + "/" + port_id, headers=headers)
+        if resp.status_code == 404:
+            return None
+        resp.raise_for_status()
+        return resp
+    
+    def getPortStatus(self, neutronEndpoint, token, port_id):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Auth-Token': token}
+        resp = requests.get(neutronEndpoint + (self.get_port_status % port_id), headers=headers)
+        if resp.status_code == 404:
+            return 'not_found'
+        resp.raise_for_status()
+        data = json.loads(resp.text)
+        return data['port']['status']

@@ -1,336 +1,513 @@
 '''
 Created on 13/apr/2015
-
 @author: vida
 '''
 
 import logging
 import json
-import time
 
 from Common.config import Configuration
-from Orchestrator.ComponentAdapter.interfaces import OrchestratorInterface
-from Orchestrator.ComponentAdapter.Jolnet.rest import ODL, Glance, Nova, Neutron,\
-    Heat
-from Common.NF_FG.nf_fg import NF_FG
-from Common.SQL.flow import add_flow, remove_flow, get_internal_flows,flow_already_exists, get_edge_flows, get_user_flows,\
-    get_internal_link_flows, get_edge_link_flows, update_flow
-from Common.SQL.session import set_error, get_active_user_session_by_nf_fg_id
-from Orchestrator.ComponentAdapter.Jolnet.resources import Action, Match, Flow, ProfileGraph, VNF
 from Common.Manifest.manifest import Manifest
 from Common.exception import StackError
-from Common.SQL.component_adapter import set_extra_info, update_extra_info
-from Common.SQL.endpoint import delete_endpoint_connections, set_endpoint, get_available_endpoints_by_id,\
-    updateEndpointConnection
-from Common.SQL.resource import add_resource, get_profile_resources,\
-    remove_resource
+from Common.SQL.graph import Graph
+from Common.SQL.session import Session
+from Common.SQL.node import Node
+
+from Orchestrator.ComponentAdapter.interfaces import OrchestratorInterface
+from Orchestrator.ComponentAdapter.Common.nffg_management import NFFG_Management
+from Orchestrator.ComponentAdapter.Jolnet.rest import ODL, Glance, Nova, Neutron
+from Orchestrator.ComponentAdapter.Jolnet.resources import Action, Match, Flow, ProfileGraph, VNF, Endpoint
+from Orchestrator.ComponentAdapter.OpenstackCommon.authentication import KeystoneAuthentication
 
 DEBUG_MODE = Configuration().DEBUG_MODE
-USE_HEAT = Configuration().USE_HEAT
 
 class JolnetAdapter(OrchestratorInterface):
-    '''
-    Override class of the abstract class OrchestratorInterface
-    '''
     
-    STATUS = ['CREATE_IN_PROGRESS', 'CREATE_COMPLETE', 'CREATE_FAILED',  'DELETE_IN_PROGRESS', 'DELETE_COMPLETE', 'DELETE_FAILED', 'UPDATE_IN_PROGRESS', 'UPDATE_COMPLETE', 'UPDATE_FAILED']
-    WRONG_STATUS = ['CREATE_FAILED','DELETE_FAILED', 'UPDATE_FAILED']
-    
-    def __init__(self, heatEndpoint, novaEndpoint, session_id):
+    def __init__(self, session_id, userdata):
         '''
         Initialize the Jolnet component adapter
         Args:
             session_id:
                 identifier for the current user session
+            userdata:
+                credentials to get Keystone token for the user
         '''
-        #TODO: endpoint can be taken from the token in various methods
-        if USE_HEAT is True:
-            self._URI = heatEndpoint.pop()['publicURL']
-        
-        self.novaEndpoint = novaEndpoint.pop()['publicURL']
-        self.neutronEndpoint = None
         self.session_id = session_id
-        self.token = None
-            
-        if DEBUG_MODE is True:
-            if USE_HEAT is True:            
-                logging.debug(heatEndpoint)
-            logging.debug(novaEndpoint)
+        self.userdata = userdata
     
     @property
     def URI(self):
-        return self._URI
+        return self.compute_node_address
     
     '''
     ######################################################################################################
     #########################    Orchestrator interface implementation        ############################
     ######################################################################################################
     '''
-    #TODO: errore se i grafi contengono primitive non valide (es: splitter)
-    def instantiateProfile(self, nf_fg, token):
+    def getStatus(self, session_id, node):
+        self.getAuthTokenAndEndpoints(node)
+        return self.openstackResourcesStatus(self.token.get_token())
+    
+    def instantiateProfile(self, nf_fg, node):
         '''
-        Method to use to instantiate the User Profile Graph
-        Args:
-            nf_fg:
-                JSON Object for the user profile graph (forwarding graph)
-            token:
-                The authentication token to use for the REST call (get it from Keystone)
-            Exceptions:
-                Raise some exception to be captured
+        Override method of the abstract class for instantiating the user graph
         '''
-        nf_fg = NF_FG(nf_fg)
+        self.getAuthTokenAndEndpoints(node)
+        Session().updateUserID(self.session_id, self.token.get_userID())
+        
         if DEBUG_MODE is True:
             logging.debug("Forwarding graph: " + nf_fg.getJSON())
-        try:
-            #Get the token and the endpoints for Heat, Nova and Neutron
-            self.token = token
-            token = token.get_token()
-            self.neutronEndpoint = self.token.get_endpoints("network").pop()['publicURL']
-            
+        try:            
             #Read the nf_fg JSON structure and map it into the proper objects and db entries
-            profile_graph = self.buildProfileGraph(nf_fg, token)
-                
-            if USE_HEAT is True:
-                #Instantiate the Heat stack through Heat templates (HOT)
-                stackTemplate = profile_graph.getStackTemplate()
-                if DEBUG_MODE is True:
-                    logging.debug(json.dumps(stackTemplate))
-                res = Heat().instantiateStack(self.URI, token, nf_fg.name, stackTemplate)
-                if DEBUG_MODE is True:
-                    logging.debug("Heat response: " + str(res))
-                
-                #Stay blocked until the stack is completed or failed    
-                while self.getStackStatus(token, nf_fg.name) == 'CREATE_IN_PROGRESS':
-                    time.sleep(1)  
-                            
-                resources = json.dumps(self.getStackResourcesStatus(token, nf_fg.name))
-                set_extra_info(self.session_id, resources)
-                
-            elif USE_HEAT is False:
-                #Instantiate ports and servers directly interacting with Neutron and Nova
-                for vnf in profile_graph.functions.values():
-                    for port in vnf.listPort:
-                        if port.net is not None:
-                            resp = Neutron().createPort(self.neutronEndpoint, token, port.getResourceJSON())
-                            if resp['port']['status'] == "DOWN":
-                                port_id = resp['port']['id']
-                                port.setId(port_id)
-                        
-                    resp = Nova().createServer(self.novaEndpoint, token, vnf.getResourceJSON())
-                    vnf.OSid = resp['server']['id']
-                
-                #Stay blocked until all resources are correctly instantiated or an error occurs     
-                for vnf in profile_graph.functions.values():
-                    status = Nova().getServerStatus(self.novaEndpoint, token, vnf.OSid)
-                    while status != 'ACTIVE' and status != 'ERROR':
-                        time.sleep(1)
-                        status = Nova().getServerStatus(self.novaEndpoint, token, vnf.OSid)
-                        
-                    if status == 'ERROR':
-                        logging.debug("Instance " + vnf.id + " is in ERROR state")
-                        #TODO: delete VMs instantiated and endpoints from db
-                        raise StackError("Instance ERROR: " + vnf.id)
-                    
-                    if status == 'ACTIVE':
-                        add_resource(vnf.OSid, profile_graph.id, "OS::Nova::Server", vnf.id)
-            
-            # Add flows on the SDN network to connect endpoints (both graph interconnection or user connection)
-            self.connectEndpoints(nf_fg)
-            logging.debug("Graph " + profile_graph.id + "correctly instantiated!")
+            profile_graph = self.buildProfileGraph(nf_fg)
+            self.openstackResourcesInstantiation(profile_graph, nf_fg)
+            logging.debug("Graph " + profile_graph.id + " correctly instantiated!")
             
         except Exception as err:
             logging.error(err.message)
-            logging.exception(err)
-            set_error(self.token.get_userID())  
+            logging.exception(err) 
             raise
     
-    def updateProfile(self, nf_fg_id, new_nf_fg, old_nf_fg, token, delete=False):
+    def updateProfile(self, new_nf_fg, old_nf_fg, node):
         '''
-        new_nf_fg = NF_FG(new_nf_fg)
-        old_nf_fg = NF_FG(old_nf_fg)       
-        try:
-            if DEBUG_MODE is not True:
-                self.token = token
-                token = token.get_token()
-                self.neutronEndpoint = token.get_endpoints("network").pop()['publicURL']
-                
-                profile_graph = self.buildProfileGraph(new_nf_fg, token)
-                
-                if ORCHESTRATION_LAYER == "Heat":
-                #Parse and instantiate the Heat stack through Heat templates (HOT)
-                    stackTemplate = profile_graph.getStackTemplate()
-                    logging.debug(json.dumps(stackTemplate))
-                    res = Heat().updateStack(self.URI, token, new_nf_fg.name , Heat().getStackID(self.URI, token, new_nf_fg.name), stackTemplate)
-                    logging.debug("Heat response: "+str(res)) 
-                    
-                    while self.getStackStatus(token, new_nf_fg.name) == 'CREATE_IN_PROGRESS':
-                        time.sleep(1)
-                    
-                    if self.checkErrorStatus(self.token, new_nf_fg.name) is True:
-                        logging.debug("Stack error, checks HEAT logs.")
-                        raise StackError("Stack error, checks HEAT logs.")   
-                            
-                    resources = json.dumps(self.getStackResourcesStatus(token, new_nf_fg.name))
-                    update_extra_info(self.session_id, resources)
-            
-            # Add flows to new remote endpoints
-            self.updateEndpoints(new_nf_fg, old_nf_fg)
-            
-        except Exception as err:
-            if DEBUG_MODE is not True:
-                logging.error(err.message)
-                logging.exception(err)
-            set_error(self.token.get_userID())  
-            raise
-        '''
-        pass
+        Override method of the abstract class for updating the user graph
+        '''        
+        self.getAuthTokenAndEndpoints(node)
+        Session().updateUserID(self.session_id, self.token.get_userID())
         
-    def deinstantiateProfile(self, token, profile_id, profile):
-        '''
-        Method used to de-instantiate a user profile graph
-        Args:
-            token:
-                The authentication token to use for the REST call
-            profile_id:
-                identifier of the profile to be deleted
-            profile:
-                JSON Object for the user profile
-        Exceptions:
-            Raise some exception to be captured
-        '''
         try:
-            self.token = token
-            token = token.get_token()
-            nf_fg = NF_FG(json.loads(profile))  
+            updated_nffg = NFFG_Management().diff(old_nf_fg, new_nf_fg)
             
             if DEBUG_MODE is True:
-                logging.debug(profile)
-                       
-            if USE_HEAT is True:
-                # Send request to Heat to delete the stack
-                stack_id = Heat().getStackID(self.URI, token, nf_fg.name)
-                Heat().deleteStack(self.URI, token, nf_fg.name , stack_id)
+                logging.debug("diff: " + updated_nffg.getJSON()) 
                 
-            elif USE_HEAT is False:
-                #Delete every resource one by one
-                profile_resources = get_profile_resources(profile_id)
-                for res in profile_resources:
-                    if res.resource_type == "OS::Nova::Server":
-                        Nova().deleteServer(self.novaEndpoint, token, res.id)
-                        remove_resource(res.id)
-                
-                #Delete also networks if previously created
-            
-            #Delete flows on SDN network
-            self.disconnectEndpoints(nf_fg)
-            logging.debug("Graph " + nf_fg.id + "correctly deleted!")
+            self.openstackResourcesControlledDeletion(updated_nffg, self.token.get_token())
+            Graph().updateNFFG(updated_nffg, self.session_id)
+            profile_graph = self.buildProfileGraph(updated_nffg)
+            self.openstackResourcesInstantiation(profile_graph, updated_nffg)
+            logging.debug("Graph " + old_nf_fg.id + " correctly updated!")
             
         except Exception as err:
             logging.error(err.message)
-            logging.exception(err)
-            set_error(self.token.get_userID())  
+            logging.exception(err) 
             raise
+        
+    def deinstantiateProfile(self, nf_fg, node):
+        '''
+        Override method of the abstract class for deleting the user graph
+        '''
+        self.getAuthTokenAndEndpoints(node)
+        
+        if DEBUG_MODE is True:
+            logging.debug("Forwarding graph: " + nf_fg.getJSON())
+        
+        try:
+            self.openstackResourcesDeletion()
+            logging.debug("Graph " + nf_fg.id + " correctly deleted!") 
+        except Exception as err:
+            logging.error(err.message)
+            logging.exception(err) 
+            raise
+ 
+    '''
+    ######################################################################################################
+    ######################   Authentication towards infrastructure controllers        ####################
+    ######################################################################################################
+    ''' 
     
-    def buildProfileGraph(self, nf_fg, token):
+    def getAuthTokenAndEndpoints(self, node):
+        self.node_endpoint = Node().getNode(node.openstack_controller).domain_id
+        self.compute_node_address = node.domain_id
+        
+        self.keystoneEndpoint = 'http://' + self.node_endpoint + ':35357'
+        self.token = KeystoneAuthentication(self.keystoneEndpoint, self.userdata.tenant, self.userdata.username, self.userdata.password)
+        self.novaEndpoint = self.token.get_endpoints('compute')[0]['publicURL']
+        self.glanceEndpoint = self.token.get_endpoints('image')[0]['publicURL']
+        self.neutronEndpoint = self.token.get_endpoints('network')[0]['publicURL']
+        
+        odl = Node().getOpenflowController(node.openflow_controller)
+        self.odlendpoint = odl.endpoint
+        self.odlusername = odl.username
+        self.odlpassword = odl.password
+        self.odlversion = odl.version
+    
+    '''
+    ######################################################################################################
+    #############################    Resources preparation phase        ##################################
+    ######################################################################################################
+    '''      
+    def buildProfileGraph(self, nf_fg):
         profile_graph = ProfileGraph()
         profile_graph.setId(nf_fg.id)
-                
-        #Get the necessary info (glance URI and Nova flavor) and create a VNF object
-        for vnf in nf_fg.listVNF:
-            manifest = Manifest(vnf.manifest)
-            cpuRequirements = manifest.CPUrequirements.socket
-            if DEBUG_MODE is True:
-                logging.debug(manifest.uri)
-            image = Glance().getImage(manifest.uri, token)
-            flavor = self.findFlavor(int(manifest.memorySize), int(manifest.rootFileSystemSize),
-                    int(manifest.ephemeralFileSystemSize), int(cpuRequirements[0]['coreNumbers']), token)
-            nf = VNF(vnf.id, vnf, image, flavor, nf_fg.zone)
+        
+        #TODO: merge this two cycles together
+        for vnf in nf_fg.listVNF[:]:
+            nf = self.buildVNF(vnf)
             profile_graph.addVNF(nf)
+        
+        for vnf in nf_fg.listVNF[:]:
+            nf = profile_graph.functions[vnf.id]
+            self.setVNFNetwork(vnf, nf)
+        
+        for endpoint in nf_fg.listEndpoint:
+            if endpoint.type == "vlan-egress" or endpoint.type == "vlan-ingress":
+                ep = self.buildEndpoint(endpoint)
+                profile_graph.addEndpoint(ep)
                 
+        for vnf in nf_fg.listVNF[:]:
+            nf = profile_graph.functions[vnf.id]
+            self.characterizeIngressEndpoints(profile_graph, nf_fg, vnf)
+                             
+        return profile_graph                        
+    
+    def buildVNF(self, vnf):
+        #Get the necessary info (glance URI and Nova flavor) and create a VNF object
+        manifest = Manifest(vnf.manifest)
+        cpuRequirements = manifest.CPUrequirements.socket
+        if DEBUG_MODE is True:
+            logging.debug(manifest.uri)
+        image = Glance().getImage(manifest.uri, self.token.get_token())
+        flavor = self.findFlavor(int(manifest.memorySize), int(manifest.rootFileSystemSize),
+            int(manifest.ephemeralFileSystemSize), int(cpuRequirements[0]['coreNumbers']), self.token.get_token())
+        if vnf.status is None:
+            status = "new"
+        else:
+            status = vnf.status
+        #TODO: add image location to the database
+        return VNF(vnf.id, vnf, image, flavor, vnf.availability_zone, status)
+    
+    def setVNFNetwork(self, vnf, nf):
         #Complete all ports with the right Neutron network id and add them to the VNF
         #This is necessary because the network are already present (create them on the fly would be better)
-        #This should be changed with a creation call in case networks would be created on the fly   
-        for vnf in nf_fg.listVNF:
-            nf = profile_graph.functions[vnf.id]
-            for port in vnf.listPort:
-                p = nf.ports[port.id]
-                for flowrule in port.list_outgoing_label:
-                    if flowrule.action.type == "output" or flowrule.action.type == "endpoint" or flowrule.action.type == "control":
-                        if flowrule.matches is not None:
-                            #The port name is inserted into flowspec id field (both expXXX or XXmgmt networks)
-                            net_name = flowrule.matches[0].id
-                            net_id = self.getNetworkId(net_name, token)
-                            p.setNetwork(net_id)
-                            
-                            if flowrule.action.type == "endpoint":
-                                #Record the available endpoints into database
-                                set_endpoint(nf_fg.id, flowrule.action.endpoint['id'], True, vnf.id, port.id, "vlan")
+        #This should be changed with a creation call in case networks would be created on the fly
+        for port in vnf.listPort[:]:
+            p = nf.ports[port.id]
+            
+            if len(port.list_outgoing_label) > 1:
+                raise StackError("Traffic splitting and merging not supported!")
+            
+            for flowrule in port.list_outgoing_label:
+                if flowrule.action.type == "output":
+                    if flowrule.matches is not None:
+                        #Check if the network required already exists in Neutron
+                        net_vlan = flowrule.match.of_field['vlanId']
+                        name = "exp" + str(net_vlan)
+                        net_id = self.getNetworkIdfromName(name)
+                        p.setNetwork(net_id, net_vlan)                        
+                        networks = Graph().getAllNetworks()
+                        found = False
+                        for net in networks:
+                            if net.vlan_id == net_vlan:
+                                found = True
+                        if found is False:
+                            Graph().addOSNetwork(net_id, name, 'complete', net_vlan)
                     
-                for flowrule in port.list_ingoing_label:
-                    pass
-        
-        #Insert unattached endpoints into DB (apart for ISP ones)
-        for endpoint in nf_fg.listEndpoint:
-            if endpoint.connection is False and endpoint.attached is False and endpoint.edge is False:
-                existing_endpoints = get_available_endpoints_by_id(nf_fg.id, endpoint.id)
-                if existing_endpoints is None:
-                    set_endpoint(nf_fg.id, endpoint.id, True, endpoint.name, endpoint.interface, endpoint.type)
-        
-        return profile_graph
+                if flowrule.action.type == "control":
+                    if flowrule.matches is not None:
+                        #TODO: attach the port to the right management network
+                        pass                                          
+            
+    def buildEndpoint(self, endpoint):
+        if endpoint.status is None:
+            status = "new"
+        else:
+            status = endpoint.status
+        if endpoint.connection is True:
+            return Endpoint(endpoint.id, endpoint.name, endpoint.connection, endpoint.type, endpoint.node, endpoint.interface, status, endpoint.remote_graph, endpoint.remote_id)
+        else:
+            return Endpoint(endpoint.id, endpoint.name, endpoint.connection, endpoint.type, endpoint.node, endpoint.interface, status)
     
-    '''
-    ######################################################################################################
-    ###########################    Interaction with Heat for stacks        ###############################
-    ######################################################################################################
-    '''
-    def getStackStatus(self, token, name):
-        '''
-        Get the status of a Stack
-        Args:
-            token:
-                The authentication token to use for the REST call
-            name:
-                stack name
-        '''
-        stack_id = Heat().getStackID(self.URI, token, name)
-        return Heat().getStackStatus(self.URI, token, stack_id)
-    
-    def getStackResourcesStatus(self, token, name):
-        '''
-        Get the status of a Stack resources
-        Args:
-            token:
-                The authentication token to use for the REST call
-            name:
-                stack name
-        '''
-        stack_id = Heat().getStackID(self.URI, token, name)
-        return Heat().getStackResourcesStatus(self.URI, token, name, stack_id)
-    
-    def checkStackErrorStatus(self, token, graph_name):
-        '''
-        Check if a stack is in an error state
-        Args:
-            token:
-                The authentication token to use for the REST call
-            graph_name:
-                stack name
-        '''
-        try:
-            stack_info = self.getStackStatus(token.get_token(), graph_name)
-        except Exception as ex:
-            logging.debug("Stack status exception: " + str(ex))
-            return True    
-        if stack_info in self.WRONG_STATUS:
-            return True
-        return False
-    
-    '''
-    ######################################################################################################
-    ##########################    Find right flavor for virtual machine        ###########################
-    ######################################################################################################
-    '''    
+    def characterizeIngressEndpoints(self, profile_graph, nf_fg, vnf):
+        for port in vnf.listPort[:]:
+            for flowrule in port.list_ingoing_label:
+                if flowrule.action.type == "output":
+                    if flowrule.matches is not None:
+                        endpoint = profile_graph.getIngressEndpoint(flowrule.flowspec['ingress_endpoint'])
+                            
+                        user_vlan = flowrule.match.of_field['vlanId']
+                        if 'sourceMAC' in flowrule.match.of_field:
+                            user_source_mac = flowrule.match.of_field['sourceMAC']
+                        else:
+                            user_source_mac = None
+                            
+                        if 'destMAC' in flowrule.match.of_field:
+                            user_dest_mac = flowrule.match.of_field['destMAC']
+                        else:
+                            user_dest_mac = None 
+                            
+                        if 'sourceIP' in flowrule.match.of_field:
+                            user_source_ip = flowrule.match.of_field['sourceIP']
+                        else:
+                            user_source_ip = None 
+                            
+                        if 'destIP' in flowrule.match.of_field:
+                            user_dest_ip = flowrule.match.of_field['destIP']
+                        else:
+                            user_dest_ip = None 
+                              
+                        if 'etherType' in flowrule.match.of_field:
+                            user_etherType = flowrule.match.of_field['etherType']
+                        else:
+                            user_etherType = None
+                            
+                        if 'protocol' in flowrule.match.of_field:
+                            user_protocol = flowrule.match.of_field['protocol']
+                        else:
+                            user_protocol = None                            
+                                        
+                        if 'vlanPriority' in flowrule.match.of_field:
+                            logging.warning('Field "vlanPriority" not supported')
+                        if 'tosBits' in flowrule.match.of_field:
+                            logging.warning('Field "tosBits" not supported')
+                            
+                        user_port = flowrule.match.of_field['sourcePort']
+                        delimiter = user_port.rfind(":")
+                        cpe_port = user_port[delimiter+1:]
+                        cpe = user_port[:delimiter]
                         
+                        endpoint.setUserParams(user_source_mac, user_dest_mac, user_vlan, cpe, cpe_port, user_source_ip, user_dest_ip, user_etherType, user_protocol)
+    
+    '''
+    ######################################################################################################
+    ##########################    Resources instantiation and deletion        ############################
+    ######################################################################################################
+    ''' 
+    def openstackResourcesInstantiation(self, profile_graph, nf_fg):
+        #Instantiate ports and servers directly interacting with Neutron and Nova
+        for vnf in profile_graph.functions.values():
+            if vnf.status == "new":           
+                self.createServer(vnf, nf_fg)
+            else:
+                for port in vnf.listPort[:]:
+                    if port.status == "new":
+                        self.addPorttoVNF(port, vnf, nf_fg)
+                    
+        #Create flow on the SDN network for graphs interconnection
+        for endpoint in profile_graph.getVlanEgressEndpoints():
+            if endpoint.status == "new":
+                if endpoint.connection is True:
+                    #Check if the remote graph exists and the requested endpoint is available                
+                    session = Session().get_active_user_session_by_nf_fg_id(endpoint.remote_graph).id
+                    existing_endpoints = Graph().getEndpoints(session)
+                    remote_endpoint = None
+                    for e in existing_endpoints:
+                        if (e.graph_endpoint_id == endpoint.remote_id):
+                            remote_endpoint = e
+                    
+                    if remote_endpoint is not None:
+                        vlan = endpoint.id
+                        switch1 = endpoint.node
+                        port1 = endpoint.interface                                       
+                         
+                                         
+                        node1_id = Node().getNodeFromDomainID(switch1).id
+                        node2_id = Graph().getNodeID(session)
+                        switch2 = Node().getNodeDomainID(node2_id)     
+                        port2 = remote_endpoint.location
+                        
+                        #TODO: add the port on the endpoint switch
+                        self.linkZones(nf_fg.db_id, switch1, port1, node1_id, switch2, port2, node2_id, vlan)
+                    else:
+                        logging.error("Remote graph " + endpoint.remote_graph + " has not a " + endpoint.id + " endpoint available!")
+                
+                #Insert location info into the database
+                Graph().setEndpointLocation(self.session_id, nf_fg.db_id, endpoint.id, endpoint.interface)
+            
+        #Create flow on the SDN network for users connection (auth graph has the same endpoint but without user_mac)
+        for endpoint in profile_graph.getVlanIngressEndpoints():
+            if endpoint.status == "new":
+                if endpoint.connection is True:
+                    cpe_id = Node().getNodeFromDomainID(endpoint.user_node).id
+                    switch_id = Node().getNodeFromDomainID(endpoint.node).id
+                    self.linkUser(nf_fg.db_id, endpoint.user_node,
+                                   endpoint.user_interface, cpe_id, endpoint.node, endpoint.interface, switch_id, endpoint.id, endpoint.user_vlan, 
+                                   endpoint.user_source_mac, endpoint.user_dest_mac, endpoint.user_source_ip, endpoint.user_dest_ip, endpoint.user_etherType, endpoint.user_protocol)
+                    
+                #Insert location info into the database
+                Graph().setEndpointLocation(self.session_id, nf_fg.db_id, endpoint.id, endpoint.interface)                      
+    
+    def openstackResourcesDeletion(self):       
+        #Delete every resource one by one
+        flows = Graph().getOArchs(self.session_id)
+        for flow in flows:
+            if flow.type == "external" and flow.status == "complete":
+                switch_id = Node().getNodeDomainID(flow.start_node_id)
+                ODL(self.odlversion).deleteFlow(self.odlendpoint, self.odlusername, self.odlpassword, switch_id, flow.internal_id)
+        
+        vnfs = Graph().getVNFs(self.session_id)
+        for vnf in vnfs:
+            Nova().deleteServer(self.novaEndpoint, self.token.get_token(), vnf.internal_id)
+            
+        #TODO: Delete also networks and subnets if previously created
+    
+    def openstackResourcesControlledDeletion(self, updated_nffg, token_id):
+        # Delete VNFs
+        for vnf in updated_nffg.listVNF[:]:
+            if vnf.status == 'to_be_deleted':
+                self.deleteServer(vnf, updated_nffg)              
+            else:
+                # Delete ports
+                for port in vnf.listPort[:]:
+                    self.deletePort(port)
+        
+        for endpoint in updated_nffg.listEndpoint[:]:
+            if endpoint.status == 'to_be_deleted':
+                flows = Graph().getOArchs(self.session_id)
+                for flow in flows:
+                    if flow.type == "external" and flow.status == "complete" and flow.internal_id.contains(endpoint.id):
+                        switch_id = Node().getNodeDomainID(flow.start_node_id)
+                        ODL(self.odlversion).deleteFlow(self.odlendpoint, self.odlusername, self.odlpassword, switch_id, flow.internal_id)
+        
+        # Wait for resource deletion
+        '''for vnf in updated_nffg.listVNF[:]:
+            if vnf.status == 'to_be_deleted':
+                while True:
+                    status = Nova().getServerStatus(self.novaEndpoint, token_id, vnf.internal_id)
+                    if status != 'ACTIVE':
+                        logging.debug("VNF "+vnf.internal_id+" status "+status)
+                        updated_nffg.listVNF.remove(vnf)
+                        break
+                    if status == 'ERROR':
+                        raise Exception('VNF status ERROR - '+vnf.internal_id)
+                    logging.debug("VNF "+vnf.internal_id+" status "+status)
+            else:
+                for port in vnf.listPort[:]:
+                    if port.status == 'to_be_deleted':
+                        while True:
+                            status = Neutron().getPortStatus(self.neutronEndpoint, token_id, port.internal_id)
+                            if status != 'ACTIVE':
+                                logging.debug("VNF "+vnf.internal_id+" status "+status)
+                                vnf.listPort.remove(port)
+                                break
+                            if status == 'ERROR':
+                                raise Exception('Port status ERROR - '+vnf.internal_id)
+                            logging.debug("Port "+vnf.internal_id+" status "+status)'''
+    
+    def openstackResourcesStatus(self, token_id):
+        resources_status = {}
+        resources_status['ports'] = {}
+        ports = Graph().getPorts(self.session_id)
+        for port in ports:
+            if port.type == 'openstack':
+                resources_status['ports'][port.id] = Neutron().getPortStatus(self.neutronEndpoint, token_id, port.internal_id)
+        resources_status['vnfs'] = {}
+        vnfs = Graph().getVNFs(self.session_id)
+        for vnf in vnfs:
+            resources_status['vnfs'][vnf.id] = Nova().getServerStatus(self.novaEndpoint, token_id, vnf.internal_id)
+        
+        num_resources = len(resources_status['ports']) + len(resources_status['vnfs'])                
+        num_resources_completed = 0
+        
+        for value in resources_status['ports'].itervalues():
+            logging.debug("port - "+value)
+            if value == 'ACTIVE' or value == 'DOWN':
+                num_resources_completed = num_resources_completed + 1
+        for value in resources_status['vnfs'].itervalues():
+            logging.debug("vnf - "+value)
+            if value == 'ACTIVE':
+                num_resources_completed = num_resources_completed + 1
+        
+        status  = {}
+        if DEBUG_MODE is True:
+            logging.debug("num_resources_completed "+str(num_resources_completed))
+            logging.debug("num_resources "+str(num_resources))
+            
+        if num_resources_completed == num_resources:
+            status['status'] = 'complete'
+            status['percentage_completed'] = num_resources_completed/num_resources*100
+        else:
+            status['status'] = 'in_progress'
+            status['percentage_completed'] = num_resources_completed/num_resources*100
+        
+        return status
+    
+    '''
+    ######################################################################################################
+    ###############################    Interactions with OpenStack       #################################
+    ######################################################################################################
+    '''
+    def createServer(self, vnf, nf_fg):
+        for port in vnf.listPort[:]:
+            self.createPort(port, vnf, nf_fg) 
+        json_data = vnf.getResourceJSON()
+        resp = Nova().createServer(self.novaEndpoint, self.token.get_token(), json_data)
+        vnf.OSid = resp['server']['id']
+        
+        #TODO: image location, location, type and availability_zone missing
+        Graph().setVNFInternalID(vnf.id, vnf.OSid, self.session_id, nf_fg.db_id)
+    
+    def deleteServer(self, vnf, nf_fg):
+        Nova().deleteServer(self.novaEndpoint, self.token.get_token(), vnf.internal_id)
+        Graph().deleteFlowspecFromVNF(self.session_id, vnf.db_id)
+        Graph().deleteVNFNetworks(self.session_id, vnf.db_id)     
+        Graph().deletePort(None, self.session_id, vnf.db_id)
+        Graph().deleteVNF(vnf.id, self.session_id)
+        nf_fg.listVNF.remove(vnf)    
+    
+    def createPort(self, port, vnf, nf_fg):
+        if port.net is None:
+            #TODO: create an Openstack network and subnet and set the id into port.net instead of exception
+            #You need to set its vlan-id as the one passed in the flowrule (you cannot do it from OpenStack)
+            raise StackError("No network found for this port")
+        
+        json_data = port.getResourceJSON()      
+        resp = Neutron().createPort(self.neutronEndpoint, self.token.get_token(), json_data)
+        if resp['port']['status'] == "DOWN":
+            port_id = resp['port']['id']
+            port.setId(port_id)
+            Graph().setPortInternalID(port.name, nf_fg.getVNFByID(vnf.id).db_id, port_id, self.session_id, nf_fg.db_id, port_type='openstack')
+            Graph().setOSNetwork(port.net, port.name, nf_fg.getVNFByID(vnf.id).db_id, port_id, self.session_id, nf_fg.db_id,  vlan_id = port.vlan)
+    
+    def deletePort(self, port): 
+        if port.status == 'to_be_deleted':
+            Neutron().deletePort(self.neutronEndpoint, self.token.get_token(), port.internal_id)
+            Graph().deleteFlowspecFromPort(self.session_id, port.id)
+            p = Graph().getPortFromInternalID(port.internal_id)
+            Graph().deleteNetwok(p.os_network_id)
+            Graph().deletePort(port.id, self.session_id)
+        else:
+            # Delete flow-rules
+            for flowrule in port.list_outgoing_label[:]:
+                if flowrule.status == 'to_be_deleted':
+                    Neutron().deletePort(self.neutronEndpoint, self.token.get_token(), port.internal_id)                                
+                    Graph().deleteoOArch(flowrule.db_id, self.session_id)
+                    Graph().deleteFlowspec(flowrule.db_id, self.session_id)
+                    p = Graph().getPortFromInternalID(port.internal_id)
+                    Graph().deleteNetwok(p.os_network_id)
+                    Graph().deletePort(port.db_id, self.session_id)                   
+                    port.list_outgoing_label.remove(flowrule)
+                    port.status = 'new'
+            for flowrule in port.list_ingoing_label[:]:
+                if flowrule.status == 'to_be_deleted':
+                    flows = Graph().getOArchs(self.session_id)
+                    for flow in flows:
+                        if flow.type == "external" and flow.status == "complete" and flow.internal_id.contains(flowrule.action.endpoint.id):
+                            switch_id = Node().getNodeDomainID(flow.start_node_id)
+                            ODL(self.odlversion).deleteFlow(self.odlendpoint, self.odlusername, self.odlpassword, switch_id, flow.internal_id)
+                            Graph().deleteoOArch(flowrule.db_id, self.session_id)
+                            Graph().deleteFlowspec(flowrule.db_id, self.session_id)
+                            port.list_ingoing_label.remove(flowrule)
+            
+    def addPorttoVNF(self, port, vnf, nf_fg):
+        vms = Graph().getVNFs(self.session_id)
+        for vm in vms:
+            if vm.graph_vnf_id == vnf.id:
+                port.setDeviceId(vm.internal_id)
+                self.createPort(port, vnf, nf_fg)
+                #TODO: this calls gives a 500 error on OpenStack
+                #Nova().attachPort(self.novaEndpoint, self.token.get_token(), port.port_id, vm.internal_id)
+                break;
+        
+    def getNetworkIdfromName(self, network_name):
+        #Since we need to control explicitly the vlan id of OpenStack networks, we need to use this trick
+        #No way to find vlan id from OpenStack REST APIs
+        json_data = Neutron().getNetworks(self.neutronEndpoint, self.token.get_token())
+        networks = json.loads(json_data)['networks']
+        for net in networks:
+            if net['name'] == network_name:
+                return net['id']
+        return None
+    
     def findFlavor(self, memorySize, rootFileSystemSize, ephemeralFileSystemSize, CPUrequirements, token):
         '''
         Find the best nova flavor from the given requirements of the machine
@@ -346,7 +523,6 @@ class JolnetAdapter(OrchestratorInterface):
             token:
                 Keystone token for the authentication
         '''
-        #return "m1.small"
         flavors = Nova().get_flavors(self.novaEndpoint, token, memorySize, rootFileSystemSize+ephemeralFileSystemSize)['flavors']
         findFlavor = None
         minData = 0
@@ -358,84 +534,48 @@ class JolnetAdapter(OrchestratorInterface):
                 elif (flavor['vcpus'] - CPUrequirements + (flavor['ram'] - memorySize)/1024 + flavor['disk'] - rootFileSystemSize - int(ephemeralFileSystemSize or 0)) < minData:
                     findFlavor = flavor
                     minData = flavor['vcpus'] - CPUrequirements + (flavor['ram'] - memorySize)/1024 + flavor['disk'] - rootFileSystemSize - int(ephemeralFileSystemSize or 0)
-        return findFlavor
-    
-    '''
-    ######################################################################################################
-    #########################    Manage internal connection in the nodes        ##########################
-    ######################################################################################################
-    '''
-    
-    def getNetworkId(self, network_name, token):
-        '''
-        Get the Neutron network id from a network name
-        Args:
-            network_name:
-                The name of the network
-            token:
-                The authentication token to use for the REST call
-        '''
-        json_data = Neutron().getNetworks(self.neutronEndpoint, token)
-        networks = json.loads(json_data)['networks']
-        for net in networks:
-            if net['name'] == network_name:
-                return net['id']
-        if DEBUG_MODE is True:
-            logging.debug("Network " + net['name'] + " not found")
-        return None        
+        return findFlavor      
      
     '''
     ######################################################################################################
-    #########################    Manage external connection among nodes        ###########################
+    #########################    Interactions with OpenDaylight              #############################
     ######################################################################################################
     ''' 
-    '''
-    WARNING: all this Opendaylight API calls are based on Helium MD-SAL; not working with AD-SAL
-    '''
-    def getNodes(self):
-        '''
-        Retrieve a list of Jolnet nodes (could be hosts or switches)
-        '''
-        json_data = ODL().getTopology(self)
-        topology = json.loads(json_data)
-        nList = topology["network-topology"]["topology"][0]["node"]
-        return nList
-    '''
-    def getUserAttachmentPoints(self, user_mac):
-        nodeList = self.getNodes()
-        for node in nodeList:
-            node_id = node["node-id"]
-            tmpList = node_id.split(":")
-            if (tmpList[0] == "host"):
-                if (tmpList[1] == user_mac):
-                    return node["host-tracker-service:attachment-points"]'''
     
     def getLinkBetweenSwitches(self, switch1, switch2):             
         '''
         Retrieve the link between two switches, where you can find ports to use
         Args:
             switch1:
-                OpenDaylight identifier of the source switch (example: openflow:123456789)
+                OpenDaylight identifier of the source switch (example: openflow:123456789 or 00:00:64:e9:50:5a:90:90 in Hydrogen)
             switch2:
-                OpenDaylight identifier of the destination switch (example: openflow:987654321)
+                OpenDaylight identifier of the destination switch (example: openflow:987654321 or 00:00:64:e9:50:5a:90:90 in Hydrogen)
         '''
-        json_data = ODL().getTopology()
+        json_data = ODL(self.odlversion).getTopology(self.odlendpoint, self.odlusername, self.odlpassword)
         topology = json.loads(json_data)
-        tList = topology["network-topology"]["topology"][0]["link"]
-        for link in tList:
-            source_node = link["source"]["source-node"]
-            dest_node = link["destination"]["dest-node"]
-            if (source_node == switch1 and dest_node == switch2):
-                return link
+        if self.odlversion == "Hydrogen":
+            tList = topology["edgeProperties"]
+            for link in tList:
+                source_node = link["edge"]["headNodeConnector"]["node"]["id"]
+                dest_node = link["edge"]["tailNodeConnector"]["node"]["id"]
+                if (source_node == switch1 and dest_node == switch2):
+                    return link
+        else:
+            tList = topology["network-topology"]["topology"][0]["link"]
+            for link in tList:
+                source_node = link["source"]["source-node"]
+                dest_node = link["destination"]["dest-node"]
+                if (source_node == switch1 and dest_node == switch2):
+                    return link
     
-    def pushVlanFlow(self, source_node, flow_id, vlan, in_port, out_port, flow_type, user):
+    def pushVlanFlow(self, source_node, flow_id, vlan, in_port, out_port):
         '''
         Push a flow into a Jolnet switch with 
             matching on VLAN id and input port
             output through the specified port
         Args:
             source_node:
-                OpenDaylight identifier of the source switch (example: openflow:123456789)
+                OpenDaylight identifier of the source switch (example: openflow:123456789 or 00:00:64:e9:50:5a:90:90 in Hydrogen)
             flow_id:
                 unique identifier of the flow on the whole OpenDaylight domain
             vlan:
@@ -444,10 +584,6 @@ class JolnetAdapter(OrchestratorInterface):
                 ingoing port of the traffic (for matching)
             out_port:
                 output port where to send out the traffic (action)
-            flow_type:
-                distinguish between internal flows (graphs interconnection) and user flows (users connection)
-            user:
-                user profile id to keep track of the owner of the flow
         '''
         action1 = Action()
         action1.setOutputAction(out_port, 65535)
@@ -458,25 +594,16 @@ class JolnetAdapter(OrchestratorInterface):
         match.setVlanMatch(vlan)
         
         flowj = Flow("jolnetflow", flow_id, 0, 20, True, 0, 0, actions, match)        
-        json_req = flowj.getJSON()
-        
-        if (flow_already_exists(flow_id, source_node) == False):
-            ODL().createFlow(json_req, source_node, flow_id)
-            add_flow(flow_id, source_node, flow_type, user)
-        else:
-            flows = get_internal_link_flows(vlan)
-            for flow in flows:
-                count = flow.users_count + 1
-                update_flow(flow.id, flow.switch_id, flow.flowtype, flow.user, count)
+        json_req = flowj.getJSON(source_node)
+        ODL(self.odlversion).createFlow(self.odlendpoint, self.odlusername, self.odlpassword, json_req, source_node, flow_id)
     
-    def pushMACSourceFlow(self, source_node, flow_id, user_vlan, in_port, source_mac, out_port, graph_vlan):
+    def pushSourceFlow(self, source_node, flow_id, user_vlan, in_port, source_mac, dest_mac, source_ip, dest_ip, out_port, graph_vlan, etherType, protocol):
         '''
         Push a flow into a Jolnet switch (or cpe) with 
-            matching on source MAC address and VLAN id
             VLAN tag swapping and output through the specified port
         Args:
             source_node:
-                OpenDaylight identifier of the source switch (example: openflow:123456789)
+                OpenDaylight identifier of the source switch (example: openflow:123456789 or 00:00:64:e9:50:5a:90:90 in Hydrogen)
             flow_id:
                 unique identifier of the flow on the whole OpenDaylight domain
             user_vlan:
@@ -484,46 +611,62 @@ class JolnetAdapter(OrchestratorInterface):
             in_port:
                 ingoing port of the traffic (for matching)
             source_mac:
-                MAC address of the user device
+                MAC address of the user device (for matching)
+            dest_mac:
+                destination MAC address  (for matching)                
+            source_ip:
+                IP address of the user device (for matching)
+            dest_ip:
+                destination IP address  (for matching)    
             out_port:
                 output port where to send out the traffic (action)
             graph_vlan:
                 new VLAN id to be applied to packets (action)
-        '''
-        action1 = Action()
-        action1.setSwapVlanAction(graph_vlan)
-        action2 = Action()
-        action2.setOutputAction(out_port, 65535)
-        actions = [action1, action2]
+            etherType:
+                ethertype (for matching)
+            protocol:
+                IP protocol (for matching)                
+        '''       
+        if user_vlan != graph_vlan:
+            action1 = Action()
+            action1.setSwapVlanAction(graph_vlan)
+            action2 = Action()
+            action2.setOutputAction(out_port, 65535)
+            actions = [action1, action2]
+        else:
+            action1 = Action()
+            action1.setOutputAction(out_port, 65535)
+            actions = [action1]
         
         priority = 10
         match = Match()
         match.setInputMatch(in_port)
-        if source_mac is not None:
-            match.setEthernetMatch(None, source_mac, None)
+        if etherType is not None:
+            match.setEtherTypeMatch(etherType)
             priority = priority + 15
+        if source_mac is not None or dest_mac is not None:
+            match.setEthernetMatch(source_mac, dest_mac)
+            priority = priority + 15
+        if source_ip is not None or dest_ip is not None:
+            match.setIPMatch(source_ip, dest_ip)
+            priority = priority + 15
+        if protocol is not None:
+            match.setIPProtocol(protocol)
+            priority = priority + 15            
         match.setVlanMatch(user_vlan)
         
-        flowj = Flow("edgeflow", flow_id, 0, priority, True, 0, 0, actions, match)        
-        json_req = flowj.getJSON()
         
-        if (flow_already_exists(flow_id, source_node) == False):
-            ODL().createFlow(json_req, source_node, flow_id)
-            add_flow(flow_id, source_node, "edge", source_mac)
-        else:
-            flows = get_edge_link_flows(source_mac)
-            for flow in flows:
-                count = flow.users_count + 1
-                update_flow(flow.id, flow.switch_id, flow.flowtype, flow.user, count)
-    
-    def pushMACDestFlow(self, source_node, flow_id, user_vlan, in_port, dest_mac, out_port, graph_vlan):
+        flowj = Flow("edgeflow", flow_id, 0, priority, True, 0, 0, actions, match)        
+        json_req = flowj.getJSON(source_node)
+        ODL(self.odlversion).createFlow(self.odlendpoint, self.odlusername, self.odlpassword, json_req, source_node, flow_id)   
+        
+    def pushDestFlow(self, source_node, flow_id, user_vlan, in_port, source_mac, dest_mac, source_ip, dest_ip, out_port, graph_vlan, etherType, protocol):
         '''
         Push a flow into a Jolnet switch (or cpe) with 
-            matching on destination MAC address and VLAN id
             VLAN tag swapping and output through the specified port
         Args:
             source_node:
-                OpenDaylight identifier of the source switch (example: openflow:123456789)
+                OpenDaylight identifier of the source switch (example: openflow:123456789 or 00:00:64:e9:50:5a:90:90 in Hydrogen)
             flow_id:
                 unique identifier of the flow on the whole OpenDaylight domain
             user_vlan:
@@ -531,290 +674,176 @@ class JolnetAdapter(OrchestratorInterface):
             in_port:
                 ingoing port of the traffic (action)
             source_mac:
+                source MAC address (for matching)
+            dest_mac:
                 MAC address of the user device
+            source_ip:
+                source IP address (for matching)  
+            dest_ip:
+                IP address of the user device                
             out_port:
-                output port where to send out the traffic (matching)
+                output port where to send out the traffic (for matching)
             graph_vlan:
-                VLAN id of incoming packets (matching)
+                VLAN id of incoming packets (for matching)
+            etherType:
+                etherType (for matching)
+            protocol:
+                IP protocol (for matching)                
         '''
-        action1 = Action()
-        action1.setSwapVlanAction(user_vlan)
-        action2 = Action()
-        action2.setOutputAction(out_port, 65535)
-        actions = [action1, action2]
+        if user_vlan != graph_vlan:
+            action1 = Action()
+            action1.setSwapVlanAction(user_vlan)
+            action2 = Action()
+            action2.setOutputAction(out_port, 65535)
+            actions = [action1, action2]
+        else:
+            action1 = Action()
+            action1.setOutputAction(out_port, 65535)
+            actions = [action1]
         
         priority = 10
         match = Match()
         match.setInputMatch(in_port)
-        if dest_mac is not None:
-            match.setEthernetMatch(None, None, dest_mac)
+        if etherType is not None:
+            match.setEtherTypeMatch(etherType)
+            priority = priority + 15
+        if source_mac is not None or dest_mac is not None:
+            match.setEthernetMatch(dest_mac, source_mac)
+            priority = priority + 15
+        if source_ip is not None or dest_ip is not None:
+            match.setIPMatch(dest_ip, source_ip)
+            priority = priority + 15
+        if protocol is not None:
+            match.setIPProtocol(protocol)
             priority = priority + 15
         match.setVlanMatch(graph_vlan)
         
         flowj = Flow("edgeflow", flow_id, 0, priority, True, 0, 0, actions, match)        
-        json_req = flowj.getJSON()
-        
-        if (flow_already_exists(flow_id, source_node) == False):
-            ODL().createFlow(json_req, source_node, flow_id)
-            add_flow(flow_id, source_node, "edge", dest_mac)
-        else:
-            flows = get_edge_link_flows(dest_mac)
-            for flow in flows:
-                count = flow.users_count + 1
-                update_flow(flow.id, flow.switch_id, flow.flowtype, flow.user, count)
-    
-    def linkZones(self, switch_user, port_vms_user, switch_isp, port_vms_isp, vlan_id):
+        json_req = flowj.getJSON(source_node)
+        ODL(self.odlversion).createFlow(self.odlendpoint, self.odlusername, self.odlpassword, json_req, source_node, flow_id)
+
+    def linkZones(self, graph_id, switch_user, port_vms_user, switch_user_id, switch_isp, port_vms_isp, switch_isp_id, vlan_id):
         '''
         Link two graphs (or two parts of a single graph) through the SDN network
         Args:
+            graph_id:
+                id of the user's graph
             switch_user:
-                OpenDaylight identifier of the first switch (example: openflow:123456789)
+                OpenDaylight identifier of the first switch (example: openflow:123456789 or 00:00:64:e9:50:5a:90:90 in Hydrogen)
             port_vms_user:
                 port on the OpenFlow switch where virtual machines are linked
+            switch_user_id:
+                id of the node in the database
             switch_isp:
-                OpenDaylight identifier of the second switch (example: openflow:987654321)
+                OpenDaylight identifier of the second switch (example: openflow:987654321 or 00:00:64:e9:50:5a:90:90 in Hydrogen)
             port_vms_isp:
                 port on the OpenFlow switch where virtual machines are linked
+            switch_isp_id:
+                id of the node in the database
             vlan_id:
                 VLAN id of the OpenStack network which links the graphs
         '''
-        link = self.getLinkBetweenSwitches(switch_user, switch_isp)
-        
-        if link is not None:        
-            tmp = link["source"]["source-tp"]
-            tmpList = tmp.split(":")
-            port12 = tmpList[2]
+        edge = None
+        link = None
+        if self.odlversion == "Hydrogen":
+            edge = self.getLinkBetweenSwitches(switch_user, switch_isp)
+            if edge is not None:
+                port12 = edge["edge"]["headNodeConnector"]["id"]
+                port21 = edge["edge"]["tailNodeConnector"]["id"]    
+        else:
+            link = self.getLinkBetweenSwitches(switch_user, switch_isp)
+            if link is not None:        
+                tmp = link["source"]["source-tp"]
+                tmpList = tmp.split(":")
+                port12 = tmpList[2]
                     
-            tmp = link["destination"]["dest-tp"]
-            tmpList = tmp.split(":")
-            port21 = tmpList[2]
-                 
+                tmp = link["destination"]["dest-tp"]
+                tmpList = tmp.split(":")
+                port21 = tmpList[2]
+                
+        if link is not None or edge is not None:
             fid = int(str(vlan_id) + str(1))              
-            self.pushVlanFlow(switch_user, fid, vlan_id, port_vms_user, port12, "internal", vlan_id)
+            self.pushVlanFlow(switch_user, fid, vlan_id, port_vms_user, port12)
+            Graph().AddFlowrule(self.session_id, graph_id, fid, "external", "node", switch_user_id, "node", switch_isp_id, "complete")
             fid = int(str(vlan_id) + str(2))
-            self.pushVlanFlow(switch_isp, fid, vlan_id, port21, port_vms_isp, "internal", vlan_id)
+            self.pushVlanFlow(switch_isp, fid, vlan_id, port21, port_vms_isp)
+            Graph().AddFlowrule(self.session_id, graph_id, fid, "external", "node", switch_isp_id, "node", switch_user_id, "complete")
             fid = int(str(vlan_id) + str(3))               
-            self.pushVlanFlow(switch_isp, fid, vlan_id, port_vms_isp, port21, "internal", vlan_id)
+            self.pushVlanFlow(switch_isp, fid, vlan_id, port_vms_isp, port21)
+            Graph().AddFlowrule(self.session_id, graph_id, fid, "external", "node", switch_isp_id, "node", switch_user_id, "complete")
             fid = int(str(vlan_id) + str(4))               
-            self.pushVlanFlow(switch_user, fid, vlan_id, port12, port_vms_user, "internal", vlan_id)
+            self.pushVlanFlow(switch_user, fid, vlan_id, port12, port_vms_user)
+            Graph().AddFlowrule(self.session_id, graph_id, fid, "external", "node", switch_user_id, "node", switch_isp_id, "complete")
         else:
             logging.debug("Cannot find a link between " + switch_user + " and " + switch_isp)
-        
-    def unlinkZones(self, vlan_id):
-        '''
-        Unlink two graphs which where linked through the SDN network
-        Args:
-            vlan_id:
-                VLAN id of the OpenStack network which links the graphs
-        '''
-        flows = get_internal_link_flows(vlan_id)
-        for flow in flows:
-            count = flow.users_count
-            if (count == 1):
-                ODL().deleteFlow(flow.switch_id, flow.id)
-                remove_flow(flow.id, flow.switch_id)
-            else:
-                count = count - 1
-                update_flow(flow.id, flow.switch_id, flow.flowtype, flow.user, count)
-    
-    def linkUser(self, cpe, user_port, switch, switch_port, graph_vlan, user_vlan, user_mac = None):
+
+    def linkUser(self, graph_id, cpe, user_port, cpe_id, switch, switch_port, switch_id, graph_vlan, user_vlan, user_source_mac, user_dest_mac, user_source_ip, user_dest_ip, user_etherType, user_protocol):
         '''
         Link a user with his graph through the SDN network
         Args:
+            graph_id:
+                id of the user's graph
             cpe:
-                OpenDaylight identifier of the cpe where user is connecting (example: openflow:123456789)
+                OpenDaylight identifier of the cpe where user is connecting (example: openflow:123456789 or 00:00:64:e9:50:5a:90:90 in Hydrogen)
             user_port:
                 port on the OpenFlow switch (cpe) where the user is connecting
+            cpe_id:
+                id of the node in the database
             switch:
-                OpenDaylight identifier of the graph switch (example: openflow:987654321)
+                OpenDaylight identifier of the graph switch (example: openflow:987654321 or 00:00:64:e9:50:5a:90:90 in Hydrogen)
             switch_port:
                 port on the OpenFlow switch where the user's graph is istantiated (compute node)
+            switch_id:
+                id of the node in the database
             graph_vlan:
                 VLAN id of the graph ingress endpoint
             user_vlan:
                 VLAN id of user's outgoing traffic (if any)
-            user_mac:
+            user_source_mac:
                 MAC address of the user's device
+            user_dest_mac:
+                destination MAC address                 
+            user_source_ip:
+                IP address of the user's device
+            user_dest_ip:
+                destination IP address
+            user_etherType:
+                etherType
+            user_protocol:
+                IP protocol
         '''
-        link = self.getLinkBetweenSwitches(cpe, switch)
+        edge = None
+        link = None
+        if self.odlversion == "Hydrogen":
+            edge = self.getLinkBetweenSwitches(cpe, switch)
+            if edge is not None:
+                port12 = edge["edge"]["headNodeConnector"]["id"]
+                port21 = edge["edge"]["tailNodeConnector"]["id"]        
+        else:
+            link = self.getLinkBetweenSwitches(cpe, switch)
         
-        if link is not None:            
-            tmp = link["source"]["source-tp"]
-            tmpList = tmp.split(":")
-            port12 = tmpList[2]
+            if link is not None:            
+                tmp = link["source"]["source-tp"]
+                tmpList = tmp.split(":")
+                port12 = tmpList[2]
                         
-            tmp = link["destination"]["dest-tp"]
-            tmpList = tmp.split(":")
-            port21 = tmpList[2]
-            
+                tmp = link["destination"]["dest-tp"]
+                tmpList = tmp.split(":")
+                port21 = tmpList[2]
+                
+        if link is not None or edge is not None:
             fid = int(str(graph_vlan) + str(1))
-            self.pushMACSourceFlow(cpe, fid, user_vlan , user_port, user_mac, port12, graph_vlan)
+            self.pushSourceFlow(cpe, fid, user_vlan , user_port, user_source_mac, user_dest_mac, user_source_ip, user_dest_ip, port12, graph_vlan, user_etherType, user_protocol)
+            Graph().AddFlowrule(self.session_id, graph_id, fid, "external", "node", cpe_id, "node", switch_id, "complete")
             fid = int(str(graph_vlan) + str(2))
-            self.pushVlanFlow(switch, fid, graph_vlan, port21, switch_port, "edge", user_mac)
+            self.pushVlanFlow(switch, fid, graph_vlan, port21, switch_port)
+            Graph().AddFlowrule(self.session_id, graph_id, fid, "external", "node", switch_id, "node", cpe_id, "complete")
             fid = int(str(graph_vlan) + str(3))
-            self.pushVlanFlow(switch, fid, graph_vlan, switch_port, port21, "edge", user_mac)
+            self.pushVlanFlow(switch, fid, graph_vlan, switch_port, port21)
+            Graph().AddFlowrule(self.session_id, graph_id, fid, "external", "node", switch_id, "node", cpe_id, "complete")
             fid = int(str(graph_vlan) + str(4))
-            self.pushMACDestFlow(cpe, fid, user_vlan , port12, user_mac, user_port, graph_vlan)
+            self.pushDestFlow(cpe, fid, user_vlan , port12, user_source_mac, user_dest_mac, user_source_ip, user_dest_ip, user_port, graph_vlan, user_etherType, user_protocol)
+            Graph().AddFlowrule(self.session_id, graph_id, fid, "external", "node", cpe_id, "node", switch_id, "complete")
         else:
             logging.debug("Cannot find a link between " + cpe + " and " + switch)
-    
-    def unlinkUser(self, user_mac):
-        '''
-        Unlink a user after his logout and graph deletion
-        Args:
-            user_mac:
-                MAC address of the user's device
-        '''
-        flows = get_user_flows(user_mac)
-        for flow in flows:
-            ODL().deleteFlow(flow.switch_id, flow.id)
-            remove_flow(flow.id, flow.switch_id)
-                
-    def removeInternalFlows(self):
-        '''
-        Deletes all internal links between graphs (useful while shutting down)
-        '''
-        flows = get_internal_flows()
-        for flow in flows:
-            ODL().deleteFlow(flow.switch_id, flow.id)
-            remove_flow(flow.id, flow.switch_id)
-    
-    def removeEdgeFlows(self):
-        '''
-        Deletes all users links with their graphs (useful while shutting down)
-        '''
-        flows = get_edge_flows()
-        for flow in flows:
-            ODL().deleteFlow(flow.switch_id, flow.id)
-            remove_flow(flow.id, flow.switch_id)
-           
-    '''
-    ######################################################################################################
-    ###############################       Manage graphs connection        ################################
-    ######################################################################################################
-    ''' 
-    
-    def connectEndpoints(self, nf_fg):
-        '''
-        Read nf_fg endpoints and create corrisponding flows on the SDN network
-        Expecting some precise endpoint descriptions which reflect Orchestration layer scheduling choices
-        '''
-        #Get egress endpoints of the graph        
-        endpoints = nf_fg.getVlanEgressEndpoints()
-        for endpoint in endpoints:
-            if endpoint.connection is True:
-                # Check if the remote graph exists and the requested endpoint is available
-                session = get_active_user_session_by_nf_fg_id(endpoint.remote_graph)
-                if DEBUG_MODE is True:
-                    logging.debug("session: "+str(session.id))
-                existing_endpoints = get_available_endpoints_by_id(endpoint.remote_graph, endpoint.id)
-                if existing_endpoints is not None:
-                    tmp = endpoint.interface
-                    tmpList = tmp.split(":")
-                    switch1 = tmpList[0] + ":" + tmpList[1]
-                    port1 = tmpList[2]
-                    
-                    tmp = endpoint.remote_interface
-                    tmpList = tmp.split(":")
-                    switch2 = tmpList[0] + ":" + tmpList[1]
-                    port2 = tmpList[2]
-                    
-                    vlan = endpoint.id
-                    self.linkZones(switch1, port1, switch2, port2, vlan)
-                    updateEndpointConnection(endpoint.remote_graph, endpoint.remote_id, nf_fg.id, endpoint.id)
-                else:
-                    logging.error("Remote graph " + endpoint.remote_graph + " has not a " + endpoint.id + " endpoint available!")
-        
-        #Get ingress endpoints of the graph (auth graph has the same endpoint but without user_mac)
-        endpoints = nf_fg.getVlanIngressEndpoints()
-        for endpoint in endpoints:
-            if endpoint.attached is True:    
-                graph_vlan = endpoint.remote_id
-                user_vlan = endpoint.id
-                user_mac = endpoint.user_mac
-                    
-                tmp = endpoint.interface
-                tmpList = tmp.split(":")
-                cpe = tmpList[0] + ":" + tmpList[1]
-                cpe_port = tmpList[2]
-                    
-                tmp = endpoint.remote_interface
-                tmpList = tmp.split(":")
-                switch = tmpList[0] + ":" + tmpList[1]
-                switch_port = tmpList[2]
-                    
-                self.linkUser(cpe, cpe_port, switch, switch_port, graph_vlan, user_vlan, user_mac)
-    
-    def updateEndpoints(self, new_nf_fg, old_nf_fg):     
-        #Check ingress endpoint of the graph
-        new_endpoints = new_nf_fg.getVlanEgressEndpoints()
-        old_endpoints = old_nf_fg.getVlanEgressEndpoints()
-        
-        if self.checkEquality(new_endpoints, old_endpoints) == False:
-            self.disconnectEndpoints(old_nf_fg)
-            self.connectEndpoints(new_nf_fg)
-            return
-        
-        #Check egress endpoints of the graph
-        new_endpoints = new_nf_fg.getVlanIngressEndpoints()
-        old_endpoints = old_nf_fg.getVlanIngressEndpoints()
-        
-        if self.checkEquality(new_endpoints, old_endpoints) == False:
-            self.disconnectEndpoints(old_nf_fg)
-            self.connectEndpoints(new_nf_fg)
-            return
-        
-    def disconnectEndpoints(self, nf_fg):
-        '''
-        Deletes flows after a profile deletion
-        Args:
-            nf_fg:
-                JSON Object for the user profile graph (forwarding graph)
-        '''
-        endpoints = nf_fg.getVlanEgressEndpoints()
-        for endpoint in endpoints:           
-            vlan = endpoint.id            
-            self.unlinkZones(vlan)
-        
-        endpoints = nf_fg.getVlanIngressEndpoints()
-        for endpoint in endpoints:
-            user_mac = endpoint.user_mac
-            self.unlinkUser(user_mac)
-        
-        delete_endpoint_connections(nf_fg.id)
-        
-    def checkEquality(self, new_endpoints, old_endpoints):
-        '''
-        Check if two endpoints are equivalent or not
-        '''
-        #Actually supports only one endpoint for every vector
-        if len(new_endpoints) != len(old_endpoints):
-            return False
-        
-        if len(new_endpoints) == 0:
-            return True
-        
-        new_end = new_endpoints[0]
-        old_end = old_endpoints[0]
-        
-        new_id = new_end.id
-        new_interface = new_end.interface
-        new_remote_id = new_end.remote_id
-        new_remote_int = new_end.remote_interface
-        new_remote_graph = new_end.remote_graph
-        
-        old_id = old_end.id                                
-        old_interface = old_end.interface
-        old_remote_id = old_end.remote_id
-        old_remote_int = old_end.remote_interface
-        old_remote_graph = old_end.remote_graph
-                                        
-        if new_id != old_id or new_interface != old_interface or new_remote_id != old_remote_id or new_remote_int != old_remote_int or new_remote_graph != old_remote_graph:
-            return False
-        
-        if new_end.user_mac is not None:
-            if new_end.user_mac != old_end.user_mac:
-                return False
-        
-        return True
     

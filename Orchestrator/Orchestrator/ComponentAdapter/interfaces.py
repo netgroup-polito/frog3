@@ -8,7 +8,7 @@ from abc import ABCMeta, abstractmethod, abstractproperty
 
 class OrchestratorInterface:
     '''
-    Abstract class that defines the interface to be implemented on the other orchestrator
+    Abstract class that defines the interface to be implemented on the component adapters
     '''
     __metaclass__ = ABCMeta
     
@@ -17,18 +17,37 @@ class OrchestratorInterface:
         pass
     
     @abstractmethod
-    def updateProfile(self, nf_fg_id, new_profile, old_profile):
+    def getStatus(self, session_id, node):
+        '''
+        Returns the status of the nffg resources
+        '''
         pass
     
     @abstractmethod
-    def deinstantiateProfile(self, token, session_id):
+    def updateProfile(self, new_nf_fg, old_nf_fg, node):
+        '''
+        Method to use to update a User Profile Graph
+        Args:
+            new_nffg:
+                Object of the Class Common.NF_FG.nf_fg.NF_FG
+            old_nffg:
+                Object of the Class Common.NF_FG.nf_fg.NF_FG
+            node:
+                Object of the class Common.SQL.node.NodeModel
+            Exceptions:
+                Raise some exception to be captured
+        '''
+        pass
+    
+    @abstractmethod
+    def deinstantiateProfile(self, nffg, node):
         '''
         Method used to de-instantiate the User Profile Graph
         Args:
-            profile:
-                JSON Object for the User Profile (it should be a map that follow the User Profile Graph Schema
-            token:
-                The authentication token to use for the REST call
+            nffg:
+                Object of the Class Common.NF_FG.nf_fg.NF_FG
+            node_endpoint:
+                Object of the class Common.SQL.node.NodeModel
             Exceptions:
                 Raise some exception to be captured
         '''
@@ -36,14 +55,14 @@ class OrchestratorInterface:
     
         
     @abstractmethod
-    def instantiateProfile(self, profile_id, profile = None):
+    def instantiateProfile(self,  nffg, node):
         '''
         Method to use to instantiate the User Profile Graph
         Args:
-            profile:
-                JSON Object for the User Profile (it should be a map that follow the User Profile Graph Schema
-            token:
-                The authentication token to use for the REST call
+            nffg:
+                Object of the Class Common.NF_FG.nf_fg.NF_FG
+            node:
+                Object of the class Common.SQL.node.NodeModel
             Exceptions:
                 Raise some exception to be captured
         '''

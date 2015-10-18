@@ -1,0 +1,175 @@
+{
+  "profile": {
+    "VNFs": [
+      {
+        "vnf_descriptor": "jolnet_switch.json",
+        "ports": [
+            {
+	    "ingoing_label": {
+              "flowrules": [
+                {
+                  "action": {
+                    "VNF": {
+                      "id": "endpoint_switch",
+                      "port": "L2Port:0"
+                    },
+                    "type": "output"
+                  },
+                  "flowspec": {
+                    "matches": [
+                      {
+                        "priority": "100",
+                        "id": "exp297"
+                      }
+                    ],
+                    "ingress_endpoint": "282"
+                  }
+                }
+              ]
+            },
+            "id": "L2Port:0",
+            "outgoing_label": {
+              "flowrules": [
+                {
+                  "action": {
+                    "endpoint": {
+                      "id": "297"
+                    },
+                    "type": "endpoint"
+                  },
+                  "flowspec": {
+                    "matches": [
+                      {
+                        "priority": "100",
+                        "id": "exp297"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+	    "ingoing_label": {
+              "flowrules": [
+                {
+                  "action": {
+                    "VNF": {
+                      "id": "endpoint_switch",
+                      "port": "L2Port:1"
+                    },
+                    "type": "output"
+                  },
+                  "flowspec": {
+                    "matches": [
+                      {
+                        "priority": "100",
+                        "id": "exp288"
+                      }
+                    ],
+                    "ingress_endpoint": "288"
+                  }
+                }
+              ]
+            },
+            "id": "L2Port:1",
+            "outgoing_label": {
+              "flowrules": [
+                {
+                  "action": {
+                    "endpoint": {
+                      "id": "288"
+                    },
+                    "type": "endpoint"
+                  },
+                  "flowspec": {
+                    "matches": [
+                      {
+                        "priority": "100",
+                        "id": "exp288"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+           {
+            "id": "L2Port:2",
+            "outgoing_label": {
+              "flowrules": [
+                {
+                  "action": {
+                    "VNF": {
+                      "id": "dhcp_ISP",
+                      "port": "inout:0"
+                    },
+                    "type": "output"
+                  },
+                  "flowspec": {
+                    "matches": [
+                      {
+                        "priority": "100",
+                        "id": "exp296"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "name": "Endpoint_Switch",
+        "id": "endpoint_switch"
+      },
+      {
+            "vnf_descriptor":"jolnet_dhcp.json",
+            "ports":[
+               {
+                  "id":"inout:0",
+                  "outgoing_label":{
+                     "flowrules":[
+                        {
+                           "action":{
+                              "VNF":{
+                                 "id":"Switch",
+                                 "port":"L2Port:2"
+                              },
+                              "type":"output"
+                           },
+                           "flowspec":{
+                              "matches":[
+                                 {
+                                    "priority":"100",
+                                    "id":"exp297"
+                                 }
+                              ]
+                           }
+                        }
+                     ]
+                  }
+               }
+            ],
+            "name":"dhcp_isp",
+            "id":"dhcp_ISP"
+         }
+    ],
+    "endpoints": [
+      {
+        "edge": true,
+        "attached": false,
+        "id": "1",
+        "name": "ISP_INGRESS_EDGE_ENDPOINT"
+      },
+      {
+        "edge": true,
+        "attached": false,
+        "id": "2",
+        "name": "ISP_INGRESS_EDGE_ENDPOINT"
+      }
+    ],
+    "id": "0",
+    "name": "Jolnet ISP Graph",
+    "availability_zone": "AZ_TO"
+  }
+}

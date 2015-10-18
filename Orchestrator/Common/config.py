@@ -10,7 +10,6 @@ from Common.exception import  WrongConfigurationFile
 class Configuration(object):
     
     _instance = None
-    #(fmignini) Not too meaningful use this var, I should change his name with something else like inizialized = False 
     _AUTH_SERVER = None
     
     def __new__(cls, *args, **kwargs):
@@ -21,20 +20,17 @@ class Configuration(object):
         return cls._instance 
     
     def __init__(self):
-        if self._AUTH_SERVER is None:
-            self.inizialize()
+        #if self._AUTH_SERVER is None:
+        self.inizialize()
     
     def inizialize(self): 
         config = ConfigParser.RawConfigParser()
         base_folder = os.path.realpath(os.path.abspath(os.path.split(inspect.getfile( inspect.currentframe() ))[0])).rpartition('/')[0]
-        config.read(base_folder+'/Configuration/orchestrator.conf')
-        self._AUTH_SERVER = config.get('authentication', 'server')
-        self._ORCH_USERNAME = config.get('authentication', 'orch_username')
-        self._ORCH_PASSWORD = config.get('authentication', 'orch_password')
-        self._ORCH_TENANT = config.get('authentication', 'orch_tenant')        
-        self._ADMIN_TENANT_NAME = config.get('authentication', 'admin_tenant_name')
-        self._ADMIN_USER = config.get('authentication', 'admin_user')
-        self._ADMIN_PASSWORD = config.get('authentication', 'admin_password')
+        if base_folder == "":
+            config.read(base_folder+'Configuration/orchestrator.conf')
+        else:
+            config.read(base_folder+'/Configuration/orchestrator.conf')
+            
         self._LOG_FILE = config.get('log', 'log_file')
         self._VERBOSE = config.getboolean('log', 'verbose')
         self._DEBUG = config.getboolean('log', 'debug')
@@ -64,8 +60,6 @@ class Configuration(object):
         self._CONTROL_SWITCH_NAME = config.get('switch', 'switch_l2_control_name')
         
         self._DRIVERS = config.get('drivers', 'drivers')
-        self._USE_HEAT = config.getboolean('JolnetCA', 'use_heat')
-
         
         self._DEBUG_MODE = config.getboolean('orchestrator', 'debug_mode')
         
@@ -75,6 +69,9 @@ class Configuration(object):
 
         self._SW_ENDPOINT = config.get('nobody', 'sw_endpoint')
         self._ORCH_PORT = config.get('orchestrator','port')
+        self._ORCH_IP = config.get('orchestrator','ip')
+        self._ORCH_TIMEOUT = config.get('orchestrator','timeout')
+        
         self._FLOW_PRIORITY = config.get('user_connection', 'flow_priority')
         self._MAXIMUM_NUMBER_OF_VNF_IN_GRAPH = config.get('constraints','maximum_number_of_vnf_in_graph')
         self._SWITCH_TEMPLATE = config.get('switch','template')
@@ -97,15 +94,7 @@ class Configuration(object):
         # OVS agent     
         if config.has_section('ovs_agent'):
             if config.has_option('ovs_agent', 'endpoint'):
-                self._OVS_ENDPOINT = config.get('ovs_agent','endpoint')
-            
-        
-        # ODL
-        self._ODL_ENDPOINT = config.get('odl','endpoint')
-        self._ODL_ENDPOINT2 = config.get('odl', 'endpoint2')
-        self._ODL_USER = config.get('odl', 'odl_user')
-        self._ODL_PASS = config.get('odl', 'odl_password')
-        
+                self._OVS_ENDPOINT = config.get('ovs_agent','endpoint')       
         if config.has_option('odl', 'integration_bridge'):
             self._INTEGRATION_BRIDGE = config.get('odl','integration_bridge')
         if config.has_option('odl', 'exit_switch'):
@@ -133,43 +122,14 @@ class Configuration(object):
         if config.has_option('nova', 'timeout'):
             self._TIMEOUT_NOVA = config.get('nova','timeout')
         else:
-            self._TIMEOUT_NOVA = 10
-        
-        #Jolnet
-        if config.has_option('JolnetCA', 'isp_availability_zone'):
-            self._ISP_AZ = config.get('JolnetCA', 'isp_availability_zone')
-        else: 
-            self._ISP_AZ = None
-
-            
+            self._TIMEOUT_NOVA = 10           
         # Orchestrator
         self._ISP = config.getboolean('orchestrator', 'isp')
         self._NOBODY = config.getboolean('orchestrator', 'nobody')
-
-
-    @property
-    def USE_HEAT(self):
-        return self._USE_HEAT
     
     @property
-    def ISP_AZ(self):
-        return self._ISP_AZ
-    
-    @property
-    def ODL_ENDPOINT(self):
-        return self._ODL_ENDPOINT
-    
-    @property
-    def ODL_ENDPOINT2(self):
-        return self._ODL_ENDPOINT2
-    
-    @property
-    def ODL_USER(self):
-        return self._ODL_USER
-    
-    @property
-    def ODL_PASSWORD(self):
-        return self._ODL_PASS
+    def ORCH_TIMEOUT(self):
+        return self._ORCH_TIMEOUT
 
     @property
     def TIMEOUT_NOVA(self):
@@ -333,14 +293,16 @@ class Configuration(object):
         return self._FLOW_PRIORITY
     
     @property
+    def ORCH_IP(self):
+        return self._ORCH_IP
+    
+    @property
     def ORCH_PORT(self):
         return self._ORCH_PORT
     
     @property
     def SW_ENDPOINT(self):
         return self._SW_ENDPOINT
-    
-
     
     @property
     def UNIFY_ENDPOINTS(self):
@@ -350,18 +312,6 @@ class Configuration(object):
     def DRIVERS(self):
         return self._DRIVERS
     
-    @property
-    def ADMIN_TENANT_NAME(self):
-        return self._ADMIN_TENANT_NAME
-    
-    @property
-    def ADMIN_USER(self):
-        return self._ADMIN_USER
-    
-    @property
-    def ADMIN_PASSWORD(self):
-        return self._ADMIN_PASSWORD    
-        
     @property
     def INGRESS_PORT(self):
         return self._INGRESS_PORT
@@ -393,22 +343,6 @@ class Configuration(object):
     @property
     def CONNECTION(self):
         return self._CONNECTION
-        
-    @property
-    def AUTH_SERVER(self):
-        return self._AUTH_SERVER
-
-    @property
-    def ORCH_USERNAME(self):
-        return self._ORCH_USERNAME
-    
-    @property
-    def ORCH_PASSWORD(self):
-        return self._ORCH_PASSWORD
-    
-    @property
-    def ORCH_TENANT(self):
-        return self._ORCH_TENANT
 
     @property
     def LOG_FILE(self):

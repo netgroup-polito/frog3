@@ -12,6 +12,7 @@ import time, copy
 from Common.config import Configuration
 from Orchestrator.ComponentAdapter.Openstack.rest import Nova, Heat, Glance, ODL, Neutron
 from Orchestrator.ComponentAdapter.interfaces import OrchestratorInterface
+from Common.NF_FG import nf_fg
 from Common.NF_FG.nf_fg import NF_FG, Node, Link, Action
 from Common.Manifest.manifest import Manifest
 from Orchestrator.ComponentAdapter.Common.nffg_management import NFFG_Management
@@ -714,7 +715,7 @@ class HeatOrchestrator(OrchestratorInterface):
         visited_link = False
         for vnf in nffg.listVNF:
             for port in vnf.listPort:
-                node1 = Node(vnf.id, port.id)
+                node1 = nf_fg.Node(vnf.id, port.id)
                 
                 ########### Manage drop flows ############
                 flowrules = port.getDropFlows()
@@ -730,7 +731,7 @@ class HeatOrchestrator(OrchestratorInterface):
                 #flowrules = port.getVNFPortsFlowruleSendingTrafficToVNFPort() 
                 for flowrule in port.list_outgoing_label:
                     if flowrule.action.vnf is not None:
-                        node2 = Node(flowrule.action.vnf['id'], flowrule.action.vnf['port'])
+                        node2 = nf_fg.Node(flowrule.action.vnf['id'], flowrule.action.vnf['port'])
                         
                         # insert ingress port in the match of the flowrules
                         flowrules = port.getVNFPortsFlowruleSendingTrafficToVNFPort(flowrule.action.vnf['id'], flowrule.action.vnf['port'])                    
@@ -775,9 +776,9 @@ class HeatOrchestrator(OrchestratorInterface):
                                 raise Exception("Bridge datapath id doesn't found for this interface: "+str(interface.split("INGRESS_")[1]))
                             interface = "INGRESS_"+bridge_datapath_id+":"+interface.split("INGRESS_")[1]
                             logging.debug("port with datapath id of his router: "+str(interface))
-                            node2 = Node(endpoint = interface)
+                            node2 = nf_fg.Node(endpoint = interface)
                         else:
-                            node2 = Node(endpoint = interface)
+                            node2 = nf_fg.Node(endpoint = interface)
                             
                         # TODO: insert ingress port in the match of the flowrules
                         flowrules = port.getVNFPortsFlowruleSendingTrafficToEndpoint(flowrule.action.endpoint['id'])

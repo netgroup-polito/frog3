@@ -78,7 +78,7 @@ class HeatOrchestrator(OrchestratorInterface):
         self.odlendpoint = odl.endpoint
         self.odlusername = odl.username
         self.odlpassword = odl.password
-        self.ovsdb = OVSDB(self.odlendpoint, self.odlusername, self.odlpassword)
+        self.ovsdb = OVSDB(self.odlendpoint, self.odlusername, self.odlpassword, self.compute_node_address)
     
     '''
     '''

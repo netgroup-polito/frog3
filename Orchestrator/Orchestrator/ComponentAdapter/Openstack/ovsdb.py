@@ -16,6 +16,7 @@ class OVSDB(object):
         self.odlusername = odl_username
         self.odlpassword = odl_password
         nodes = json.loads(ODL().getNodes(self.odlendpoint, self.odlusername, self.odlpassword))['node']
+        logging.debug("Opendaylight nodes: " + json.dumps(nodes))
         node_id = None
         for node in nodes:
             if node['type'] == "OVS":

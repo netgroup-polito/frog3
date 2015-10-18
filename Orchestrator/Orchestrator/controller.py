@@ -139,7 +139,9 @@ class UpperLayerOrchestratorController(object):
                 logging.info('Orchestrator - PUT - Call CA to instantiate NF-FG')
                 logging.debug(nf_fg.getJSON())
                 orchestrator.instantiateProfile(nf_fg, node)
-                logging.debug('Orchestrator - PUT - NF-FG instantiated')     
+                logging.debug('Orchestrator - PUT - NF-FG instantiated') 
+                
+                Session().updateSessionNode(session_id, node.id, node.id)    
                 
             except Exception as ex:
                 logging.exception(ex)
@@ -148,7 +150,6 @@ class UpperLayerOrchestratorController(object):
                 raise ex
         
         Session().updateStatus(session_id, 'complete')
-        Session().updateSessionNode(session_id, node.id, node.id)
                                 
         return session_id
         

@@ -5,6 +5,11 @@ Created on 13/mag/2015
 '''
 
 import json
+import logging
+from Common.config import Configuration
+
+ODL_VERSION = Configuration().ODL_VERSION
+
 
 '''
 ######################################################################################################
@@ -31,54 +36,105 @@ class Flow(object):
         self.actions = actions
         self.match = match
     
-    def getJSON(self):
+    def getJSON(self, node = None):
+        '''
+        Gets the JSON. In Hydrogen returns the JSON associated to the given node
+        Args:
+            node:
+                The id of the node related to this JSON (only Hydrogen)
+        '''
         j_flow = {}
         j_list_action = []
-        
-        j_flow['flow'] = {}
-        j_flow['flow']['strict'] = self.strict
-        j_flow['flow']['flow-name'] = self.name
-        j_flow['flow']['id'] = self.flow_id
-        j_flow['flow']['table_id'] = self.table_id
-        j_flow['flow']['priority'] = self.priority
-        j_flow['flow']['installHw'] = self.installHw
-        j_flow['flow']['hard-timeout'] = self.hard_timeout
-        j_flow['flow']['idle-timeout'] = self.idle_timeout
-        
-        j_flow['flow']['instructions'] = {}
-        j_flow['flow']['instructions']['instruction'] = {}
-        j_flow['flow']['instructions']['instruction']['order'] = str(0)
-        j_flow['flow']['instructions']['instruction']['apply-actions'] = {}
-        
-        i = 0
-        for action in self.actions:
-            j_action = action.getActions(i)
-            j_list_action.append(j_action)
-            i = i + 1
-               
-        j_flow['flow']['instructions']['instruction']['apply-actions']['action'] = j_list_action
-        
-        if (self.match is not None):
-            j_flow['flow']['match'] = {}
-            
+
+        if ODL_VERSION == "Hydrogen":
+            j_flow['name'] = self.flow_id
+            j_flow['node'] = {}
+            j_flow['node']['id']= node
+            j_flow['node']['type']="OF"
+            j_flow['priority'] = self.priority
+            j_flow['installInHw'] = self.installHw
+            j_flow['hardTimeout'] = self.hard_timeout
+            j_flow['idleTimeout'] = self.idle_timeout
+
             if (self.match.input_port is not None):
-                j_flow['flow']['match']['in-port'] = self.match.input_port
+                j_flow['ingressPort'] = self.match.input_port                                    
+            if (self.match.ip_source is not None):
+                j_flow['nwSrc'] = self.match.ip_source
+            if (self.match.ip_dest is not None):
+                j_flow['nwDst'] = self.match.ip_dest
             if (self.match.vlan_id is not None):
-                j_flow['flow']['match']['vlan-match'] = {}
-                j_flow['flow']['match']['vlan-match']['vlan-id'] = {}
-                j_flow['flow']['match']['vlan-match']['vlan-id']['vlan-id'] = self.match.vlan_id
-                j_flow['flow']['match']['vlan-match']['vlan-id']['vlan-id-present'] = self.match.vlan_id_present
-            if (self.match.eth_match is True):
-                j_flow['flow']['match']['ethernet-match'] = {}
-                if (self.match.ethertype is not None):
-                    j_flow['flow']['match']['ethernet-match']['ethernet-type'] = {}
-                    j_flow['flow']['match']['ethernet-match']['ethernet-type']['type'] = self.match.ethertype
-                if (self.match.eth_source is not None):
-                    j_flow['flow']['match']['ethernet-match']['ethernet-source'] = {}
-                    j_flow['flow']['match']['ethernet-match']['ethernet-source']['address'] = self.match.eth_source
-                if (self.match.eth_dest is not None):
-                    j_flow['flow']['match']['ethernet-match']['ethernet-destination'] = {}
-                    j_flow['flow']['match']['ethernet-match']['ethernet-destination']['address'] = self.match.eth_dest
+                j_flow['vlanId'] = self.match.vlan_id
+            if (self.match.ethertype is not None):
+                j_flow['etherType'] = self.match.ethertype
+            if (self.match.eth_source is not None):
+                j_flow['dlSrc'] = self.match.eth_source
+            if (self.match.eth_dest is not None):
+                j_flow['dlDst'] = self.match.eth_dest
+            if (self.match.ip_protocol is not None):
+                j_flow['protocol'] = self.match.ip_protocol               
+            
+            if (self.match.ip_match is True and self.match.ethertype is None):
+                j_flow['etherType'] = "0x800"
+                logging.warning("Hydrogen requires ethertype set in order to perform ip match: ethertype has been set to 0x800")
+            
+            for action in self.actions:
+                j_action = action.getActionsHydrogen()
+                j_list_action.append(j_action)
+                
+            j_flow['actions'] = j_list_action;
+
+        else:
+            j_flow['flow'] = {}
+            j_flow['flow']['strict'] = self.strict
+            j_flow['flow']['flow-name'] = self.name
+            j_flow['flow']['id'] = self.flow_id
+            j_flow['flow']['table_id'] = self.table_id
+            j_flow['flow']['priority'] = self.priority
+            j_flow['flow']['installHw'] = self.installHw
+            j_flow['flow']['hard-timeout'] = self.hard_timeout
+            j_flow['flow']['idle-timeout'] = self.idle_timeout
+            
+            j_flow['flow']['instructions'] = {}
+            j_flow['flow']['instructions']['instruction'] = {}
+            j_flow['flow']['instructions']['instruction']['order'] = str(0)
+            j_flow['flow']['instructions']['instruction']['apply-actions'] = {}
+            
+            i = 0
+            for action in self.actions:
+                j_action = action.getActions(i)
+                j_list_action.append(j_action)
+                i = i + 1
+                   
+            j_flow['flow']['instructions']['instruction']['apply-actions']['action'] = j_list_action
+            
+            if (self.match is not None):
+                j_flow['flow']['match'] = {}
+                
+                if (self.match.input_port is not None):
+                    j_flow['flow']['match']['in-port'] = self.match.input_port
+                if (self.match.ip_source is not None):
+                    j_flow['flow']['match']['ipv4-source'] = self.match.ip_source
+                if (self.match.ip_dest is not None):
+                    j_flow['flow']['match']['ipv4-destination'] = self.match.ip_dest
+                if (self.match.ip_protocol is not None):
+                    j_flow['flow']['match']['ip-match'] = {}
+                    j_flow['flow']['match']['ip-match']['ip-protocol'] = self.match.ip_protocol
+                if (self.match.vlan_id is not None):
+                    j_flow['flow']['match']['vlan-match'] = {}
+                    j_flow['flow']['match']['vlan-match']['vlan-id'] = {}
+                    j_flow['flow']['match']['vlan-match']['vlan-id']['vlan-id'] = self.match.vlan_id
+                    j_flow['flow']['match']['vlan-match']['vlan-id']['vlan-id-present'] = self.match.vlan_id_present
+                if (self.match.eth_match is True):
+                    j_flow['flow']['match']['ethernet-match'] = {}
+                    if (self.match.ethertype is not None):
+                        j_flow['flow']['match']['ethernet-match']['ethernet-type'] = {}
+                        j_flow['flow']['match']['ethernet-match']['ethernet-type']['type'] = self.match.ethertype
+                    if (self.match.eth_source is not None):
+                        j_flow['flow']['match']['ethernet-match']['ethernet-source'] = {}
+                        j_flow['flow']['match']['ethernet-match']['ethernet-source']['address'] = self.match.eth_source
+                    if (self.match.eth_dest is not None):
+                        j_flow['flow']['match']['ethernet-match']['ethernet-destination'] = {}
+                        j_flow['flow']['match']['ethernet-match']['ethernet-destination']['address'] = self.match.eth_dest
         
         return json.dumps(j_flow)
 
@@ -102,6 +158,17 @@ class Action(object):
         self.action_type = "vlan-match"
         self.vlan_id = vlan_id
         self.vlan_id_present = True
+        
+    def getActionsHydrogen(self):
+        '''
+        Returns actions formatted for Hydrogen
+        '''
+        j_action = None
+        if (self.action_type == "output-action"):
+            j_action = "OUTPUT="+self.output_port
+        elif (self.action_type == "vlan-match"):
+            j_action = "SET_VLAN_ID="+self.vlan_id
+        return j_action
     
     def getActions(self, order):
         j_action = {}
@@ -132,6 +199,13 @@ class Match(object):
         self.ethertype = None
         self.eth_source = None
         self.eth_dest = None
+        self.ip_protocol = None
+        self.ip_match = None
+        self.ip_source = None
+        self.ip_dest = None
+        self.tp_match = None
+        self.port_source = None
+        self.port_dest = None
     
     def setInputMatch(self, in_port):
         self.input_port = in_port
@@ -140,11 +214,30 @@ class Match(object):
         self.vlan_id = vlan_id
         self.vlan_id_present = True
         
-    def setEthernetMatch(self, ethertype = None, eth_source = None, eth_dest = None):
+    def setEtherTypeMatch(self, ethertype):
         self.eth_match = True
         self.ethertype = ethertype
+        
+    def setEthernetMatch(self, eth_source = None, eth_dest = None):
+        self.eth_match = True
         self.eth_source = eth_source
         self.eth_dest = eth_dest
+        
+    def setIPProtocol(self, protocol):
+        self.ip_protocol = protocol
+        
+    def setIPMatch(self, ip_source = None, ip_dest = None):
+        self.ip_match = True
+        self.ip_source = ip_source
+        self.ip_dest = ip_dest
+        
+    def setTpMatch(self, port_source = None, port_dest = None):
+        '''
+        Sets a transport protocol match
+        '''
+        self.tp_match = True
+        self.port_source = port_source
+        self.port_dest = port_dest
     
 '''
 ######################################################################################################
@@ -285,16 +378,26 @@ class Endpoint(object):
         self.status = status
         self.remote_graph = remote_graph
         self.remote_id = remote_id
-        self.user_mac = None
+        self.user_source_mac = None
+        self.user_dest_mac = None
         self.user_vlan = None
         self.user_node = None
         self.user_interface = None
-    
-    def setUserParams(self, user_mac, user_vlan, user_node, user_interface):
-        self.user_mac = user_mac
+        self.user_source_ip = None
+        self.user_dest_ip = None
+        self.user_etherType = None
+        self.user_protocol = None
+        
+    def setUserParams(self, user_source_mac, user_dest_mac, user_vlan, user_node, user_interface, user_source_ip, user_dest_ip, ether_type, user_protocol):
+        self.user_source_mac = user_source_mac
+        self.user_dest_mac = user_dest_mac
         self.user_vlan = user_vlan
         self.user_node = user_node
         self.user_interface = user_interface
+        self.user_source_ip = user_source_ip
+        self.user_dest_ip = user_dest_ip
+        self.user_etherType = ether_type
+        self.user_protocol = user_protocol
         self.connection = True
         self.status = 'new'
     

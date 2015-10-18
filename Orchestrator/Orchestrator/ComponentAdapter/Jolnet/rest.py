@@ -7,11 +7,20 @@ import requests
 import json
 
 class ODL(object):
-    odl_nodes_path = "/restconf/operational/opendaylight-inventory:nodes"
-    odl_topology_path = "/restconf/operational/network-topology:network-topology/"
-    odl_flows_path = "/restconf/config/opendaylight-inventory:nodes"
-    odl_node="/node"
-    odl_flow="/table/0/flow/"
+    
+    def __init__(self, version):
+        if version == "Hydrogen":
+            self.odl_nodes_path = "/controller/nb/v2/switchmanager/default/nodes"
+            self.odl_topology_path = "/controller/nb/v2/topology/default"
+            self.odl_flows_path = "/controller/nb/v2/flowprogrammer/default"
+            self.odl_node="/node/OF"
+            self.odl_flow="/staticFlow/"     
+        else:
+            self.odl_nodes_path = "/restconf/operational/opendaylight-inventory:nodes"
+            self.odl_topology_path = "/restconf/operational/network-topology:network-topology/"
+            self.odl_flows_path = "/restconf/config/opendaylight-inventory:nodes"
+            self.odl_node="/node"
+            self.odl_flow="/table/0/flow/"
     
     def getNodes(self, odl_endpoint, odl_user, odl_pass):
         '''

@@ -94,8 +94,7 @@ class Configuration(object):
         # OVS agent     
         if config.has_section('ovs_agent'):
             if config.has_option('ovs_agent', 'endpoint'):
-                self._OVS_ENDPOINT = config.get('ovs_agent','endpoint')
-        
+                self._OVS_ENDPOINT = config.get('ovs_agent','endpoint')       
         if config.has_option('odl', 'integration_bridge'):
             self._INTEGRATION_BRIDGE = config.get('odl','integration_bridge')
         if config.has_option('odl', 'exit_switch'):

@@ -7,6 +7,7 @@ Created on 30/mag/2014
 
 @author: fabiomignini
 '''
+from Common.config import Configuration
 from Orchestrator.ComponentAdapter.Openstack.openstack import HeatOrchestrator
 from Orchestrator.ComponentAdapter.Jolnet.jolnet import JolnetAdapter
 from Orchestrator.ComponentAdapter.Unify.unify import UnifyCA
@@ -23,7 +24,6 @@ class Scheduler(object):
         self.userdata = userdata
     
     def schedule(self, nffg):      
-        
         node = Node().getNodeFromDomainID(self.checkEndpointLocation(nffg))
         self.changeAvailabilityZone(nffg, Node().getAvailabilityZone(node.id))
         Graph().setNodeID(self.session_id, node.id)

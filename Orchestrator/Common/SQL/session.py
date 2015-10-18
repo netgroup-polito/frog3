@@ -122,14 +122,6 @@ class Session(object):
             if device.mac_address == mac_address:
                 return len(devices), user_session
         raise sessionNotFound("Device not found in the user session")
-        
-    def get_active_session(self, user_id, token, graph_id = None):
-        session = get_session()
-        if graph_id is not None:
-            user_session = session.query(SessionModel).filter_by(user_id = user_id).filter_by(service_graph_id=graph_id).filter_by(ended = None).filter_by(error = None).first()
-        else:
-            user_session = session.query(SessionModel).filter_by(user_id = user_id).filter_by(ended = None).filter_by(error = None).first()
-        return user_session
     
     def set_ended(self, session_id):
         '''

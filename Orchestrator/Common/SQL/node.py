@@ -99,7 +99,7 @@ class Node(object):
         except Exception as ex:
             logging.error(ex)
             raise NodeNotFound("Node not found.")
-    
+        
     def getNodeFromDomainID(self, domain_id):
         session = get_session()
         try:
@@ -123,7 +123,7 @@ class Node(object):
         except Exception as ex:
             logging.error(ex)
             raise NodeNotFound("Node not found: "+str(node_id))
-    
+
     def getComponentAdapter(self, node_id):
         session = get_session()
         logging.debug("node_id: "+str(node_id))

@@ -107,7 +107,7 @@ class UpperLayerOrchestratorController(object):
                 raise ex
         
         Session().updateStatus(session.id, 'complete')
-        Session().updateSessionNode(self.session_id, new_node.id, new_node.id)
+        Session().updateSessionNode(session.id, new_node.id, new_node.id)
         return session.id
         
     def put(self, nf_fg):
@@ -148,7 +148,7 @@ class UpperLayerOrchestratorController(object):
                 raise ex
         
         Session().updateStatus(session_id, 'complete')
-        Session().updateSessionNode(self.session_id, node.id, node.id)
+        Session().updateSessionNode(session_id, node.id, node.id)
                                 
         return session_id
         

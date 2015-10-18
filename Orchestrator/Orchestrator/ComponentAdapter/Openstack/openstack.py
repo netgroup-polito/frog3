@@ -67,6 +67,7 @@ class HeatOrchestrator(OrchestratorInterface):
     def getAuthTokenAndEndpoints(self, node):
         self.node_endpoint = Node().getNode(node.openstack_controller).domain_id
         self.compute_node_address = node.domain_id
+        self.ovsdb = OVSDB(self.compute_node_address)
         
         self.keystoneEndpoint = 'http://' + self.node_endpoint + ':35357'
         self.token = KeystoneAuthentication(self.keystoneEndpoint, self.userdata.tenant, self.userdata.username, self.userdata.password)        

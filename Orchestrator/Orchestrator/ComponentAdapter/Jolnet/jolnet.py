@@ -594,7 +594,7 @@ class JolnetAdapter(OrchestratorInterface):
         match.setVlanMatch(vlan)
         
         flowj = Flow("jolnetflow", flow_id, 0, 20, True, 0, 0, actions, match)        
-        json_req = flowj.getJSON(source_node)
+        json_req = flowj.getJSON(self.odlversion, source_node)
         ODL(self.odlversion).createFlow(self.odlendpoint, self.odlusername, self.odlpassword, json_req, source_node, flow_id)
     
     def pushSourceFlow(self, source_node, flow_id, user_vlan, in_port, source_mac, dest_mac, source_ip, dest_ip, out_port, graph_vlan, etherType, protocol):
@@ -657,7 +657,7 @@ class JolnetAdapter(OrchestratorInterface):
         
         
         flowj = Flow("edgeflow", flow_id, 0, priority, True, 0, 0, actions, match)        
-        json_req = flowj.getJSON(source_node)
+        json_req = flowj.getJSON(self.odlversion, source_node)
         ODL(self.odlversion).createFlow(self.odlendpoint, self.odlusername, self.odlpassword, json_req, source_node, flow_id)   
         
     def pushDestFlow(self, source_node, flow_id, user_vlan, in_port, source_mac, dest_mac, source_ip, dest_ip, out_port, graph_vlan, etherType, protocol):
@@ -719,7 +719,7 @@ class JolnetAdapter(OrchestratorInterface):
         match.setVlanMatch(graph_vlan)
         
         flowj = Flow("edgeflow", flow_id, 0, priority, True, 0, 0, actions, match)        
-        json_req = flowj.getJSON(source_node)
+        json_req = flowj.getJSON(self.odlversion, source_node)
         ODL(self.odlversion).createFlow(self.odlendpoint, self.odlusername, self.odlpassword, json_req, source_node, flow_id)
 
     def linkZones(self, graph_id, switch_user, port_vms_user, switch_user_id, switch_isp, port_vms_isp, switch_isp_id, vlan_id):

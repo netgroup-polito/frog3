@@ -6,10 +6,6 @@ Created on 13/mag/2015
 
 import json
 import logging
-from Common.config import Configuration
-
-ODL_VERSION = Configuration().ODL_VERSION
-
 
 '''
 ######################################################################################################
@@ -54,7 +50,7 @@ class Flow(object):
         self.actions = actions
         self.match = match
     
-    def getJSON(self, node = None):
+    def getJSON(self, odl_version, node = None):
         '''
         Gets the JSON. In Hydrogen returns the JSON associated to the given node
         Args:
@@ -64,7 +60,7 @@ class Flow(object):
         j_flow = {}
         j_list_action = []
 
-        if ODL_VERSION == "Hydrogen":
+        if odl_version == "Hydrogen":
             j_flow['name'] = self.flow_id
             j_flow['node'] = {}
             j_flow['node']['id']= node

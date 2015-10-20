@@ -1,8 +1,0 @@
-All this scripts are thought to be used from root user.
-Some of them have a link to the "admin-openrc.sh" script created while 
-following Openstack guide.
-
-IMPORTANT: please add the 'execute' attribute to all those scripts:
-
-chmod +x *.sh
-

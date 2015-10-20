@@ -1,0 +1,30 @@
+{
+  "heat_template_version": "2013-05-23",
+  "resources": {
+    "19765988t111": {
+      "type": "OS::Neutron::FlowRoute",
+      "properties": {
+        "priority": "100",
+        "ingressPort": "INGRESS_8209f6c7a3410a",
+        "id": "19765988t111",
+        "actions": {
+          "outputPort": "INGRESS_tap52d4b2fb-a7",
+          "type": "OUTPUT"
+        }
+      }
+    },
+    "19765999111": {
+      "type": "OS::Neutron::FlowRoute",
+      "properties": {
+        "priority": "100",
+        "ingressPort": "INGRESS_tap52d4b2fb-a7",
+        "id": "19765999111",
+        "actions": {
+          "outputPort": "INGRESS_8209f6c7a3410a",
+          "type": "OUTPUT"
+        }
+      }
+    }
+  }
+}
+

@@ -1,3 +1,0 @@
-POX 0.2.0 (carp) / Copyright 2011-2013 James McCauley, et al.
-Socket created
-Bind failed. Error Code : 99 Message Cannot assign requested address

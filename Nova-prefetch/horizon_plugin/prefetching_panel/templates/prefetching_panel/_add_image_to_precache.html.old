@@ -1,9 +1,0 @@
-{% extends "horizon/common/_modal_form.html" %}
-{% load i18n %}
-
-{% block ng_controller %}PrecacheFormController{% endblock %}
-{% block form_attrs %}enctype="multipart/form-data"{% endblock %}
-{% block modal-header %}
-    <h3>{% trans "Select an image to be pre-cached:" %}</h3>
-    <p>{% trans "The selected image will be downloaded into the compute node as soon as the caching services polls the db." %}</p>
-{% endblock %}

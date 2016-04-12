@@ -1,0 +1,3 @@
+[submodule "vnfs"]
+	path = vnfs
+	url = https://github.com/netgroup-polito/vnfs.git

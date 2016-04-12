@@ -1,0 +1,99 @@
+{
+  "forwarding-graph": {
+    "id": "250",
+    "name": "Jolnet ISP Graph",
+    "VNFs": [
+      {
+        "vnf_template": "jolnet_switch.json",
+        "id": "endpoint_switch",
+        "name": "Endpoint_Switch",
+        "ports": [
+          {
+            "id": "L2Port:0"
+          },
+          {
+            "id": "L2Port:1"
+          }
+        ]
+      },
+      {
+        "vnf_template": "jolnet_dhcp.json",
+        "id": "dhcp_ISP",
+        "name": "dhcp_isp",
+        "ports": [
+          {
+            "id": "inout:0"
+          }
+        ]
+      }
+    ],
+    "end-points": [
+      {
+        "id": "007",
+        "name": "INGRESS",
+        "type": "vlan",
+        "vlan": {
+          "vlan-id": "288",
+          "switch-id": "00:00:64:e9:50:5a:8a:40",
+          "interface": "5102"
+        }
+      }
+    ],
+    "big-switch": {
+      "flow-rules": [
+        {
+          "id": "1",
+          "priority": 100,
+          "match": {
+            "port_in": "vnf:endpoint_switch:L2Port:0",
+            "vlan_id": "288"
+          },
+          "actions": [
+            {
+              "output": "endpoint:007"
+            }
+          ]
+        },
+        {
+          "id": "2",
+          "priority": 100,
+          "match": {
+            "port_in": "endpoint:007",
+            "vlan_id": "288"
+          },
+          "actions": [
+            {
+              "output": "vnf:endpoint_switch:L2Port:0"
+            }
+          ]
+        },
+        {
+          "id": "3",
+          "priority": 100,
+          "match": {
+            "port_in": "vnf:endpoint_switch:L2Port:1",
+            "vlan_id": "296"
+          },
+          "actions": [
+            {
+              "output": "vnf:dhcp_ISP:inout:0"
+            }
+          ]
+        },
+        {
+          "id": "4",
+          "priority": 100,
+          "match": {
+            "port_in": "vnf:dhcp_ISP:inout:0",
+            "vlan_id": "296"
+          },
+          "actions": [
+            {
+              "output": "vnf:endpoint_switch:L2Port:1"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

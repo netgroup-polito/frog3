@@ -1,0 +1,29 @@
+{
+	"name": "isp_dhcp",
+	"expandable": false,
+	"uri": "http://controller:9292/v2/images/73bd9b80-09c6-45f8-af7f-82f59394dd72",
+	"vnf-type": "virtual-machine",
+	"memory-size": 2048,
+	"root-file-system-size": 40,
+	"ephemeral-file-system-size": 0,
+	"swap-disk-size": 0,
+	"CPUrequirements": {
+		"platformType": "x86",
+		"socket": [
+			{
+				"coreNumbers": 1
+			}
+		]
+	},
+	"ports": [
+
+		{
+			"position": "0-0",
+			"label": "inout",
+			"min": "0",
+			"ipv4-config": "dhcp",
+      		"ipv6-config": "none",
+			"name": "eth"
+		}
+	]
+}

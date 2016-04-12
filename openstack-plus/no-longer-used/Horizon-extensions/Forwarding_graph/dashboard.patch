@@ -1,0 +1,11 @@
+--- dashboard.py.old	2015-02-13 15:36:51.806425818 +0100
++++ dashboard.py.new	2015-02-13 15:39:58.593266631 +0100
+@@ -24,7 +24,7 @@
+     name = _("System Panel")
+     panels = ('overview', 'metering', 'hypervisors', 'aggregates',
+               'instances', 'volumes', 'flavors', 'images',
+-              'networks', 'routers', 'info')
++              'networks', 'routers', 'info', 'forwarding_graph')
+ 
+ 
+ class IdentityPanels(horizon.PanelGroup):

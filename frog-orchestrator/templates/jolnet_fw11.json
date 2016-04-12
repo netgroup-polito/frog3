@@ -1,0 +1,37 @@
+{
+  "name": "jolnet_fw11",
+  "expandable": false,
+  "uri": "http://jolnet-controller:9292/v2/images/374b358c-033a-4664-acd7-4788213efb66",
+  "vnf-type": "virtual-machine",
+  "memory-size": 2048,
+  "root-file-system-size": 40,
+  "ephemeral-file-system-size": 0,
+  "swap-disk-size": 0,
+  "CPUrequirements": {
+    "platformType": "x86",
+    "socket": [
+      {
+        "coreNumbers": 1
+      }
+    ]
+  },
+  "ports": [
+    {
+      "position": "1-N",
+      "label": "L2Port",
+      "min": "1",
+      "ipv4-config": "none",
+      "ipv6-config": "none",
+      "name": "eth"
+    },
+    {
+      "position": "0-0",
+      "label": "Control",
+      "min": "0",
+      "ipv4-config": "none",
+      "ipv6-config": "none",
+      "name": "eth"
+    }
+  ]
+}
+

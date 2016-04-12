@@ -1,0 +1,10 @@
+--- core.icehouse.py	2015-02-02 15:50:58.000000000 +0100
++++ core.icehouse.extended.py	2015-02-02 16:44:46.000000000 +0100
+@@ -51,6 +51,7 @@ Integer = sql.Integer
+ Enum = sql.Enum
+ ForeignKey = sql.ForeignKey
+ DateTime = sql.DateTime
++TimeStamp = sql.TIMESTAMP
+ IntegrityError = sql.exc.IntegrityError
+ DBDuplicateEntry = db_exception.DBDuplicateEntry
+ OperationalError = sql.exc.OperationalError

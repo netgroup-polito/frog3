@@ -1,0 +1,318 @@
+{
+	"user_id": "2e014db9e01a44109e58d42db64142fc",
+	"vnf_list": {
+		"vnf_4": {
+			"vnfDesc": {
+				"name": "Firewall",
+				"ephemeral-file-system-size": 0,
+				"vnf-type": "virtual-machine",
+				"uri": "http://repository_of_vnf_descriptor/example",
+				"ports": [
+					{
+						"name": "eth",
+						"min": "0",
+						"label": "control",
+						"ipv4-config": "dhcp",
+						"position": "0-0",
+						"ipv6-config": "none"
+					},
+					{
+						"name": "eth",
+						"min": "1",
+						"label": "external",
+						"ipv4-config": "none",
+						"position": "1-1",
+						"ipv6-config": "none"
+					},
+					{
+						"name": "eth",
+						"min": "1",
+						"label": "internal",
+						"ipv4-config": "none",
+						"position": "2-N",
+						"ipv6-config": "none"
+					}
+				],
+				"swap-disk-size": 0,
+				"expandable": false,
+				"cpu-requirements": {
+					"platform-type": "x86",
+					"socket": [
+						{
+							"coreNumbers": 1
+						}
+					]
+				},
+				"memory-size": 4096,
+				"root-file-system-size": 40
+			},
+			"drawedPorts": [],
+			"id": "vnf_4",
+			"links": [
+				"link_4",
+				"link_9",
+				"link_11"
+			],
+			"ports": [
+				{
+					"cnt": 1,
+					"min": "1",
+					"max": 1,
+					"colour": "#000000",
+					"label": "external",
+					"ipv4c": "none",
+					"type": "transparent",
+					"ipv6c": "none"
+				},
+				{
+					"cnt": 2,
+					"min": "1",
+					"max": 16,
+					"colour": "#000000",
+					"label": "internal",
+					"ipv4c": "none",
+					"type": "transparent",
+					"ipv6c": "none"
+				}
+			]
+		}
+	},
+	"splitter_list": {
+		"splittermerger_2": {
+			"rules": [
+				{
+					"priority": "2",
+					"out": "2",
+					"settings": {
+						"protocol": "UDP",
+						"ipdst": "",
+						"portdst": "",
+						"ipsrc": "1.1.1.1/24",
+						"vlanid": "",
+						"macdst": "",
+						"macsrc": "33:33:33:00:00:00",
+						"portsrc": ""
+					},
+					"in": "1"
+				},
+				{
+					"priority": "0",
+					"out": "3",
+					"settings": {
+						"protocol": "UDP",
+						"ipdst": "3.3.3.3",
+						"portdst": "",
+						"ipsrc": "",
+						"vlanid": "",
+						"macdst": "",
+						"macsrc": "",
+						"portsrc": ""
+					},
+					"in": "1"
+				},
+				{
+					"priority": 0,
+					"out": 2,
+					"settings": {
+						"protocol": "UDP",
+						"ipdst": "",
+						"portdst": "",
+						"ipsrc": "",
+						"vlanid": "",
+						"macdst": "",
+						"macsrc": "",
+						"portsrc": ""
+					},
+					"in": 1
+				}
+			],
+			"drawedPorts": [],
+			"id": "splittermerger_2",
+			"links": [
+				"link_4",
+				"link_5",
+				"link_8"
+			],
+			"num_inout": 3
+		},
+		"splittermerger_3": {
+			"id": "splittermerger_3",
+			"num_inout": 3,
+			"rules": [
+				{
+					"in": 1,
+					"out": 2,
+					"priority": 0,
+					"settings": {
+						"macsrc": "",
+						"macdst": "",
+						"ipsrc": "1.1.1.1/24",
+						"ipdst": "",
+						"vlanid": "",
+						"portsrc": "",
+						"portdst": "",
+						"protocol": "TCP"
+					}
+				}
+			],
+			"links": [
+				"link_8",
+				"link_9",
+				"link_10"
+			],
+			"drawedPorts": []
+		}
+	},
+	"endpoint_list": {
+		"endpoint_3": {
+			"type": "user",
+			"id": "endpoint_3",
+			"links": [
+				"link_5"
+			]
+		},
+		"endpoint_4": {
+			"type": "internet",
+			"id": "endpoint_4",
+			"links": [
+				"link_10"
+			]
+		},
+		"endpoint_5": {
+			"id": "endpoint_5",
+			"type": "user",
+			"links": [
+				"link_12"
+			]
+		}
+	},
+	"lan_list": {
+		"lan_2": {
+			"id": "lan_2",
+			"links": [
+				"link_11",
+				"link_12"
+			]
+		}
+	},
+	"link_list": {
+		"link_5": {
+			"elem2": {
+				"type": "splittermerger",
+				"id": "splittermerger_2",
+				"port": "splittermerger_2-port_0"
+			},
+			"id": "link_5",
+			"elem1": {
+				"type": "endpoint",
+				"id": "endpoint_3"
+			}
+		},
+		"link_4": {
+			"elem2": {
+				"type": "vnf",
+				"id": "vnf_4",
+				"port": "vnf_4-port_0-external_0"
+			},
+			"id": "link_4",
+			"elem1": {
+				"type": "splittermerger",
+				"id": "splittermerger_2",
+				"port": "splittermerger_2-port_2"
+			}
+		},
+		"link_8": {
+			"id": "link_8",
+			"elem1": {
+				"id": "splittermerger_2",
+				"type": "splittermerger",
+				"port": "splittermerger_2-port_1"
+			},
+			"elem2": {
+				"id": "splittermerger_3",
+				"type": "splittermerger",
+				"port": "splittermerger_3-port_0"
+			}
+		},
+		"link_9": {
+			"id": "link_9",
+			"elem1": {
+				"id": "vnf_4",
+				"type": "vnf",
+				"port": "vnf_4-port_1-internal_0"
+			},
+			"elem2": {
+				"id": "splittermerger_3",
+				"type": "splittermerger",
+				"port": "splittermerger_3-port_2"
+			}
+		},
+		"link_10": {
+			"id": "link_10",
+			"elem1": {
+				"id": "splittermerger_3",
+				"type": "splittermerger",
+				"port": "splittermerger_3-port_1"
+			},
+			"elem2": {
+				"id": "endpoint_4",
+				"type": "endpoint"
+			}
+		},
+		"link_11": {
+			"id": "link_11",
+			"elem1": {
+				"id": "vnf_4",
+				"type": "vnf",
+				"port": "vnf_4-port_2-internal_1"
+			},
+			"elem2": {
+				"id": "lan_2",
+				"type": "lan",
+				"offset": 147
+			}
+		},
+		"link_12": {
+			"id": "link_12",
+			"elem1": {
+				"id": "endpoint_5",
+				"type": "endpoint"
+			},
+			"elem2": {
+				"id": "lan_2",
+				"type": "lan",
+				"offset": 34
+			}
+		}
+	},
+	"position_list": {
+		"vnf_4": {
+			"left": "646px",
+			"top": "113px"
+		},
+		"splittermerger_2": {
+			"left": "412px",
+			"top": "396px"
+		},
+		"splittermerger_3": {
+			"left": "905px",
+			"top": "398px"
+		},
+		"endpoint_3": {
+			"left": "173px",
+			"top": "413px"
+		},
+		"endpoint_4": {
+			"left": "1136px",
+			"top": "412px"
+		},
+		"endpoint_5": {
+			"left": "80px",
+			"top": "35px"
+		},
+		"lan_2": {
+			"left": "218px",
+			"top": "224px"
+		}
+	}
+}

@@ -1,0 +1,20 @@
+{
+  "profile": {
+    "VNFs": [],
+    "endpoints": [
+         {
+            "name": "EGRESS",
+            "connection": true,
+            "type": "vlan-egress",
+            "id": "288",
+            "node": "openflow:44838630154304",
+            "interface": "5102",
+            "remote_graph": "0",
+            "remote_graph_name": "Jolnet ISP Graph",
+            "remote_id": "288"      
+         }
+    ],
+    "id": "10",
+    "name": "Jolnet Test Graph"
+  }
+}

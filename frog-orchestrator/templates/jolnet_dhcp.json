@@ -1,0 +1,28 @@
+{
+	"name": "jolnet_dhcp",
+	"expandable": false,
+	"uri": "http://jolnet-controller:9292/v2/images/f0927c45-406b-439f-9468-a0ee1f64f69e",
+	"vnf-type": "virtual-machine",
+	"memory-size": 2048,
+	"root-file-system-size": 40,
+	"ephemeral-file-system-size": 0,
+	"swap-disk-size": 0,
+	"CPUrequirements": {
+		"platformType": "x86",
+		"socket": [
+			{
+				"coreNumbers": 1
+			}
+		]
+	},
+	"ports": [
+		{
+            "position": "0-0",
+			"label": "inout",
+			"min": "1",
+			"ipv4-config": "none",
+      		"ipv6-config": "none",
+      		"name": "eth"
+		}
+	]
+}

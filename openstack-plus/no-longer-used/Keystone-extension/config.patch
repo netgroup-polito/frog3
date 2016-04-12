@@ -1,0 +1,14 @@
+--- config.icehouse.py	2015-02-02 15:50:58.000000000 +0100
++++ config.icehouse.extended.py	2015-02-02 16:42:58.000000000 +0100
+@@ -398,6 +398,11 @@ FILE_OPTIONS = {
+                    default=('keystone.contrib.stats.backends'
+                             '.kvs.Stats'),
+                    help='Keystone stats backend driver.')],
++    'user_profile': [
++        cfg.StrOpt('driver',
++                   default=('keystone.contrib.user_profile.backends'
++                            '.sql.User_Profile'),
++                   help='Keystone user_profile backend driver.')],
+     'ldap': [
+         cfg.StrOpt('url', default='ldap://localhost',
+                    help='URL for connecting to the LDAP server.'),
